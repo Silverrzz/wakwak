@@ -1,4 +1,4 @@
-use crate::{board::Board, common::{Bitboard, Color, East, Move, MoveFlag, North, Piece, South, Square, West, bitboard}};
+use crate::{board::Board, common::{Bitboard, Color, East, Move, MoveFlag, North, Piece, Rank, South, Square, West, bitboard}};
 
 //lazy upper bound to include duck, could be trimmed
 const MAX_MOVES: usize = 218 * Square::COUNT; 
@@ -37,13 +37,14 @@ pub fn get_legal_moves(board: &Board) -> Move {
     let enemy_bb = board.colors(!board.stm());
     let filled_square_bb = enemy_bb | friendly_bb;
     let empty_square_bb = !filled_square_bb;
+    let friendly_pawns = board.pieces(Piece::Pawn) & friendly_bb;
+    let enemy_pawns = board.pieces(Piece::Pawn) & enemy_bb;
 
     /*
         Pawns
     */
 
     // Pawn Forward
-    let friendly_pawns = board.pieces(Piece::Pawn) & friendly_bb;
     let shifted_pawns = match board.stm() {
         Color::Black => friendly_pawns.shift::<South>(1),
         Color::White => friendly_pawns.shift::<North>(1),
@@ -88,7 +89,38 @@ pub fn get_legal_moves(board: &Board) -> Move {
         });
     });
 
-    //En Crossiant???
+    //En Crossiant (work already done for us)
+    if let Some(en_passant) = board.en_passant() {
+        let flag = MoveFlag::EnPassant;
+        let dest = Square::new(
+            en_passant.file(), 
+            Rank::Sixth.relative_to(board.stm())
+        );
+
+        'left: {
+            if !en_passant.left() {break 'left;}
+            let Some(left) = en_passant.file().try_offset(-1) else {break 'left;};
+            let src_left = Square::new(
+                left, 
+                Rank::Fifth.relative_to(board.stm())
+            );
+            duck_bb(empty_square_bb, src_left, dest, flag).iter().for_each(|duck|{
+                list.add(Move::new(src_left, dest, duck, flag));
+            });
+        }
+
+        'right: {
+            if !en_passant.right() {break 'right;}
+            let Some(left) = en_passant.file().try_offset(1) else {break 'right;};
+            let src_left = Square::new(
+                left, 
+                Rank::Fifth.relative_to(board.stm())
+            );
+            duck_bb(empty_square_bb, src_left, dest, flag).iter().for_each(|duck|{
+                list.add(Move::new(src_left, dest, duck, flag));
+            });
+        }
+    }
 
     todo!("pawns only movegen (incomplete)")
 }
