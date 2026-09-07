@@ -19,10 +19,11 @@ macro_rules! def_enum {
         }
 
         impl $name {
+            /// # Safety
+            /// `0 <= i < Self::COUNT` must hold.
             #[inline]
             $vis const unsafe fn index_unchecked(i: $int_ty) -> Self {
-                // SAFETY: `i < Self::COUNT`'
-
+                // SAFETY: It is implied by the precondition that `i` is a valid discriminant.
                 unsafe { ::core::mem::transmute(i) }
             }
 

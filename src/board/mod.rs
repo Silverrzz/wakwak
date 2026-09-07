@@ -1,3 +1,4 @@
+#[allow(clippy::module_inception)]
 pub mod board;
 pub mod castling;
 pub mod display;
@@ -8,7 +9,5 @@ pub mod zobrist;
 
 pub use board::*;
 pub use castling::*;
-pub use display::*;
 pub use en_passant::*;
-pub use fen::*;
 pub use zobrist::*;

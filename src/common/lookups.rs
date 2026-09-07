@@ -13,7 +13,7 @@ pub const fn pawn_attacks(sq: Square, color: Color) -> Bitboard {
         }
     }
 
-    const PAWN_ATTACKS: [[Bitboard; Square::COUNT]; Color::COUNT] = {
+    static PAWN_ATTACKS: [[Bitboard; Square::COUNT]; Color::COUNT] = {
         let mut table = [[Bitboard::EMPTY; Square::COUNT]; Color::COUNT];
         let mut i = 0;
         while i < Color::COUNT {
@@ -63,7 +63,7 @@ pub const fn knight_attacks(sq: Square) -> Bitboard {
         bb
     }
 
-    const KNIGHT_ATTACKS: [Bitboard; Square::COUNT] = {
+    static KNIGHT_ATTACKS: [Bitboard; Square::COUNT] = {
         let mut table = [Bitboard::EMPTY; Square::COUNT];
         let mut i = 0;
         while i < Square::COUNT {
@@ -91,7 +91,7 @@ pub const fn bishop_rays(sq: Square) -> Bitboard {
         bb
     }
 
-    const BISHOP_RAYS: [Bitboard; Square::COUNT] = {
+    static BISHOP_RAYS: [Bitboard; Square::COUNT] = {
         let mut table = [Bitboard::EMPTY; Square::COUNT];
         let mut i = 0;
         while i < Square::COUNT {
@@ -119,7 +119,7 @@ pub const fn rook_rays(sq: Square) -> Bitboard {
         bb
     }
 
-    const ROOK_RAYS: [Bitboard; Square::COUNT] = {
+    static ROOK_RAYS: [Bitboard; Square::COUNT] = {
         let mut table = [Bitboard::EMPTY; Square::COUNT];
         let mut i = 0;
         while i < Square::COUNT {
@@ -163,7 +163,7 @@ pub const fn king_attacks(sq: Square) -> Bitboard {
         bb
     }
 
-    const KING_ATTACKS: [Bitboard; Square::COUNT] = {
+    static KING_ATTACKS: [Bitboard; Square::COUNT] = {
         let mut table = [Bitboard::EMPTY; Square::COUNT];
         let mut i = 0;
         while i < Square::COUNT {
@@ -203,7 +203,7 @@ pub const fn between(a: Square, b: Square) -> Bitboard {
         bb
     }
 
-    const BETWEEN: [[Bitboard; Square::COUNT]; Square::COUNT] = {
+    static BETWEEN: [[Bitboard; Square::COUNT]; Square::COUNT] = {
         let mut table = [[Bitboard::EMPTY; Square::COUNT]; Square::COUNT];
         let mut sq1 = 0;
         while sq1 < Square::COUNT {
@@ -246,7 +246,7 @@ pub const fn line(a: Square, b: Square) -> Bitboard {
         bb
     }
 
-    const LINE: [[Bitboard; Square::COUNT]; Square::COUNT] = {
+    static LINE: [[Bitboard; Square::COUNT]; Square::COUNT] = {
         let mut table = [[Bitboard::EMPTY; Square::COUNT]; Square::COUNT];
         let mut sq1 = 0;
         while sq1 < Square::COUNT {

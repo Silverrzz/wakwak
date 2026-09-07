@@ -7,7 +7,7 @@ impl Board {
         /*
         TODO: Return a String or custom Err result to see why the fen is invalid
         */
-        let mut parts = fen.trim().split_whitespace();
+        let mut parts = fen.split_whitespace();
 
         let pieces = parts.next()?;
         let stm = parts.next()?;
