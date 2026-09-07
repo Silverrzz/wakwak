@@ -1,6 +1,6 @@
 use crate::board::{CastlingDirection, CastlingRights, EnPassant, ZOBRIST};
 use crate::common::{
-    Bitboard, Color, File, Piece, Rank, Square, between, bishop_rays, pawn_attacks, rook_rays,
+    Bitboard, Color, East, File, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West, between, bishop_rays, pawn_attacks, rook_rays,
 };
 use enum_map::EnumMap;
 
@@ -16,6 +16,20 @@ pub struct Board {
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
+}
+
+
+#[inline]
+fn duck_bb(mut empty_square_bb: Bitboard, src: Square, dest: Square, flag: MoveFlag) -> Bitboard {
+    match flag {
+        MoveFlag::Capture |
+        MoveFlag::Normal => {
+            empty_square_bb.0 |= 0 << src as usize;
+            empty_square_bb.0 |= 1 << dest as usize;
+        }
+        _ => todo!()
+    }
+    empty_square_bb
 }
 
 impl Board {
@@ -203,5 +217,99 @@ impl Board {
     pub fn toggle_stm(&mut self) {
         self.stm = !self.stm;
         self.hash ^= ZOBRIST.stm;
+    }
+
+    #[inline]
+    pub fn get_legal_moves(&self) -> MoveList {
+        let mut list = MoveList::default();
+        let friendly_bb = self.colors(self.stm());
+        let enemy_bb = self.colors(!self.stm());
+        let filled_square_bb = enemy_bb | friendly_bb;
+        let empty_square_bb = !filled_square_bb;
+        let friendly_pawns = self.pieces(Piece::Pawn) & friendly_bb;
+
+        /*
+            Pawns
+        */
+
+        // Pawn Forward
+        let shifted_pawns = match self.stm() {
+            Color::Black => friendly_pawns.shift::<South>(1),
+            Color::White => friendly_pawns.shift::<North>(1),
+        };
+        let valid_pawn_forward = shifted_pawns & empty_square_bb;
+        valid_pawn_forward.iter().for_each(|dest|{
+            let flag = MoveFlag::Normal;
+            let src = match self.stm() {
+                Color::Black => dest.offset(0, -1),
+                Color::White => dest.offset(0,  1),
+            };
+            duck_bb(empty_square_bb, src, dest, flag).iter().for_each(|duck|{
+                list.add(Move::new(src, dest, duck, flag));
+            });
+        });
+
+        //Pawn Attack Left
+        let attack_left  = shifted_pawns.shift::<West>(1);
+        let valid_attack_left = attack_left & filled_square_bb;
+        valid_attack_left.iter().for_each(|dest|{
+            let flag = MoveFlag::Capture;
+            let src = match self.stm() {
+                Color::Black => dest.offset(1, -1),
+                Color::White => dest.offset(1,  1),
+            };
+            duck_bb(empty_square_bb, src, dest, flag).iter().for_each(|duck|{
+                list.add(Move::new(src, dest, duck, flag));
+            });
+        });
+
+        //Pawn Attack Right
+        let attack_right = shifted_pawns.shift::<East>(1);
+        let valid_attack_right = attack_right & filled_square_bb;
+        valid_attack_right.iter().for_each(|dest|{
+            let flag = MoveFlag::Capture;
+            let src = match self.stm() {
+                Color::Black => dest.offset(-1, -1),
+                Color::White => dest.offset(-1,  1),
+            };
+            duck_bb(empty_square_bb, src, dest, flag).iter().for_each(|duck|{
+                list.add(Move::new(src, dest, duck, flag));
+            });
+        });
+
+        //En Passant (work already done for us)
+        if let Some(en_passant) = self.en_passant() {
+            let flag = MoveFlag::EnPassant;
+            let dest = Square::new(
+                en_passant.file(), 
+                Rank::Sixth.relative_to(self.stm())
+            );
+
+            'left: {
+                if !en_passant.left() {break 'left;}
+                let Some(left) = en_passant.file().try_offset(-1) else {break 'left;};
+                let src_left = Square::new(
+                    left, 
+                    Rank::Fifth.relative_to(self.stm())
+                );
+                duck_bb(empty_square_bb, src_left, dest, flag).iter().for_each(|duck|{
+                    list.add(Move::new(src_left, dest, duck, flag));
+                });
+            }
+
+            'right: {
+                if !en_passant.right() {break 'right;}
+                let Some(left) = en_passant.file().try_offset(1) else {break 'right;};
+                let src_left = Square::new(
+                    left, 
+                    Rank::Fifth.relative_to(self.stm())
+                );
+                duck_bb(empty_square_bb, src_left, dest, flag).iter().for_each(|duck|{
+                    list.add(Move::new(src_left, dest, duck, flag));
+                });
+            }
+        }
+
+        todo!("pawns only movegen (incomplete)")
     }
 }

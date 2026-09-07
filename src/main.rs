@@ -6,7 +6,6 @@ pub mod engine;
 pub mod position;
 pub mod uci;
 pub mod util;
-pub mod movegen;
 
 fn main() {
     Engine::new().run()
