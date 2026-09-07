@@ -80,7 +80,13 @@ impl Bitboard {
 
     #[inline]
     pub const fn try_next_back(self) -> Option<Square> {
-        Square::try_index(63 - self.0.leading_zeros() as usize)
+        let sq = self.0.leading_zeros();
+        // Ensure sq doesn't exceed Square::MAX, which will
+        // happen if the bitboard is empty.
+        if sq > Square::MAX as u32 {
+            return None;
+        }
+        Square::try_index(63 - sq as usize)
     }
 
     #[inline]
