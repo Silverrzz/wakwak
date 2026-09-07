@@ -5,6 +5,7 @@ pub mod en_passant;
 pub mod fen;
 pub mod startpos;
 pub mod zobrist;
+pub mod sliders;
 
 pub use board::*;
 pub use castling::*;
