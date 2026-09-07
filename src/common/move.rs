@@ -2,6 +2,9 @@ use crate::board::{Board, CastlingDirection};
 use crate::common::{Bitboard, File, Piece, Rank, Square};
 use std::fmt::Write;
 use std::num::NonZeroU32;
+use arrayvec::ArrayVec;
+
+const MAX_MOVES: usize = 218 * Square::COUNT; 
 
 /// A duck chess move. Bit Layout:
 /// - Bits 0-5: Source Square
@@ -311,6 +314,18 @@ impl MoveFlag {
     #[inline]
     pub const fn is_capture(self) -> bool {
         (self as u8 & 0x8) != 0
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct MoveList(ArrayVec<Move, MAX_MOVES>);
+
+impl MoveList {
+    pub fn add(&mut self, mv: Move) {
+        self.0.push(mv);
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 

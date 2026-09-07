@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+arrayvec = "0.7.8"
 colored = "3.1.1"
 enum-map = "3.1.0"
 thiserror = "2.0.20"

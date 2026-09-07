@@ -4,6 +4,9 @@ use std::fmt::Write;
 
 impl Board {
     pub fn from_fen(fen: &str) -> Option<Self> {
+        /*
+        TODO: Return a String or custom Err result to see why the fen is invalid
+        */
         let mut parts = fen.trim().split_whitespace();
 
         let pieces = parts.next()?;
