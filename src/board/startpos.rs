@@ -1,4 +1,4 @@
-use crate::board::{Board, CastlingDirection};
+use crate::board::{Board, CastlingDirection, sliders};
 use crate::common::{Color, File, Piece, Rank, Square};
 
 impl Board {
@@ -119,6 +119,7 @@ impl Board {
             stm: Color::White,
             fmc: 1,
             hmc: 0,
+            _slider_tag: sliders::init(),
         };
 
         write_scharnagl(&mut board, Color::White, white_scharnagl);
