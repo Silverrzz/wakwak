@@ -20,8 +20,6 @@ def_enum! {
 }
 
 impl Square {
-    pub const MAX: Square = Square::H8;
-
     #[inline]
     pub const fn new(file: File, rank: Rank) -> Self {
         Self::index(((rank as usize) << 3) | file as usize)
