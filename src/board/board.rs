@@ -18,20 +18,6 @@ pub struct Board {
     pub(super) hmc: u8,
 }
 
-
-#[inline]
-fn duck_bb(mut empty_square_bb: Bitboard, src: Square, dest: Square, flag: MoveFlag) -> Bitboard {
-    match flag {
-        MoveFlag::Capture |
-        MoveFlag::Normal => {
-            empty_square_bb.0 |= 0 << src as usize;
-            empty_square_bb.0 |= 1 << dest as usize;
-        }
-        _ => todo!()
-    }
-    empty_square_bb
-}
-
 impl Board {
     #[inline]
     pub fn occupied(&self) -> Bitboard {
@@ -220,6 +206,23 @@ impl Board {
     }
 
     #[inline]
+    fn duck_bb(&self, src: Square, dest: Square, flag: MoveFlag) -> Bitboard {
+        let mut empty_square_bb = 
+            !self.colors(Color::White) & 
+            !self.colors(Color::Black);
+
+        match flag {
+            MoveFlag::Capture |
+            MoveFlag::Normal => {
+                empty_square_bb.0 |= 0 << src as usize;
+                empty_square_bb.0 |= 1 << dest as usize;
+            }
+            _ => todo!()
+        }
+        empty_square_bb
+    }
+
+    #[inline]
     pub fn get_legal_moves(&self) -> MoveList {
         let mut list = MoveList::default();
         let friendly_bb = self.colors(self.stm());
@@ -244,7 +247,7 @@ impl Board {
                 Color::Black => dest.offset(0, -1),
                 Color::White => dest.offset(0,  1),
             };
-            duck_bb(empty_square_bb, src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
@@ -258,7 +261,7 @@ impl Board {
                 Color::Black => dest.offset(1, -1),
                 Color::White => dest.offset(1,  1),
             };
-            duck_bb(empty_square_bb, src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
@@ -272,7 +275,7 @@ impl Board {
                 Color::Black => dest.offset(-1, -1),
                 Color::White => dest.offset(-1,  1),
             };
-            duck_bb(empty_square_bb, src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
@@ -292,7 +295,7 @@ impl Board {
                     left, 
                     Rank::Fifth.relative_to(self.stm())
                 );
-                duck_bb(empty_square_bb, src_left, dest, flag).iter().for_each(|duck|{
+                self.duck_bb(src_left, dest, flag).iter().for_each(|duck|{
                     list.add(Move::new(src_left, dest, duck, flag));
                 });
             }
@@ -304,7 +307,7 @@ impl Board {
                     left, 
                     Rank::Fifth.relative_to(self.stm())
                 );
-                duck_bb(empty_square_bb, src_left, dest, flag).iter().for_each(|duck|{
+                self.duck_bb(src_left, dest, flag).iter().for_each(|duck|{
                     list.add(Move::new(src_left, dest, duck, flag));
                 });
             }
