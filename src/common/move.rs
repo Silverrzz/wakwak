@@ -324,6 +324,9 @@ impl MoveList {
     pub fn add(&mut self, mv: Move) {
         self.0.push(mv);
     }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use crate::common::{Bitboard, Color, File, Rank};
+use crate::common::{Bitboard, Color, Direction, File, Rank};
 use crate::def_enum;
 use enum_map::Enum;
 use std::fmt;
@@ -43,6 +43,11 @@ impl Square {
                 .try_offset(dy)
                 .expect("Square::offset(dx, dy) New rank index out of bounds"),
         )
+    }
+
+    #[inline]
+    pub const fn offset_dir<D: Direction>(self, steps: isize) -> Self {
+        self.offset(D::DX as isize * steps, D::DY as isize * steps)
     }
 
     #[inline]

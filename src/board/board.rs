@@ -212,7 +212,8 @@ impl Board {
             !self.colors(Color::Black);
 
         match flag {
-            MoveFlag::Capture |
+            MoveFlag::Capture   |
+            MoveFlag::DoublePush|
             MoveFlag::Normal => {
                 empty_square_bb.0 |= 0 << src as usize;
                 empty_square_bb.0 |= 1 << dest as usize;
@@ -229,31 +230,55 @@ impl Board {
         let enemy_bb = self.colors(!self.stm());
         let filled_square_bb = enemy_bb | friendly_bb;
         let empty_square_bb = !filled_square_bb;
-        let friendly_pawns = self.pieces(Piece::Pawn) & friendly_bb;
-
         /*
-            Pawns
+        Pawns
         */
 
-        // Pawn Forward
-        let shifted_pawns = match self.stm() {
+        let friendly_pawns = self.pieces(Piece::Pawn) & friendly_bb;
+        let pawns_forward_1 = match self.stm() {
             Color::Black => friendly_pawns.shift::<South>(1),
             Color::White => friendly_pawns.shift::<North>(1),
         };
-        let valid_pawn_forward = shifted_pawns & empty_square_bb;
+        let pawns_forward_2 = match self.stm() {
+            Color::Black => friendly_pawns.shift::<South>(2),
+            Color::White => friendly_pawns.shift::<North>(2),
+        };
+        println!("before Pawn Forward: {}", list.len());
+
+        // Pawn Forward
+        let valid_pawn_forward = pawns_forward_1 & empty_square_bb;
         valid_pawn_forward.iter().for_each(|dest|{
             let flag = MoveFlag::Normal;
             let src = match self.stm() {
-                Color::Black => dest.offset(0, -1),
-                Color::White => dest.offset(0,  1),
+                Color::White => dest.offset_dir::<North>(-1),
+                Color::Black => dest.offset_dir::<South>(-1),
             };
             self.duck_bb(src, dest, flag).iter().for_each(|duck|{
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
+        println!("after Pawn Forward: {}", list.len());
+
+        //Pawn Double
+        let start_rank = Rank::Fourth.relative_to(self.stm()).bitboard();
+        let valid_pawn_double = pawns_forward_2 & start_rank;
+        println!("bb: {pawns_forward_2}");
+        println!("bb: {start_rank}");
+        println!("bb: {valid_pawn_double}");
+        valid_pawn_double.iter().for_each(|dest|{
+            let flag = MoveFlag::DoublePush;
+            let src = match self.stm() {
+                Color::White => dest.offset_dir::<North>(-2),
+                Color::Black => dest.offset_dir::<South>(-2),
+            };
+            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
+                list.add(Move::new(src, dest, duck, flag));
+            });
+        });
+        println!("after Double: {}", list.len());
 
         //Pawn Attack Left
-        let attack_left  = shifted_pawns.shift::<West>(1);
+        let attack_left  = pawns_forward_1.shift::<West>(1);
         let valid_attack_left = attack_left & filled_square_bb;
         valid_attack_left.iter().for_each(|dest|{
             let flag = MoveFlag::Capture;
@@ -265,9 +290,10 @@ impl Board {
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
+        println!("after Left: {}", list.len());
 
         //Pawn Attack Right
-        let attack_right = shifted_pawns.shift::<East>(1);
+        let attack_right = pawns_forward_1.shift::<East>(1);
         let valid_attack_right = attack_right & filled_square_bb;
         valid_attack_right.iter().for_each(|dest|{
             let flag = MoveFlag::Capture;
@@ -279,6 +305,7 @@ impl Board {
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
+        println!("after Right: {}", list.len());
 
         //En Passant (work already done for us)
         if let Some(en_passant) = self.en_passant() {
@@ -312,7 +339,15 @@ impl Board {
                 });
             }
         }
+        println!("after Passant: {}", list.len());
 
-        todo!("pawns only movegen (incomplete)")
+        list
     }
+}
+
+#[test]
+fn perft_depth_1() {
+    let board = Board::from_fen("rnbqkbnr/pppppppp/8/8/4*3/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+        .expect("board couldnt parse fen string");
+    assert_eq!(board.get_legal_moves().len(), 640);
 }
