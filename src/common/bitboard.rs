@@ -1,5 +1,5 @@
 use crate::common::{Color, Direction, File, Rank, Square, horizontal_shift_mask};
-use std::{fmt::{Display, write}, ops::*};
+use std::{fmt::Display, ops::*};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Bitboard(pub u64);
@@ -143,13 +143,15 @@ impl Not for Bitboard {
 
 impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\n")?;
+        writeln!(f)?;
         for index in 0..64 {
             let is_set = self.0 & (1 << index) != 0;
             write!(f, " {}", is_set as u8)?;
-            if index % 8 == 7 {write!(f, " \n")?;}
+            if index % 8 == 7 {
+                writeln!(f, " ")?;
+            }
         }
-        write!(f, "\n")?;
+        writeln!(f)?;
         Ok(())
     }
 }

@@ -1,6 +1,7 @@
 use crate::board::{CastlingDirection, CastlingRights, EnPassant, ZOBRIST};
 use crate::common::{
-    Bitboard, Color, East, File, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West, between, bishop_rays, pawn_attacks, rook_rays,
+    Bitboard, Color, East, File, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West,
+    between, bishop_rays, pawn_attacks, rook_rays,
 };
 use enum_map::EnumMap;
 
@@ -207,18 +208,14 @@ impl Board {
 
     #[inline]
     fn duck_bb(&self, src: Square, dest: Square, flag: MoveFlag) -> Bitboard {
-        let mut empty_square_bb = 
-            !self.colors(Color::White) & 
-            !self.colors(Color::Black);
+        let mut empty_square_bb = !self.colors(Color::White) & !self.colors(Color::Black);
 
         match flag {
-            MoveFlag::Capture   |
-            MoveFlag::DoublePush|
-            MoveFlag::Normal => {
+            MoveFlag::Capture | MoveFlag::DoublePush | MoveFlag::Normal => {
                 empty_square_bb.0 |= 0 << src as usize;
                 empty_square_bb.0 |= 1 << dest as usize;
             }
-            _ => todo!()
+            _ => todo!(),
         }
         empty_square_bb
     }
@@ -247,13 +244,13 @@ impl Board {
 
         // Pawn Forward
         let valid_pawn_forward = pawns_forward_1 & empty_square_bb;
-        valid_pawn_forward.iter().for_each(|dest|{
+        valid_pawn_forward.iter().for_each(|dest| {
             let flag = MoveFlag::Normal;
             let src = match self.stm() {
                 Color::White => dest.offset_dir::<North>(-1),
                 Color::Black => dest.offset_dir::<South>(-1),
             };
-            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck| {
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
@@ -261,27 +258,27 @@ impl Board {
         //Pawn Double
         let start_rank = Rank::Fourth.relative_to(self.stm()).bitboard();
         let valid_pawn_double = pawns_forward_2 & start_rank;
-        valid_pawn_double.iter().for_each(|dest|{
+        valid_pawn_double.iter().for_each(|dest| {
             let flag = MoveFlag::DoublePush;
             let src = match self.stm() {
                 Color::White => dest.offset_dir::<North>(-2),
                 Color::Black => dest.offset_dir::<South>(-2),
             };
-            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck| {
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
 
         //Pawn Attack Left
-        let attack_left  = pawns_forward_1.shift::<West>(1);
+        let attack_left = pawns_forward_1.shift::<West>(1);
         let valid_attack_left = attack_left & filled_square_bb;
-        valid_attack_left.iter().for_each(|dest|{
+        valid_attack_left.iter().for_each(|dest| {
             let flag = MoveFlag::Capture;
             let src = match self.stm() {
                 Color::Black => dest.offset(1, -1),
-                Color::White => dest.offset(1,  1),
+                Color::White => dest.offset(1, 1),
             };
-            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck| {
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
@@ -289,13 +286,13 @@ impl Board {
         //Pawn Attack Right
         let attack_right = pawns_forward_1.shift::<East>(1);
         let valid_attack_right = attack_right & filled_square_bb;
-        valid_attack_right.iter().for_each(|dest|{
+        valid_attack_right.iter().for_each(|dest| {
             let flag = MoveFlag::Capture;
             let src = match self.stm() {
                 Color::Black => dest.offset(-1, -1),
-                Color::White => dest.offset(-1,  1),
+                Color::White => dest.offset(-1, 1),
             };
-            self.duck_bb(src, dest, flag).iter().for_each(|duck|{
+            self.duck_bb(src, dest, flag).iter().for_each(|duck| {
                 list.add(Move::new(src, dest, duck, flag));
             });
         });
@@ -303,31 +300,30 @@ impl Board {
         //En Passant (work already done for us)
         if let Some(en_passant) = self.en_passant() {
             let flag = MoveFlag::EnPassant;
-            let dest = Square::new(
-                en_passant.file(), 
-                Rank::Sixth.relative_to(self.stm())
-            );
+            let dest = Square::new(en_passant.file(), Rank::Sixth.relative_to(self.stm()));
 
             'left: {
-                if !en_passant.left() {break 'left;}
-                let Some(left) = en_passant.file().try_offset(-1) else {break 'left;};
-                let src_left = Square::new(
-                    left, 
-                    Rank::Fifth.relative_to(self.stm())
-                );
-                self.duck_bb(src_left, dest, flag).iter().for_each(|duck|{
+                if !en_passant.left() {
+                    break 'left;
+                }
+                let Some(left) = en_passant.file().try_offset(-1) else {
+                    break 'left;
+                };
+                let src_left = Square::new(left, Rank::Fifth.relative_to(self.stm()));
+                self.duck_bb(src_left, dest, flag).iter().for_each(|duck| {
                     list.add(Move::new(src_left, dest, duck, flag));
                 });
             }
 
             'right: {
-                if !en_passant.right() {break 'right;}
-                let Some(left) = en_passant.file().try_offset(1) else {break 'right;};
-                let src_left = Square::new(
-                    left, 
-                    Rank::Fifth.relative_to(self.stm())
-                );
-                self.duck_bb(src_left, dest, flag).iter().for_each(|duck|{
+                if !en_passant.right() {
+                    break 'right;
+                }
+                let Some(left) = en_passant.file().try_offset(1) else {
+                    break 'right;
+                };
+                let src_left = Square::new(left, Rank::Fifth.relative_to(self.stm()));
+                self.duck_bb(src_left, dest, flag).iter().for_each(|duck| {
                     list.add(Move::new(src_left, dest, duck, flag));
                 });
             }
