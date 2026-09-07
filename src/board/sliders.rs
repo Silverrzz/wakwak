@@ -36,13 +36,21 @@ fn bishop_attacks_slow(blockers: Bitboard, sq: Square) -> Bitboard {
 pub struct SliderTag(());
 
 pub fn rook_attacks(blockers: Bitboard, sq: Square, _: SliderTag) -> Bitboard {
-    // SAFETY: ATTACK_TABLE only gets mutated on initialization, which is proven to be finished by the tag argument.
-    unsafe { Bitboard(ATTACK_TABLE[ROOK_MAGICS[sq].idx(blockers.0)]) }
+    // SAFETY:
+    // - ATTACK_TABLE only gets mutated on initialization, which is proven to be finished by the tag argument.
+    // - The index is guaranteed to be in bounds by construction of the magics.
+    #[allow(static_mut_refs)]
+    unsafe {
+        Bitboard(*ATTACK_TABLE.get_unchecked(ROOK_MAGICS[sq].idx(blockers.0)))
+    }
 }
 
 pub fn bishop_attacks(blockers: Bitboard, sq: Square, _: SliderTag) -> Bitboard {
-    // SAFETY: ATTACK_TABLE only gets mutated on initialization, which is proven to be finished by the tag argument.
-    unsafe { Bitboard(ATTACK_TABLE[BISHOP_MAGICS[sq].idx(blockers.0)]) }
+    // SAFETY: same as above.
+    #[allow(static_mut_refs)]
+    unsafe {
+        Bitboard(*ATTACK_TABLE.get_unchecked(BISHOP_MAGICS[sq].idx(blockers.0)))
+    }
 }
 
 struct Magic {
