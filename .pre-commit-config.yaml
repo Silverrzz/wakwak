@@ -1,0 +1,21 @@
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt --check
+        description: Check Rust code formatting according to style guidelines.
+        language: rust
+        files: \.rs$
+        pass_filenames: false
+        entry: cargo fmt
+        args: ["--check"]
+
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Catch common mistakes and improve Rust code with a collection of lints.
+        language: rust
+        files: (Cargo.(toml|lock)|\.rs$)
+        pass_filenames: false
+        entry: cargo clippy
+        args: ["--workspace", "--", "-Dwarnings"]
