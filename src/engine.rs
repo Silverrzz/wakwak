@@ -78,6 +78,7 @@ impl Engine {
         println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
         println!("option name UseDumbInterface type check default true");
         println!("option name UCI_Chess960 type check default false");
+        println!("option name UCI_Variant type combo default duck var standard var duck");
         println!("uciok");
     }
 
@@ -129,6 +130,21 @@ impl Engine {
                 self.options.frc = value;
                 println!("info string Set UCI_Chess960 to {value}");
             }
+            "UCI_Variant" => {
+                let variant = match value.as_str() {
+                    "standard" => Variant::Standard,
+                    "duck" => Variant::Duck,
+                    _ => {
+                        eprintln!(
+                            "info string Invalid UCI_Variant: `{value}` (expected standard or duck)"
+                        );
+                        return;
+                    }
+                };
+
+                self.options.variant = variant;
+                println!("info string Set UCI_Variant to {value}");
+            }
             _ => eprintln!("info string Unknown Option: `{name}`"),
         }
     }
@@ -158,6 +174,13 @@ pub enum Abort {
 pub struct EngineOptions {
     pub dumb_interface: bool,
     pub frc: bool,
+    pub variant: Variant,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Variant {
+    Standard,
+    Duck,
 }
 
 impl Default for EngineOptions {
@@ -166,6 +189,7 @@ impl Default for EngineOptions {
         Self {
             dumb_interface: true,
             frc: false,
+            variant: Variant::Duck,
         }
     }
 }
