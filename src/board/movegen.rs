@@ -1,8 +1,8 @@
-use crate::board::Board;
 use crate::board::sliders::{bishop_attacks, rook_attacks};
+use crate::board::{Board, CastlingDirection};
 use crate::common::{
     Bitboard, Move, MoveFlag, MoveList, North, NorthEast, NorthWest, Piece, Rank, South, SouthEast,
-    SouthWest, Square, king_attacks, knight_attacks,
+    SouthWest, Square, between, king_attacks, knight_attacks,
 };
 
 impl Board {
@@ -183,7 +183,27 @@ impl Board {
             }
         }
 
-        //TODO: Castling
+        let rank = Rank::First.relative_to(self.stm);
+        for &dir in &[CastlingDirection::Long, CastlingDirection::Short] {
+            if let Some(file) = self.castling_rights(self.stm).get(dir) {
+                let king_dest = Square::new(dir.king_dest(), rank);
+                let rook_dest = Square::new(dir.rook_dest(), rank);
+                let rook_src = Square::new(file, rank);
+
+                let must_be_empty =
+                    between(king, king_dest) | between(rook_src, rook_dest) | king_dest | rook_dest;
+                let mut blockers = self.occupied() ^ king ^ rook_src;
+
+                if (blockers & must_be_empty).is_empty() {
+                    blockers = blockers ^ king_dest ^ rook_dest;
+                    let flag = MoveFlag::new_castling(dir);
+
+                    for duck in !blockers {
+                        moves.push(Move::new(king, rook_src, duck, flag))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -227,6 +247,15 @@ fn king_empty() {
 fn king_capture() {
     const EXPECTED_RESULT: usize = 8 * (64 - 10);
     let board = Board::from_fen("7*/8/8/3PPP2/3PkP2/3PPP2/8/K7 b - - 0 1")
+        .expect("board couldnt parse fen string");
+    board.display(true);
+    assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+}
+
+#[test]
+fn king_castling() {
+    const EXPECTED_RESULT: usize = 23 * (64 - 7) + (64 - 6);
+    let board = Board::from_fen("8/1k6/8/8/3*4/6n1/8/R1n1K2R w KQ - 0 1")
         .expect("board couldnt parse fen string");
     board.display(true);
     assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
