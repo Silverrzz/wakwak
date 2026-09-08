@@ -1,11 +1,18 @@
 use crate::board::Board;
 use crate::common::{
-    Bitboard, Color, East, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West, king_attacks, knight_attacks, rook_rays
+    Bitboard, Color, East, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West,
+    king_attacks, knight_attacks,
 };
 
 impl Board {
     #[inline]
-    fn duck_moves(&self, mut empty_square_bb: Bitboard, src: Square, dest: Square, flag: MoveFlag) -> Bitboard {
+    fn duck_moves(
+        &self,
+        mut empty_square_bb: Bitboard,
+        src: Square,
+        dest: Square,
+        flag: MoveFlag,
+    ) -> Bitboard {
         match flag {
             MoveFlag::Capture | MoveFlag::DoublePush | MoveFlag::Normal => {
                 empty_square_bb.0 |= 0 << src as usize;
@@ -46,9 +53,11 @@ impl Board {
                 Color::White => dest.offset_dir::<North>(-1),
                 Color::Black => dest.offset_dir::<South>(-1),
             };
-            self.duck_moves(empty_square_bb, src, dest, flag).iter().for_each(|duck| {
-                list.add(Move::new(src, dest, duck, flag));
-            });
+            self.duck_moves(empty_square_bb, src, dest, flag)
+                .iter()
+                .for_each(|duck| {
+                    list.add(Move::new(src, dest, duck, flag));
+                });
         });
 
         //Pawn Double
@@ -60,9 +69,11 @@ impl Board {
                 Color::White => dest.offset_dir::<North>(-2),
                 Color::Black => dest.offset_dir::<South>(-2),
             };
-            self.duck_moves(empty_square_bb, src, dest, flag).iter().for_each(|duck| {
-                list.add(Move::new(src, dest, duck, flag));
-            });
+            self.duck_moves(empty_square_bb, src, dest, flag)
+                .iter()
+                .for_each(|duck| {
+                    list.add(Move::new(src, dest, duck, flag));
+                });
         });
 
         //Pawn Attack Left
@@ -74,9 +85,11 @@ impl Board {
                 Color::Black => dest.offset(1, -1),
                 Color::White => dest.offset(1, 1),
             };
-            self.duck_moves(empty_square_bb, src, dest, flag).iter().for_each(|duck| {
-                list.add(Move::new(src, dest, duck, flag));
-            });
+            self.duck_moves(empty_square_bb, src, dest, flag)
+                .iter()
+                .for_each(|duck| {
+                    list.add(Move::new(src, dest, duck, flag));
+                });
         });
 
         //Pawn Attack Right
@@ -88,9 +101,11 @@ impl Board {
                 Color::Black => dest.offset(-1, -1),
                 Color::White => dest.offset(-1, 1),
             };
-            self.duck_moves(empty_square_bb, src, dest, flag).iter().for_each(|duck| {
-                list.add(Move::new(src, dest, duck, flag));
-            });
+            self.duck_moves(empty_square_bb, src, dest, flag)
+                .iter()
+                .for_each(|duck| {
+                    list.add(Move::new(src, dest, duck, flag));
+                });
         });
 
         //En Passant
@@ -105,9 +120,11 @@ impl Board {
                     break 'left;
                 };
                 let src_left = Square::new(left, Rank::Fifth.relative_to(self.stm()));
-                self.duck_moves(empty_square_bb, src_left, dest, flag).iter().for_each(|duck| {
-                    list.add(Move::new(src_left, dest, duck, flag));
-                });
+                self.duck_moves(empty_square_bb, src_left, dest, flag)
+                    .iter()
+                    .for_each(|duck| {
+                        list.add(Move::new(src_left, dest, duck, flag));
+                    });
             }
             'right: {
                 if !en_passant.right() {
@@ -117,9 +134,11 @@ impl Board {
                     break 'right;
                 };
                 let src_left = Square::new(left, Rank::Fifth.relative_to(self.stm()));
-                self.duck_moves(empty_square_bb, src_left, dest, flag).iter().for_each(|duck| {
-                    list.add(Move::new(src_left, dest, duck, flag));
-                });
+                self.duck_moves(empty_square_bb, src_left, dest, flag)
+                    .iter()
+                    .for_each(|duck| {
+                        list.add(Move::new(src_left, dest, duck, flag));
+                    });
             }
         }
 
@@ -148,14 +167,16 @@ impl Board {
         */
         let king_sq = (self.pieces(Piece::King) & friendly_bb).next();
         let king_attacks = king_attacks(king_sq);
-        king_attacks.iter().for_each(|dest|{
+        king_attacks.iter().for_each(|dest| {
             let flag = match enemy_bb.has(dest) {
                 true => MoveFlag::Capture,
-                false => MoveFlag::Normal
+                false => MoveFlag::Normal,
             };
-            self.duck_moves(empty_square_bb, king_sq, dest, flag).iter().for_each(|duck| {
-                list.add(Move::new(king_sq, dest, duck, flag));
-            });
+            self.duck_moves(empty_square_bb, king_sq, dest, flag)
+                .iter()
+                .for_each(|duck| {
+                    list.add(Move::new(king_sq, dest, duck, flag));
+                });
         });
 
         list
@@ -201,8 +222,8 @@ fn black_knight_captures_and_blockers() {
 #[test]
 fn king_empty() {
     const EXPECTED_RESULT: usize = 8 * (64 - 3);
-    let board = Board::from_fen("8/4K3/8/4*3/8/8/4k3/8 b - - 0 1")
-        .expect("board couldnt parse fen string");
+    let board =
+        Board::from_fen("8/4K3/8/4*3/8/8/4k3/8 b - - 0 1").expect("board couldnt parse fen string");
     board.display(true);
     assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
 }
