@@ -75,7 +75,7 @@ impl Engine {
     #[inline]
     fn uci() {
         println!("id name wakwak v{ENGINE_VERSION}");
-        println!("id author Drexell, Kelseyde, Silverrzz, Sp00ph and Tecci");
+        println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
         println!("option name UseDumbInterface type check default true");
         println!("option name UCI_Chess960 type check default false");
         println!("uciok");
