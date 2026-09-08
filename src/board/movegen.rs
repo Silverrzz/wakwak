@@ -1,6 +1,7 @@
 use crate::board::Board;
 use crate::common::{
     Bitboard, Color, East, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West,
+    knight_attacks,
 };
 
 impl Board {
@@ -127,11 +128,28 @@ impl Board {
             }
         }
 
-        //rook
+        // Knights cant end on a friendly piece or the duck, uses precomputed attacks (ty tecci)
+        let duck_bb = self.duck().map_or(Bitboard::EMPTY, Square::bitboard);
+        let knight_targets = !friendly_bb & !duck_bb;
+        for src in self.pieces(Piece::Knight) & friendly_bb {
+            // The compile-time lookup table already handles board edges.
+            for dest in knight_attacks(src) & knight_targets {
+                let flag = if enemy_bb.has(dest) {
+                    MoveFlag::Capture
+                } else {
+                    MoveFlag::Normal
+                };
+                for duck in self.duck_bb(src, dest, flag) {
+                    list.add(Move::new(src, dest, duck, flag));
+                }
+            }
+        }
 
         list
     }
 }
+
+// FIXME: these numbers need to be updated as movegen is completed more :D
 
 #[test]
 fn perft_depth_1() {
@@ -152,4 +170,25 @@ fn en_passant() {
     let board = Board::from_fen("4k3/8/8/2p1p3/3P4/8/8/3K4 w - - 0 1")
         .expect("board couldnt parse fen string");
     assert_eq!(board.gen_moves().len(), 179);
+}
+
+#[test]
+fn knight_corners() {
+    let board = Board::from_fen("N3k2N/8/8/8/8/8/8/N3K2N w - - 0 1")
+        .expect("board couldnt parse fen string");
+    assert_eq!(board.gen_moves().len(), 464);
+}
+
+#[test]
+fn knight_captures_and_blockers() {
+    let board = Board::from_fen("7k/7n/4*3/1r3R2/3N4/8/8/K7 w - - 0 1")
+        .expect("board couldnt parse fen string");
+    assert_eq!(board.gen_moves().len(), 349);
+}
+
+#[test]
+fn black_knight_captures_and_blockers() {
+    let board = Board::from_fen("7K/7N/4*3/1R3r2/3n4/8/8/k7 b - - 0 1")
+        .expect("board couldnt parse fen string");
+    assert_eq!(board.gen_moves().len(), 349);
 }
