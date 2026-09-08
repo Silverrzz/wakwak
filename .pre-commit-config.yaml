@@ -1,0 +1,28 @@
+fail_fast: true
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt --check
+        description: Check Rust code formatting according to style guidelines.
+        language: rust
+        files: \.rs$
+        pass_filenames: false
+        entry: cargo fmt
+        args: ["--check"]
+
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Catch common mistakes and improve Rust code with a collection of lints.
+        language: rust
+        files: (Cargo.(toml|lock)|\.rs$)
+        pass_filenames: false
+        entry: cargo clippy
+        args: ["--workspace", "--", "-Dwarnings"]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
