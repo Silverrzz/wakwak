@@ -1,4 +1,4 @@
-use crate::board::{Board, CastlingDirection, ZOBRIST};
+use crate::board::{Board, CastlingDirection, ZOBRIST, sliders};
 use crate::common::{Color, File, Piece, Rank, Square, between};
 use std::fmt::Write;
 
@@ -31,6 +31,7 @@ impl Board {
             stm: Color::White,
             fmc: 0,
             hmc: 0,
+            _slider_tag: sliders::init(),
         };
 
         //Parse board

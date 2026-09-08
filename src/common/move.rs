@@ -321,6 +321,7 @@ impl MoveFlag {
 pub struct MoveList(ArrayVec<Move, MAX_MOVES>);
 
 impl MoveList {
+    #[inline]
     pub fn add(&mut self, mv: Move) {
         self.0.push(mv);
     }

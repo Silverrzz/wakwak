@@ -4,6 +4,8 @@ pub mod castling;
 pub mod display;
 pub mod en_passant;
 pub mod fen;
+pub mod movegen;
+pub mod sliders;
 pub mod startpos;
 pub mod zobrist;
 

@@ -1,3 +1,4 @@
+use crate::board::sliders::SliderTag;
 use crate::board::{CastlingDirection, CastlingRights, EnPassant, ZOBRIST};
 use crate::common::{
     Bitboard, Color, East, File, Move, MoveFlag, MoveList, North, Piece, Rank, South, Square, West,
@@ -17,6 +18,8 @@ pub struct Board {
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
+    // FIXME: remove leading _ when this is actually used in movegen.
+    pub(super) _slider_tag: SliderTag,
 }
 
 impl Board {
