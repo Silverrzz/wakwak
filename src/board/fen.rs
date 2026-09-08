@@ -139,7 +139,7 @@ impl Board {
                 return None;
             }
 
-            board.calc_en_passant(ep_sq.file());
+            board.calc_en_passant(Some(ep_sq.file()));
         }
 
         //Parse halfmove clock and fullmove count

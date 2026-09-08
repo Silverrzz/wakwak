@@ -118,7 +118,12 @@ impl Board {
     }
 
     #[inline]
-    pub fn calc_en_passant(&mut self, file: File) {
+    pub fn calc_en_passant(&mut self, file: Option<File>) {
+        let Some(file) = file else {
+            self.set_en_passant(None);
+            return;
+        };
+
         let victim = Square::new(file, Rank::Fifth.relative_to(self.stm));
         let attacker_dest = Square::new(file, Rank::Sixth.relative_to(self.stm));
         let our_pawns = self.colored_pieces(self.stm, Piece::Pawn);

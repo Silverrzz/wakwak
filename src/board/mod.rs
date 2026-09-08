@@ -4,6 +4,7 @@ pub mod castling;
 pub mod display;
 pub mod en_passant;
 pub mod fen;
+pub mod make_move;
 pub mod movegen;
 pub mod sliders;
 pub mod startpos;
