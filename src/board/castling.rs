@@ -5,6 +5,7 @@ use crate::common::File;
 /// - Bit 3: Long Flag
 /// - Bits 4-6: Short File
 /// - Bit 7: Short Flag
+///
 /// For the flags, 0 is used to indicate that the king may castle in that direction.
 /// This way, the nibble can be used as the file index.
 ///

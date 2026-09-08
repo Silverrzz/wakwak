@@ -111,7 +111,7 @@ fn parse_position_cmd(
         return Err(MissingPositionMovesToken);
     }
 
-    let mut current = startpos.clone();
+    let current = startpos;
     let mut moves = Vec::new();
 
     for token in reader {

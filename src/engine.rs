@@ -35,7 +35,7 @@ impl Engine {
             return;
         }
 
-        while let Ok(_) = io::stdin().read_line(&mut buffer) {
+        while io::stdin().read_line(&mut buffer).is_ok() {
             if buffer.trim().is_empty() {
                 continue;
             }
@@ -139,6 +139,12 @@ impl Engine {
     #[inline]
     fn quit(&mut self) -> Abort {
         Abort::Yes
+    }
+}
+
+impl Default for Engine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

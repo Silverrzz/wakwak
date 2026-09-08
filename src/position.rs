@@ -28,8 +28,8 @@ impl Position {
     }
 
     #[inline]
-    pub fn make_move(&mut self, mv: Move) {
-        self.previous_boards.push(self.current.clone());
+    pub fn make_move(&mut self, _mv: Move) {
+        self.previous_boards.push(self.current);
         //self.current.make_move(mv);
     }
 
