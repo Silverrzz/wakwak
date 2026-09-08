@@ -63,7 +63,8 @@ impl Board {
         }
 
         //Pawn Captures Left
-        for dest in !empty & pawns.shift::<NorthWest>(self.stm.signum()) {
+        let their_pieces = self.colors(!self.stm);
+        for dest in their_pieces & pawns.shift::<NorthWest>(self.stm.signum()) {
             let src = dest.offset_dir::<SouthEast>(self.stm.signum() as isize);
 
             if dest.rank() == promo_rank {
@@ -86,7 +87,7 @@ impl Board {
         }
 
         //Pawn Captures Right
-        for dest in !empty & pawns.shift::<NorthEast>(self.stm.signum()) {
+        for dest in their_pieces & pawns.shift::<NorthEast>(self.stm.signum()) {
             let src = dest.offset_dir::<SouthWest>(self.stm.signum() as isize);
 
             if dest.rank() == promo_rank {
