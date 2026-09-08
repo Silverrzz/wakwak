@@ -1,8 +1,6 @@
 use crate::board::sliders::SliderTag;
 use crate::board::{CastlingDirection, CastlingRights, EnPassant, ZOBRIST};
-use crate::common::{
-    Bitboard, Color, File, Piece, Rank, Square, between, bishop_rays, pawn_attacks, rook_rays,
-};
+use crate::common::{Bitboard, Color, File, Piece, Rank, Square, pawn_attacks};
 use enum_map::EnumMap;
 
 #[derive(Clone, Copy)]
@@ -17,14 +15,15 @@ pub struct Board {
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
-    // FIXME: remove leading _ when this is actually used in movegen.
-    pub(super) _slider_tag: SliderTag,
+    pub(super) slider_tag: SliderTag,
 }
 
 impl Board {
     #[inline]
     pub fn occupied(&self) -> Bitboard {
-        self.colors[Color::White] | self.colors[Color::Black]
+        self.colors[Color::White]
+            | self.colors[Color::Black]
+            | self.duck.map_or(Bitboard::EMPTY, Square::bitboard)
     }
 
     #[inline]
@@ -123,7 +122,6 @@ impl Board {
         let victim = Square::new(file, Rank::Fifth.relative_to(self.stm));
         let attacker_dest = Square::new(file, Rank::Sixth.relative_to(self.stm));
         let our_pawns = self.colored_pieces(self.stm, Piece::Pawn);
-        let our_king = self.king(self.stm);
 
         let attackers = our_pawns & pawn_attacks(attacker_dest, !self.stm);
         if attackers.is_empty() {
@@ -131,18 +129,7 @@ impl Board {
         }
 
         let (mut left, mut right) = (false, false);
-        let orth = self.colored_orth_sliders(!self.stm);
-        let diag = self.colored_diag_sliders(!self.stm);
-        let sliders = (bishop_rays(our_king) & diag) | (rook_rays(our_king) & orth);
-
-        'attackers: for attacker in attackers {
-            let blockers = self.occupied() ^ attacker ^ attacker_dest ^ victim;
-            for slider in sliders {
-                if (blockers & between(our_king, slider)).is_empty() {
-                    continue 'attackers;
-                }
-            }
-
+        for attacker in attackers.iter().take(2) {
             if attacker.file() < victim.file() {
                 left = true;
             } else {

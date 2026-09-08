@@ -119,7 +119,7 @@ impl Board {
             stm: Color::White,
             fmc: 1,
             hmc: 0,
-            _slider_tag: sliders::init(),
+            slider_tag: sliders::init(),
         };
 
         write_scharnagl(&mut board, Color::White, white_scharnagl);

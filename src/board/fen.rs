@@ -31,7 +31,7 @@ impl Board {
             stm: Color::White,
             fmc: 0,
             hmc: 0,
-            _slider_tag: sliders::init(),
+            slider_tag: sliders::init(),
         };
 
         //Parse board

@@ -3,6 +3,7 @@ use crate::common::{Bitboard, File, Piece, Rank, Square};
 use arrayvec::ArrayVec;
 use std::fmt::Write;
 use std::num::NonZeroU32;
+use std::ops::{Deref, DerefMut};
 
 const MAX_MOVES: usize = 218 * Square::COUNT;
 
@@ -320,19 +321,19 @@ impl MoveFlag {
 #[derive(Debug, Default)]
 pub struct MoveList(ArrayVec<Move, MAX_MOVES>);
 
-impl MoveList {
+impl Deref for MoveList {
+    type Target = ArrayVec<Move, MAX_MOVES>;
+
     #[inline]
-    pub fn add(&mut self, mv: Move) {
-        self.0.push(mv);
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
+}
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
+impl DerefMut for MoveList {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

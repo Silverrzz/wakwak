@@ -143,14 +143,17 @@ impl Not for Bitboard {
 
 impl Display for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f)?;
-        for index in 0..64 {
-            let is_set = self.0 & (1 << index) != 0;
-            write!(f, " {}", is_set as u8)?;
-            if index % 8 == 7 {
-                writeln!(f, " ")?;
+        for &rank in Rank::ALL.iter().rev() {
+            writeln!(f)?;
+            for &file in File::ALL {
+                if self.has(Square::new(file, rank)) {
+                    write!(f, " x")?;
+                } else {
+                    write!(f, " .")?;
+                }
             }
         }
+
         writeln!(f)?;
         Ok(())
     }
