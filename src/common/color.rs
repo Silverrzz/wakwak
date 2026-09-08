@@ -10,6 +10,16 @@ def_enum! {
     }
 }
 
+impl Color {
+    #[inline]
+    pub const fn signum(self) -> i8 {
+        match self {
+            Color::White => 1,
+            Color::Black => -1,
+        }
+    }
+}
+
 impl Not for Color {
     type Output = Self;
 

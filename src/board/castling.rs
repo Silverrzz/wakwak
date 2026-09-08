@@ -47,3 +47,21 @@ pub enum CastlingDirection {
     Long = 0,
     Short = 4,
 }
+
+impl CastlingDirection {
+    #[inline]
+    pub const fn king_dest(self) -> File {
+        match self {
+            CastlingDirection::Long => File::C,
+            CastlingDirection::Short => File::G,
+        }
+    }
+
+    #[inline]
+    pub const fn rook_dest(self) -> File {
+        match self {
+            CastlingDirection::Long => File::D,
+            CastlingDirection::Short => File::F,
+        }
+    }
+}

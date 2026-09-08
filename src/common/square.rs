@@ -2,6 +2,7 @@ use crate::common::{Bitboard, Color, Direction, File, Rank};
 use crate::def_enum;
 use enum_map::Enum;
 use std::fmt;
+use std::ops::Not;
 use std::str::FromStr;
 
 def_enum! {
@@ -81,6 +82,15 @@ impl Square {
     #[inline]
     pub const fn bitboard(self) -> Bitboard {
         Bitboard(1u64 << (self as u8))
+    }
+}
+
+impl Not for Square {
+    type Output = Bitboard;
+
+    #[inline]
+    fn not(self) -> Self::Output {
+        !self.bitboard()
     }
 }
 

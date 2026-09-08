@@ -1,4 +1,4 @@
-use crate::common::File;
+use crate::common::{Bitboard, Color, File, Rank, Square};
 use std::num::NonZeroU8;
 
 /// Bit Layout:
@@ -23,6 +23,22 @@ impl EnPassant {
         EnPassant {
             bits: NonZeroU8::new(bits).unwrap(),
         }
+    }
+
+    #[inline]
+    pub fn attackers(self, stm: Color) -> Bitboard {
+        let victim = Square::new(self.file(), Rank::Fifth.relative_to(stm));
+        let mut bb = Bitboard::EMPTY;
+
+        if self.left() {
+            bb |= Square::index(victim as usize - 1);
+        }
+
+        if self.right() {
+            bb |= Square::index(victim as usize + 1);
+        }
+
+        bb
     }
 
     #[inline]
