@@ -9,6 +9,7 @@ pub enum UciCommand {
     NewGame,
     IsReady,
     Display,
+    Perft { depth: u8 },
     Position { board: Board, moves: Vec<Move> },
     SetOption { name: String, value: String },
     Stop,
@@ -33,6 +34,13 @@ impl UciCommand {
             "ucinewgame" => Ok(NewGame),
             "isready" => Ok(IsReady),
             "display" | "d" => Ok(Display),
+            "perft" => {
+                let depth = reader.next().ok_or(MissingPerftDepth)?.parse()?;
+                if let Some(token) = reader.next() {
+                    return Err(UnexpectedPerftArgument(token.to_string()));
+                }
+                Ok(Perft { depth })
+            }
             "stop" => Ok(Stop),
             "quit" | "q" => Ok(Quit),
             "position" | "pos" => parse_position_cmd(reader, dumb_interface, frc),
@@ -138,6 +146,11 @@ pub enum UciParseError {
     MissingCommand,
     #[error("Unknown command: `{0}`")]
     UnknownCommand(String),
+
+    #[error("Missing perft depth (usage: perft <depth>)")]
+    MissingPerftDepth,
+    #[error("Unexpected perft argument: `{0}` (usage: perft <depth>)")]
+    UnexpectedPerftArgument(String),
 
     #[error("FRC not enabled in `position frc/dfrc` command")]
     FrcNotEnabled,

@@ -3,6 +3,7 @@ use crate::common::Move;
 use crate::position::Position;
 use crate::uci::{UciCommand, UciParseError};
 use std::io;
+use std::time::Instant;
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -26,6 +27,11 @@ impl Engine {
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
         if !args.is_empty() {
+            if args[0] == "perft" {
+                self.handle_input(&args.join(" "));
+                return;
+            }
+
             for cmd in args {
                 if self.handle_input(cmd.trim()) == Abort::Yes {
                     return;
@@ -35,7 +41,12 @@ impl Engine {
             return;
         }
 
-        while io::stdin().read_line(&mut buffer).is_ok() {
+        loop {
+            buffer.clear();
+            match io::stdin().read_line(&mut buffer) {
+                Ok(0) | Err(_) => break,
+                Ok(_) => {}
+            }
             if buffer.trim().is_empty() {
                 continue;
             }
@@ -44,7 +55,6 @@ impl Engine {
                 break;
             }
 
-            buffer.clear();
         }
     }
 
@@ -63,6 +73,7 @@ impl Engine {
             UciCommand::NewGame => self.newgame(),
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
+            UciCommand::Perft { depth } => self.perft(depth),
             UciCommand::Position { board, moves } => self.set_position(board, moves),
             UciCommand::SetOption { name, value } => self.set_option(name, value),
             UciCommand::Stop => self.stop(),
@@ -93,6 +104,14 @@ impl Engine {
     #[inline]
     fn display(&self) {
         self.position.board().display(self.options.frc);
+    }
+
+    fn perft(&self, depth: u8) {
+        let start = Instant::now();
+        let nodes = self.position.board().perft(depth);
+        let elapsed = start.elapsed();
+        let nps = (nodes as f64 / elapsed.as_secs_f64()) as u64;
+        println!("info string perft depth {depth} nodes {nodes} time {} nps {nps}", elapsed.as_millis());
     }
 
     #[inline]
