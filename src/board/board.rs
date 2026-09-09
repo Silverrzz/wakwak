@@ -129,7 +129,8 @@ impl Board {
         let our_pawns = self.colored_pieces(self.stm, Piece::Pawn);
 
         let attackers = our_pawns & pawn_attacks(attacker_dest, !self.stm);
-        if attackers.is_empty() {
+        if attackers.is_empty() || self.duck == Some(attacker_dest) {
+            self.set_en_passant(None);
             return;
         }
 

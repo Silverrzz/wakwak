@@ -136,6 +136,27 @@ mod tests {
     use crate::common::File;
 
     #[test]
+    fn duck_blocks_en_passant_after_double_push() {
+        let start = Board::from_fen("4k3/8/8/8/3p3*/8/4P3/4K3 w - - 0 1").unwrap();
+
+        // e4 available for ep
+        let mut clear = start;
+        let mv = Move::new(Square::E2, Square::E4, Square::E2, MoveFlag::DoublePush);
+        assert!(clear.gen_moves().contains(&mv));
+        clear.make_move(mv);
+        assert!(clear.en_passant().is_some());
+        assert!(clear.gen_moves().iter().any(|mv| mv.flag() == MoveFlag::EnPassant));
+
+        // duck e3 should block ep
+        let mut blocked = start;
+        let mv = Move::new(Square::E2, Square::E4, Square::E3, MoveFlag::DoublePush);
+        assert!(blocked.gen_moves().contains(&mv));
+        blocked.make_move(mv);
+        assert_eq!(blocked.en_passant(), None);
+        assert!(!blocked.gen_moves().iter().any(|mv| mv.flag() == MoveFlag::EnPassant));
+    }
+
+    #[test]
     fn capture_updates_color_bitboards_and_hash() {
         let mut board = Board::from_fen("4k3/8/8/8/3n3*/8/3R4/4K3 w - - 0 1").unwrap();
 
