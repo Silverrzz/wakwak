@@ -155,6 +155,36 @@ mod tests {
     use crate::common::File;
 
     #[test]
+    fn short_castling() {
+        let mut board = Board::from_fen("4k3/8/8/8/3*4/8/8/R3K2R w KQ - 7 1").unwrap();
+        // king and rook move, rights go away
+        board.make_move(Move::new(Square::E1, Square::H1, Square::E1, MoveFlag::ShortCastling));
+        let expected = "4k3/8/8/8/8/8/8/R3*RK1 b - - 8 1";
+        assert_eq!(board.to_fen(false), expected);
+        assert_eq!(board.hash(), Board::from_fen(expected).unwrap().hash());
+    }
+
+    #[test]
+    fn long_castling() {
+        let mut board = Board::from_fen("r3k2r/8/8/8/3*4/8/8/4K3 b kq - 7 1").unwrap();
+        // same for black
+        board.make_move(Move::new(Square::E8, Square::A8, Square::E8, MoveFlag::LongCastling));
+        let expected = "2kr*2r/8/8/8/8/8/8/4K3 w - - 8 2";
+        assert_eq!(board.to_fen(false), expected);
+        assert_eq!(board.hash(), Board::from_fen(expected).unwrap().hash());
+    }
+
+    #[test]
+    fn en_passant_capture() {
+        let mut board = Board::from_fen("4k3/8/8/3pP3/7*/8/8/4K3 w - d6 0 1").unwrap();
+        // d5 takes d6, duck goes where the captured pawn was
+        board.make_move(Move::new(Square::E5, Square::D6, Square::D5, MoveFlag::EnPassant));
+        let expected = "4k3/8/3P4/3*4/8/8/8/4K3 b - - 0 1";
+        assert_eq!(board.to_fen(false), expected);
+        assert_eq!(board.hash(), Board::from_fen(expected).unwrap().hash());
+    }
+
+    #[test]
     fn duck_blocks_en_passant_after_double_push() {
         let start = Board::from_fen("4k3/8/8/8/3p3*/8/4P3/4K3 w - - 0 1").unwrap();
 
