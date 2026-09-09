@@ -54,7 +54,6 @@ impl Engine {
             if self.handle_input(buffer.trim()) == Abort::Yes {
                 break;
             }
-
         }
     }
 
@@ -111,7 +110,10 @@ impl Engine {
         let nodes = self.position.board().perft(depth);
         let elapsed = start.elapsed();
         let nps = (nodes as f64 / elapsed.as_secs_f64()) as u64;
-        println!("info string perft depth {depth} nodes {nodes} time {} nps {nps}", elapsed.as_millis());
+        println!(
+            "info string perft depth {depth} nodes {nodes} time {} nps {nps}",
+            elapsed.as_millis()
+        );
     }
 
     #[inline]

@@ -23,7 +23,9 @@ impl Board {
         for &mv in moves.iter() {
             let mut child = *self;
             child.make_move(mv);
-            nodes = nodes.checked_add(child.perft(depth - 1)).expect("Perft node count overflow");
+            nodes = nodes
+                .checked_add(child.perft(depth - 1))
+                .expect("Perft node count overflow");
         }
         nodes
     }
