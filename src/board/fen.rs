@@ -60,6 +60,7 @@ impl Board {
                         }
 
                         board.toggle_square(sq, piece, color);
+                        board.mailbox[sq] = Some(piece);
                     }
 
                     file += 1;
@@ -139,7 +140,7 @@ impl Board {
                 return None;
             }
 
-            board.calc_en_passant(ep_sq.file());
+            board.calc_en_passant(Some(ep_sq.file()));
         }
 
         //Parse halfmove clock and fullmove count

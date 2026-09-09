@@ -118,13 +118,19 @@ impl Board {
     }
 
     #[inline]
-    pub fn calc_en_passant(&mut self, file: File) {
+    pub fn calc_en_passant(&mut self, file: Option<File>) {
+        let Some(file) = file else {
+            self.set_en_passant(None);
+            return;
+        };
+
         let victim = Square::new(file, Rank::Fifth.relative_to(self.stm));
         let attacker_dest = Square::new(file, Rank::Sixth.relative_to(self.stm));
         let our_pawns = self.colored_pieces(self.stm, Piece::Pawn);
 
         let attackers = our_pawns & pawn_attacks(attacker_dest, !self.stm);
-        if attackers.is_empty() {
+        if attackers.is_empty() || self.occupied().has(attacker_dest) {
+            self.set_en_passant(None);
             return;
         }
 
@@ -144,8 +150,6 @@ impl Board {
     pub fn toggle_square(&mut self, sq: Square, piece: Piece, color: Color) {
         self.pieces[piece] ^= sq;
         self.colors[color] ^= sq;
-        self.mailbox[sq] = self.pieces[piece].has(sq).then_some(piece);
-
         self.hash ^= ZOBRIST.piece(sq, piece, color);
     }
 
