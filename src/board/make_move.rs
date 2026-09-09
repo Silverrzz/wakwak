@@ -22,10 +22,10 @@ impl Board {
         let mut new_en_passant = None;
         match flag {
             MoveFlag::Normal => {
+                self.remove_castling_right(self.stm, src);
+
                 self.toggle_square(src, piece, self.stm);
                 self.toggle_square(dest, piece, self.stm);
-
-                self.remove_castling_right(self.stm, src);
             }
             MoveFlag::DoublePush => {
                 debug_assert_eq!(piece, Piece::Pawn);
@@ -37,12 +37,12 @@ impl Board {
             MoveFlag::Capture => {
                 let victim = victim.expect("Board::make_move(): No victim on dest square");
 
+                self.remove_castling_right(self.stm, src);
+                self.remove_castling_right(!self.stm, dest);
+
                 self.toggle_square(src, piece, self.stm);
                 self.toggle_square(dest, victim, self.stm);
                 self.toggle_square(dest, piece, self.stm);
-
-                self.remove_castling_right(self.stm, src);
-                self.remove_castling_right(!self.stm, dest);
             }
             MoveFlag::EnPassant => {
                 debug_assert_eq!(piece, Piece::Pawn);
@@ -78,8 +78,8 @@ impl Board {
 
                 self.toggle_square(src, piece, self.stm);
                 if let Some(victim) = self.piece_on(dest) {
-                    self.toggle_square(dest, victim, !self.stm);
                     self.remove_castling_right(!self.stm, dest);
+                    self.toggle_square(dest, victim, !self.stm);
                 }
 
                 self.toggle_square(dest, promotion, self.stm);
@@ -127,5 +127,87 @@ impl Board {
 
         self.set_castling_rights(self.stm, CastlingDirection::Long, None);
         self.set_castling_rights(self.stm, CastlingDirection::Short, None);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::File;
+
+    #[test]
+    fn white_pawn_promotes_to_queen() {
+        let mut board = Board::from_fen("4k3/P7/8/8/3*4/8/8/4K3 w - - 7 1").unwrap();
+
+        // Promote on a8 and place the duck on the old pawn square
+        let mv = Move::new(Square::A7, Square::A8, Square::A7, MoveFlag::PromotionQueen);
+        assert!(board.gen_moves().contains(&mv));
+        board.make_move(mv);
+
+        // The pawn is gone and a white queen occupies a8
+        assert_eq!(board.piece_on(Square::A7), None);
+        assert!(board.colored_pieces(Color::White, Piece::Pawn).is_empty());
+        assert_eq!(board.piece_on(Square::A8), Some(Piece::Queen));
+        assert_eq!(board.color_on(Square::A8), Some(Color::White));
+        let expected = Board::from_fen("Q3k3/*7/8/8/8/8/8/4K3 b - - 0 1").unwrap();
+        assert_eq!(board.hash(), expected.hash());
+    }
+
+    #[test]
+    fn black_pawn_promotes_to_knight() {
+        let mut board = Board::from_fen("4k3/8/8/8/3*4/8/7p/4K3 b - - 7 1").unwrap();
+
+        // Underpromote on h1 and move the duck to h2
+        let mv = Move::new(Square::H2, Square::H1, Square::H2, MoveFlag::PromotionKnight);
+        assert!(board.gen_moves().contains(&mv));
+        board.make_move(mv);
+
+        // The replacement piece belongs to Black
+        assert_eq!(board.piece_on(Square::H2), None);
+        assert!(board.colored_pieces(Color::Black, Piece::Pawn).is_empty());
+        assert_eq!(board.piece_on(Square::H1), Some(Piece::Knight));
+        assert_eq!(board.color_on(Square::H1), Some(Color::Black));
+        let expected = Board::from_fen("4k3/8/8/8/8/8/7*/4K2n w - - 0 2").unwrap();
+        assert_eq!(board.hash(), expected.hash());
+    }
+
+    #[test]
+    fn promotion_capture_removes_queenside_castling_right() {
+        let mut board = Board::from_fen("r3k2r/1P6/8/8/3*4/8/8/4K3 w kq - 0 1").unwrap();
+
+        // Capture the a8 rook while promoting, with the duck moving to b7
+        let mv = Move::new(Square::B7, Square::A8, Square::B7, MoveFlag::CapturePromotionQueen);
+        assert!(board.gen_moves().contains(&mv));
+        board.make_move(mv);
+
+        // Only black queen castling should be gone
+        let rights = board.castling_rights(Color::Black);
+        assert_eq!(rights.get(CastlingDirection::Long), None);
+        assert_eq!(rights.get(CastlingDirection::Short), Some(File::H));
+        assert_eq!(board.piece_on(Square::B7), None);
+        assert_eq!(board.piece_on(Square::A8), Some(Piece::Queen));
+        assert_eq!(board.color_on(Square::A8), Some(Color::White));
+        assert!(!board.colors(Color::Black).has(Square::A8));
+        let expected = Board::from_fen("Q3k2r/1*6/8/8/8/8/8/4K3 b k - 0 1").unwrap();
+        assert_eq!(board.hash(), expected.hash());
+    }
+
+    #[test]
+    fn king_move_clears_both_castling_rights() {
+        let mut board = Board::from_fen("4k3/8/8/8/3*4/8/8/R3K2R w KQ - 0 1").unwrap();
+        let rights = board.castling_rights(Color::White);
+        assert_eq!(rights.get(CastlingDirection::Long), Some(File::A));
+        assert_eq!(rights.get(CastlingDirection::Short), Some(File::H));
+
+        let mv = Move::new(Square::E1, Square::E2, Square::E1, MoveFlag::Normal);
+        assert!(board.gen_moves().contains(&mv));
+        board.make_move(mv);
+
+        assert_eq!(board.king(Color::White), Square::E2);
+        let rights = board.castling_rights(Color::White);
+        assert_eq!(
+            (rights.get(CastlingDirection::Long), rights.get(CastlingDirection::Short)),
+            (None, None),
+        );
     }
 }
