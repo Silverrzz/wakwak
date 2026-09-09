@@ -41,7 +41,7 @@ impl Board {
                 self.remove_castling_right(!self.stm, dest);
 
                 self.toggle_square(src, piece, self.stm);
-                self.toggle_square(dest, victim, self.stm);
+                self.toggle_square(dest, victim, !self.stm);
                 self.toggle_square(dest, piece, self.stm);
             }
             MoveFlag::EnPassant => {
@@ -134,6 +134,25 @@ impl Board {
 mod tests {
     use super::*;
     use crate::common::File;
+
+    #[test]
+    fn capture_updates_color_bitboards_and_hash() {
+        let mut board = Board::from_fen("4k3/8/8/8/3n3*/8/3R4/4K3 w - - 0 1").unwrap();
+
+        // white rook captures the black knight on d4
+        let mv = Move::new(Square::D2, Square::D4, Square::D2, MoveFlag::Capture);
+        assert!(board.gen_moves().contains(&mv));
+        board.make_move(mv);
+
+        // dest belongs only to white, and the knight is gone.
+        assert_eq!(board.piece_on(Square::D2), None);
+        assert_eq!(board.piece_on(Square::D4), Some(Piece::Rook));
+        assert!(board.pieces(Piece::Knight).is_empty());
+        let expected = Board::from_fen("4k3/8/8/8/3R4/8/3*4/4K3 b - - 0 1").unwrap();
+        assert_eq!(board.colors(Color::White), expected.colors(Color::White));
+        assert_eq!(board.colors(Color::Black), expected.colors(Color::Black));
+        assert_eq!(board.hash(), expected.hash());
+    }
 
     #[test]
     fn white_pawn_promotes_to_queen() {
