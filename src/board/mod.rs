@@ -10,6 +10,7 @@ pub mod perft;
 pub mod sliders;
 pub mod startpos;
 pub mod zobrist;
+pub mod search;
 
 pub use board::*;
 pub use castling::*;
