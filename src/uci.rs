@@ -111,19 +111,19 @@ fn parse_position_cmd(
         return Err(MissingPositionMovesToken);
     }
 
-    let current = startpos;
+    let mut current = startpos;
     let mut moves = Vec::new();
 
     for token in reader {
         let mv = Move::parse(&current, dumb_interface, token.trim())
             .ok_or_else(|| InvalidMove(token.to_string()))?;
 
-        /*if !current.is_legal(mv) {
+        if !current.gen_moves().contains(&mv) {
             return Err(InvalidMove(token.to_string()));
-        }*/
+        }
 
         moves.push(mv);
-        //current.make_move(mv);
+        current.make_move(mv);
     }
 
     Ok(Position {
