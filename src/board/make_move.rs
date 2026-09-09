@@ -15,7 +15,7 @@ impl Board {
             .expect("Board::make_move(): Empty source square");
         let victim = self.piece_on(dest);
 
-        if piece == Piece::Pawn || (victim.is_some() || flag.is_castling()) {
+        if piece == Piece::Pawn || flag.is_capture() {
             self.hmc = 0;
         }
 
