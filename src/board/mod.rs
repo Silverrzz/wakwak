@@ -6,6 +6,7 @@ pub mod en_passant;
 pub mod fen;
 pub mod make_move;
 pub mod movegen;
+pub mod perft;
 pub mod sliders;
 pub mod startpos;
 pub mod zobrist;
