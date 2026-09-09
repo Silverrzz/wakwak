@@ -60,6 +60,7 @@ impl Board {
                         }
 
                         board.toggle_square(sq, piece, color);
+                        board.mailbox[sq] = Some(piece);
                     }
 
                     file += 1;

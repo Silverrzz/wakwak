@@ -150,8 +150,6 @@ impl Board {
     pub fn toggle_square(&mut self, sq: Square, piece: Piece, color: Color) {
         self.pieces[piece] ^= sq;
         self.colors[color] ^= sq;
-        self.mailbox[sq] = self.pieces[piece].has(sq).then_some(piece);
-
         self.hash ^= ZOBRIST.piece(sq, piece, color);
     }
 

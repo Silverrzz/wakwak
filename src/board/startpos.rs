@@ -98,10 +98,12 @@ impl Board {
 
             for &(sq, piece) in &pieces {
                 board.toggle_square(sq, piece, color);
+                board.mailbox[sq] = Some(piece);
             }
 
             for sq in Rank::Second.relative_to(color).bitboard() {
                 board.toggle_square(sq, Piece::Pawn, color);
+                board.mailbox[sq] = Some(Piece::Pawn);
             }
 
             board.set_castling_rights(color, CastlingDirection::Short, Some(right_rook.file()));

@@ -26,12 +26,17 @@ impl Board {
 
                 self.toggle_square(src, piece, self.stm);
                 self.toggle_square(dest, piece, self.stm);
+                self.mailbox[src] = None;
+                self.mailbox[dest] = Some(piece);
             }
             MoveFlag::DoublePush => {
                 debug_assert_eq!(piece, Piece::Pawn);
 
                 self.toggle_square(src, piece, self.stm);
                 self.toggle_square(dest, piece, self.stm);
+                self.mailbox[src] = None;
+                self.mailbox[dest] = Some(piece);
+
                 new_en_passant = Some(dest.file());
             }
             MoveFlag::Capture => {
@@ -43,6 +48,9 @@ impl Board {
                 self.toggle_square(src, piece, self.stm);
                 self.toggle_square(dest, victim, !self.stm);
                 self.toggle_square(dest, piece, self.stm);
+
+                self.mailbox[src] = None;
+                self.mailbox[dest] = Some(piece);
             }
             MoveFlag::EnPassant => {
                 debug_assert_eq!(piece, Piece::Pawn);
@@ -51,6 +59,10 @@ impl Board {
                 self.toggle_square(src, piece, self.stm);
                 self.toggle_square(dest, piece, self.stm);
                 self.toggle_square(victim, piece, !self.stm);
+
+                self.mailbox[src] = None;
+                self.mailbox[dest] = Some(piece);
+                self.mailbox[victim] = None;
             }
             MoveFlag::LongCastling => {
                 debug_assert_eq!(piece, Piece::King);
@@ -83,6 +95,8 @@ impl Board {
                 }
 
                 self.toggle_square(dest, promotion, self.stm);
+                self.mailbox[src] = None;
+                self.mailbox[dest] = Some(promotion);
             }
             _ => unreachable!("All variants are covered by the match arm"),
         }
@@ -104,11 +118,11 @@ impl Board {
             if rights.get(CastlingDirection::Short) == Some(file) {
                 self.set_castling_rights(color, CastlingDirection::Short, None);
             }
+        }
 
-            if sq == self.king(self.stm) {
-                self.set_castling_rights(color, CastlingDirection::Short, None);
-                self.set_castling_rights(color, CastlingDirection::Long, None);
-            }
+        if sq == self.king(self.stm) {
+            self.set_castling_rights(color, CastlingDirection::Short, None);
+            self.set_castling_rights(color, CastlingDirection::Long, None);
         }
     }
 
@@ -124,6 +138,11 @@ impl Board {
         self.toggle_square(rook_src, Piece::Rook, self.stm);
         self.toggle_square(king_dest, Piece::King, self.stm);
         self.toggle_square(rook_dest, Piece::Rook, self.stm);
+
+        self.mailbox[king_src] = None;
+        self.mailbox[rook_src] = None;
+        self.mailbox[king_dest] = Some(Piece::King);
+        self.mailbox[rook_dest] = Some(Piece::Rook);
 
         self.set_castling_rights(self.stm, CastlingDirection::Long, None);
         self.set_castling_rights(self.stm, CastlingDirection::Short, None);
@@ -145,7 +164,12 @@ mod tests {
         assert!(clear.gen_moves().contains(&mv));
         clear.make_move(mv);
         assert!(clear.en_passant().is_some());
-        assert!(clear.gen_moves().iter().any(|mv| mv.flag() == MoveFlag::EnPassant));
+        assert!(
+            clear
+                .gen_moves()
+                .iter()
+                .any(|mv| mv.flag() == MoveFlag::EnPassant)
+        );
 
         // duck e3 should block ep
         let mut blocked = start;
@@ -153,7 +177,12 @@ mod tests {
         assert!(blocked.gen_moves().contains(&mv));
         blocked.make_move(mv);
         assert_eq!(blocked.en_passant(), None);
-        assert!(!blocked.gen_moves().iter().any(|mv| mv.flag() == MoveFlag::EnPassant));
+        assert!(
+            !blocked
+                .gen_moves()
+                .iter()
+                .any(|mv| mv.flag() == MoveFlag::EnPassant)
+        );
     }
 
     #[test]
@@ -198,7 +227,12 @@ mod tests {
         let mut board = Board::from_fen("4k3/8/8/8/3*4/8/7p/4K3 b - - 7 1").unwrap();
 
         // Underpromote on h1 and move the duck to h2
-        let mv = Move::new(Square::H2, Square::H1, Square::H2, MoveFlag::PromotionKnight);
+        let mv = Move::new(
+            Square::H2,
+            Square::H1,
+            Square::H2,
+            MoveFlag::PromotionKnight,
+        );
         assert!(board.gen_moves().contains(&mv));
         board.make_move(mv);
 
@@ -216,7 +250,12 @@ mod tests {
         let mut board = Board::from_fen("r3k2r/1P6/8/8/3*4/8/8/4K3 w kq - 0 1").unwrap();
 
         // Capture the a8 rook while promoting, with the duck moving to b7
-        let mv = Move::new(Square::B7, Square::A8, Square::B7, MoveFlag::CapturePromotionQueen);
+        let mv = Move::new(
+            Square::B7,
+            Square::A8,
+            Square::B7,
+            MoveFlag::CapturePromotionQueen,
+        );
         assert!(board.gen_moves().contains(&mv));
         board.make_move(mv);
 
@@ -246,7 +285,10 @@ mod tests {
         assert_eq!(board.king(Color::White), Square::E2);
         let rights = board.castling_rights(Color::White);
         assert_eq!(
-            (rights.get(CastlingDirection::Long), rights.get(CastlingDirection::Short)),
+            (
+                rights.get(CastlingDirection::Long),
+                rights.get(CastlingDirection::Short)
+            ),
             (None, None),
         );
     }
