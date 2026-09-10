@@ -1,17 +1,18 @@
-use std::cmp::{max_by_key};
+use crate::{board::Board, common::Move, common::Piece};
 use rand::{RngExt, rngs::ThreadRng};
-use crate::{common::Piece, board::Board, common::Move};
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
-struct SearchOutcome{
+struct SearchOutcome {
     score: i32,
-    mv: Option<Move>
+    mv: Option<Move>,
 }
 
-fn eval(board: &Board, rng: &mut ThreadRng) -> i32 {
+fn eval(_board: &Board, rng: &mut ThreadRng) -> i32 {
     rng.random::<i32>()
 }
 
+#[allow(dead_code)]
 fn start_negamax(board: Board, depth: u8) -> SearchOutcome {
     let mut rng = rand::rng();
     negamax(board, depth, &mut rng)
@@ -20,24 +21,36 @@ fn start_negamax(board: Board, depth: u8) -> SearchOutcome {
 fn negamax(board: Board, depth: u8, rng: &mut ThreadRng) -> SearchOutcome {
     let friendly_king = board.pieces(Piece::King) & board.colors(board.stm);
     if friendly_king.is_empty() {
-        return SearchOutcome { score: i32::MIN, mv: None };
+        return SearchOutcome {
+            score: i32::MIN,
+            mv: None,
+        };
     }
 
     if depth == 0 {
-        return SearchOutcome { score: eval(&board, rng), mv: None };
+        return SearchOutcome {
+            score: eval(&board, rng),
+            mv: None,
+        };
     }
 
     let moves = board.gen_moves();
-    let mut best: SearchOutcome = SearchOutcome{mv: None, score: i32::MIN};
+    let mut best: SearchOutcome = SearchOutcome {
+        mv: None,
+        score: i32::MIN,
+    };
     for mv in moves.iter() {
-        let mut new_board = board.clone();
+        let mut new_board = board;
         new_board.make_move(*mv);
 
         let child_outcome = negamax(new_board, depth - 1, rng);
         let score = child_outcome.score.saturating_neg();
 
         if score > best.score {
-            best = SearchOutcome { score, mv: Some(*mv)};
+            best = SearchOutcome {
+                score,
+                mv: Some(*mv),
+            };
         }
     }
     best
