@@ -1,6 +1,7 @@
-use std::sync::Once;
-
-use crate::common::{Bitboard, Square};
+use crate::{
+    common::{Bitboard, Square},
+    tagged_cell,
+};
 
 fn walk(blockers: Bitboard, mut sq: Square, dx: isize, dy: isize) -> Bitboard {
     let mut result = Bitboard::EMPTY;
@@ -29,30 +30,6 @@ fn bishop_attacks_slow(blockers: Bitboard, sq: Square) -> Bitboard {
         | walk(blockers, sq, -1, -1)
 }
 
-/// A ZST used to prove that the slider LUT has been initialized. The only way to acquire this tag is via [`init()`],
-/// as the private `()` field prevents direct construction of the type outside this module.
-#[non_exhaustive]
-#[derive(Clone, Copy)]
-pub struct SliderTag(());
-
-pub fn rook_attacks(blockers: Bitboard, sq: Square, _: SliderTag) -> Bitboard {
-    // SAFETY:
-    // - ATTACK_TABLE only gets mutated on initialization, which is proven to be finished by the tag argument.
-    // - The index is guaranteed to be in bounds by construction of the magics.
-    #[allow(static_mut_refs)]
-    unsafe {
-        Bitboard(*ATTACK_TABLE.get_unchecked(ROOK_MAGICS[sq].idx(blockers.0)))
-    }
-}
-
-pub fn bishop_attacks(blockers: Bitboard, sq: Square, _: SliderTag) -> Bitboard {
-    // SAFETY: same as above.
-    #[allow(static_mut_refs)]
-    unsafe {
-        Bitboard(*ATTACK_TABLE.get_unchecked(BISHOP_MAGICS[sq].idx(blockers.0)))
-    }
-}
-
 struct Magic {
     factor: u64,
     offset: isize,
@@ -70,18 +47,44 @@ impl Magic {
 // Compact variable shift black magics computed by Sp00ph
 
 const TABLE_SIZE: usize = 76411;
-static mut ATTACK_TABLE: [u64; TABLE_SIZE] = [0; TABLE_SIZE];
-static ONCE: Once = Once::new();
+tagged_cell!(
+    static ATTACK_TABLE: TaggedCell<[u64; TABLE_SIZE], pub SliderTag> = TaggedCell::new();
+);
 
-pub fn init() -> SliderTag {
-    ONCE.call_once(|| {
-        init_piece(rook_attacks_slow, &ROOK_MAGICS);
-        init_piece(bishop_attacks_slow, &BISHOP_MAGICS);
-    });
-    SliderTag(())
+pub fn rook_attacks(blockers: Bitboard, sq: Square, tag: SliderTag) -> Bitboard {
+    // SAFETY: The index is guaranteed to be in bounds by construction of the magics.
+    unsafe {
+        Bitboard(
+            *ATTACK_TABLE
+                .get(tag)
+                .get_unchecked(ROOK_MAGICS[sq].idx(blockers.0)),
+        )
+    }
 }
 
-fn init_piece(generator: fn(Bitboard, Square) -> Bitboard, magics: &[Magic; 64]) {
+pub fn bishop_attacks(blockers: Bitboard, sq: Square, tag: SliderTag) -> Bitboard {
+    // SAFETY: same as above.
+    unsafe {
+        Bitboard(
+            *ATTACK_TABLE
+                .get(tag)
+                .get_unchecked(BISHOP_MAGICS[sq].idx(blockers.0)),
+        )
+    }
+}
+
+pub fn init() -> SliderTag {
+    ATTACK_TABLE.init_inplace(|table| {
+        init_piece(table, rook_attacks_slow, &ROOK_MAGICS);
+        init_piece(table, bishop_attacks_slow, &BISHOP_MAGICS);
+    })
+}
+
+fn init_piece(
+    table: &mut [u64; TABLE_SIZE],
+    generator: fn(Bitboard, Square) -> Bitboard,
+    magics: &[Magic; 64],
+) {
     for &sq in Square::ALL {
         let magic = &magics[sq];
 
@@ -91,13 +94,9 @@ fn init_piece(generator: fn(Bitboard, Square) -> Bitboard, magics: &[Magic; 64])
         // Carry rippler loop to loop through all possible relevant blocker sets.
         let mut current = 0u64;
         loop {
+            table[magic.idx(current)] = generator(Bitboard(current), sq).0;
+
             current = current.wrapping_sub(relevant_bits) & relevant_bits;
-
-            // SAFETY: This is only called within `ONCE.call_once()`, so there will only ever be
-            // one thread writing to the table at a given time. And since all reads must wait for
-            // initialization to complete, we are the only ones accessing the table at all.
-            unsafe { ATTACK_TABLE[magic.idx(current)] = generator(Bitboard(current), sq).0 };
-
             if current == 0 {
                 break;
             }
