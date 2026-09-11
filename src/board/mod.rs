@@ -7,7 +7,6 @@ pub mod fen;
 pub mod make_move;
 pub mod movegen;
 pub mod perft;
-pub mod search;
 pub mod sliders;
 pub mod startpos;
 pub mod zobrist;

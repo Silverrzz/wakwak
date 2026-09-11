@@ -67,6 +67,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn try_king(&self, color: Color) -> Option<Square> {
+        self.colored_pieces(color, Piece::King).try_next()
+    }
+
+    #[inline]
     pub fn castling_rights(&self, color: Color) -> CastlingRights {
         self.castling_rights[color]
     }
@@ -115,6 +120,24 @@ impl Board {
     #[inline]
     pub fn hmc(&self) -> u8 {
         self.hmc
+    }
+
+    #[inline]
+    pub fn terminal_state(&self) -> Option<TerminalState> {
+        if self.try_king(self.stm).is_none() {
+            return Some(TerminalState::Victory(!self.stm));
+        }
+
+        if !self.gen_moves().is_empty() {
+            //TODO: Insufficient Material (?)
+            if self.hmc >= 100 {
+                Some(TerminalState::Draw)
+            } else {
+                None
+            }
+        } else {
+            Some(TerminalState::Stalemate(self.stm))
+        }
     }
 
     #[inline]
@@ -198,4 +221,11 @@ impl Board {
         self.stm = !self.stm;
         self.hash ^= ZOBRIST.stm;
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum TerminalState {
+    Victory(Color),
+    Stalemate(Color),
+    Draw,
 }
