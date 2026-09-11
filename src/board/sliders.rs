@@ -3,31 +3,23 @@ use crate::{
     tagged_cell,
 };
 
-fn walk(blockers: Bitboard, mut sq: Square, dx: isize, dy: isize) -> Bitboard {
-    let mut result = Bitboard::EMPTY;
-    while let Some(next) = sq.try_offset(dx, dy) {
-        sq = next;
-        result |= sq;
-        if blockers.has(sq) {
-            break;
-        }
-    }
+// Textbook hyperbola quintessence, calculates ray attacks in two opposite directions
+// for a file, rank, diagonal or antidiagonal. Only used for initializing the magic LUT.
+fn hq(blockers: Bitboard, sq: Square, ray: Bitboard) -> Bitboard {
+    let o = (blockers & ray).0;
+    let r = sq.bitboard().0;
+    let o_rev = o.reverse_bits();
+    let r_rev = r.reverse_bits();
 
-    result
+    Bitboard((o.wrapping_sub(r << 1)) ^ (o_rev.wrapping_sub(r_rev << 1)).reverse_bits()) & ray
 }
 
 fn rook_attacks_slow(blockers: Bitboard, sq: Square) -> Bitboard {
-    walk(blockers, sq, 1, 0)
-        | walk(blockers, sq, -1, 0)
-        | walk(blockers, sq, 0, 1)
-        | walk(blockers, sq, 0, -1)
+    hq(blockers, sq, sq.file().bitboard()) | hq(blockers, sq, sq.rank().bitboard())
 }
 
 fn bishop_attacks_slow(blockers: Bitboard, sq: Square) -> Bitboard {
-    walk(blockers, sq, 1, 1)
-        | walk(blockers, sq, 1, -1)
-        | walk(blockers, sq, -1, 1)
-        | walk(blockers, sq, -1, -1)
+    hq(blockers, sq, sq.diag_bitboard()) | hq(blockers, sq, sq.anti_diag_bitboard())
 }
 
 struct Magic {
