@@ -1,4 +1,4 @@
-use crate::common::{Bitboard, Color, Direction, File, Rank};
+use crate::common::{Bitboard, Color, Direction, File, North, Rank};
 use crate::def_enum;
 use enum_map::Enum;
 use std::fmt;
@@ -82,6 +82,18 @@ impl Square {
     #[inline]
     pub const fn bitboard(self) -> Bitboard {
         Bitboard(1u64 << (self as u8))
+    }
+
+    #[inline]
+    pub const fn diag_bitboard(self) -> Bitboard {
+        let shift = self.rank() as i8 - self.file() as i8;
+        Bitboard(0x8040201008040201).shift::<North>(shift)
+    }
+
+    #[inline]
+    pub const fn anti_diag_bitboard(self) -> Bitboard {
+        let shift = self.rank() as i8 + self.file() as i8 - 7;
+        Bitboard(0x0102040810204080).shift::<North>(shift)
     }
 }
 
