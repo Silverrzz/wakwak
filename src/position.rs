@@ -1,5 +1,6 @@
 use crate::board::Board;
 use crate::common::Move;
+use crate::search::MAX_PLY;
 
 #[derive(Clone)]
 pub struct Position {
@@ -12,7 +13,7 @@ impl Position {
     pub fn new(board: Board) -> Self {
         Self {
             current: board,
-            previous_boards: Vec::new(),
+            previous_boards: Vec::with_capacity(MAX_PLY),
         }
     }
 

@@ -1,3 +1,4 @@
+use crate::board::TerminalState;
 use crate::common::Move;
 use crate::engine::EngineOptions;
 use crate::position::Position;
@@ -169,23 +170,23 @@ fn search<Node: NodeType>(
     }
 
     thread.sel_depth = thread.sel_depth.max(ply);
-    /*if let Some(terminal_state) = pos.board().terminal_state() {
+    if let Some(terminal_state) = pos.board().terminal_state() {
         thread.nodes.inc();
         return match terminal_state {
             TerminalState::Victory(_) => Score::mated(ply),
             TerminalState::Stalemate(_) => Score::mate(ply),
             TerminalState::Draw => Score::draw(),
         };
-    }*/
+    }
 
     //TODO: Threefold Repetition, make a function `Position::repetition()` or something
 
-    if depth <= 0 {
-        return Score(rng.random_range((-Score::MAX_MATE.0 + 1)..=(Score::MAX_MATE.0 - 1)));
-    }
-
     if !Node::ROOT {
         thread.nodes.inc();
+    }
+
+    if depth <= 0 {
+        return Score(rng.random_range((-Score::MAX_MATE.0 + 1)..=(Score::MAX_MATE.0 - 1)));
     }
 
     //FIXME: Remove leading _ when this is used
