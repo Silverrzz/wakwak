@@ -9,6 +9,7 @@ pub enum UciCommand {
     NewGame,
     IsReady,
     Display,
+    Bench { depth: u8 },
     Search(Vec<SearchLimit>),
     Perft { depth: u8, bulk: bool },
     SplitPerft { depth: u8, bulk: bool },
@@ -36,6 +37,11 @@ impl UciCommand {
             "ucinewgame" => Ok(NewGame),
             "isready" => Ok(IsReady),
             "display" | "d" => Ok(Display),
+            "bench" => {
+                let depth = reader.next().map_or(Ok(1), str::parse)?;
+
+                Ok(Bench { depth })
+            }
             "perft" => {
                 let depth = reader.next().ok_or(MissingPerftDepth)?.parse()?;
                 let bulk = reader.next().ok_or(MissingPerftBulk)?.parse()?;

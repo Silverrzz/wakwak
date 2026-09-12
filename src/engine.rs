@@ -79,6 +79,7 @@ impl Engine {
             UciCommand::NewGame => self.newgame(),
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
+            UciCommand::Bench { depth } => self.bench(depth),
             UciCommand::Search(limits) => self.search(limits),
             UciCommand::Perft { depth, bulk } => self.perft(depth, bulk),
             UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),

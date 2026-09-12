@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::thread::JoinHandle;
 
 pub struct Searcher {
-    shared: Arc<SharedData>,
+    pub shared: Arc<SharedData>,
     threads: Vec<JoinHandle<()>>,
     sender: Sender<ThreadCommand>,
 }
@@ -158,7 +158,7 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
 }
 
 pub struct SharedData {
-    nodes: Arc<AtomicU64>,
+    pub nodes: Arc<AtomicU64>,
     pub time_man: TimeManager,
     pub num_searching: AtomicU32,
 }
