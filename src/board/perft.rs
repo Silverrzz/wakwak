@@ -1,21 +1,19 @@
 use crate::board::Board;
-use crate::common::{Color, Piece};
+use crate::common::Piece;
 
 impl Board {
-    pub fn perft(&self, depth: u8) -> u64 {
+    #[inline]
+    pub fn perft<const BULK: bool>(&self, depth: u8) -> u64 {
         if depth == 0 {
             return 1;
         }
 
-        if [Color::White, Color::Black]
-            .into_iter()
-            .any(|color| self.colored_pieces(color, Piece::King).is_empty())
-        {
+        if self.pieces(Piece::King).popcnt() != 2 {
             return 0;
         }
 
         let moves = self.gen_moves();
-        if depth == 1 {
+        if BULK && depth == 1 {
             return moves.len() as u64;
         }
 
@@ -24,8 +22,8 @@ impl Board {
             let mut child = *self;
             child.make_move(mv);
             nodes = nodes
-                .checked_add(child.perft(depth - 1))
-                .expect("Perft node count overflow");
+                .checked_add(child.perft::<BULK>(depth - 1))
+                .expect("Board::perft(): Node count overflow");
         }
         nodes
     }

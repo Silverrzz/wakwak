@@ -1,89 +1,221 @@
-use crate::board::TerminalState;
+use crate::common::Move;
+use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
-use crate::search::MAX_PLY;
-use crate::{board::Board, common::Move};
-use rand::{RngExt, rngs::ThreadRng};
-use std::ops::Neg;
+use crate::search::{PrincipalVariation, SearchInfo};
+use crate::search::{SharedData, ThreadData};
+use rand::RngExt;
+use rand::rngs::ThreadRng;
+use std::sync::atomic::Ordering;
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
-struct SearchOutcome {
-    score: Option<Score>,
-    mv: Option<Move>,
+#[derive(Debug, Clone, Default)]
+pub struct SearchStack {
+    pv: PrincipalVariation,
+}
+
+pub fn iterative_deepening(
+    mut pos: Position,
+    thread: &mut ThreadData,
+    shared: &SharedData,
+    options: EngineOptions,
+    info: SearchInfo,
+) {
+    let mut depth = 1;
+    let mut completed_depth = 0;
+    let mut score;
+    let mut pv;
+
+    let mut rng = rand::rng();
+
+    'id: loop {
+        score = Some(search::<Root>(
+            &mut pos,
+            thread,
+            shared,
+            &mut rng,
+            depth as i32,
+            0,
+        ));
+        pv = thread.stack[0].pv.clone();
+        thread.nodes.flush();
+
+        if depth > 1 && thread.stop {
+            break 'id;
+        }
+
+        if thread.id == 0 {
+            if shared.time_man.stop_id(depth, thread.nodes.global()) {
+                shared.time_man.set_stop(true);
+                thread.stop = true;
+                break 'id;
+            }
+
+            shared.time_man.deepen(depth);
+        }
+
+        depth += 1;
+        completed_depth += 1;
+
+        if thread.id == 0 && info == SearchInfo::Full {
+            info.depth(
+                thread,
+                shared,
+                options,
+                completed_depth,
+                score.unwrap(),
+                &pv,
+            );
+        }
+    }
+
+    //Wait for `stop` command if search is infinite
+    if shared.time_man.infinite() {
+        shared.time_man.wait_for_stop();
+    }
+
+    let last_thread = shared.num_searching.fetch_sub(1, Ordering::AcqRel) == 2;
+
+    //The last thread to decrement wakes the main thread, unless the last thread is the main thread.
+    if last_thread && thread.id != 0 {
+        atomic_wait::wake_all(&shared.num_searching);
+    }
+
+    if thread.id == 0 {
+        // The main thread ensures all search threads have finished before printing
+        if !last_thread {
+            let mut num_searching = shared.num_searching.load(Ordering::Acquire);
+            while num_searching != 1 {
+                atomic_wait::wait(&shared.num_searching, num_searching);
+                num_searching = shared.num_searching.load(Ordering::Acquire);
+            }
+        }
+
+        // All search threads have finished, we are ready for new commands.
+        shared.num_searching.store(0, Ordering::Release);
+    }
+
+    if thread.id == 0 && info != SearchInfo::None {
+        info.depth(
+            thread,
+            shared,
+            options,
+            completed_depth,
+            score.unwrap(),
+            &pv,
+        );
+        println!(
+            "bestmove {}",
+            pv.moves[0]
+                .unwrap()
+                .display(options.dumb_interface, options.frc)
+        );
+    }
+
+    //Wake the other threads after printing
+    if thread.id == 0 {
+        atomic_wait::wake_all(&shared.num_searching);
+    }
+}
+
+trait NodeType {
+    const PV: bool;
+    const ROOT: bool;
+}
+
+struct Root;
+struct PV;
+#[expect(dead_code)]
+struct NonPV;
+
+impl NodeType for Root {
+    const PV: bool = true;
+    const ROOT: bool = true;
+}
+
+impl NodeType for PV {
+    const PV: bool = true;
+    const ROOT: bool = false;
+}
+
+impl NodeType for NonPV {
+    const PV: bool = false;
+    const ROOT: bool = false;
 }
 
 #[inline]
-fn eval(_board: &Board, rng: &mut ThreadRng) -> Score {
-    Score(rng.random_range((-Score::MAX_MATE.0 + 1)..=(Score::MAX_MATE.0 - 1)))
+fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
+    let [parent, child] = thread.stack.get_disjoint_mut([ply, ply + 1]).unwrap();
+
+    parent.pv.update(mv, &child.pv);
 }
 
-#[allow(dead_code)]
-fn start_negamax(mut pos: Position, depth: u8) -> SearchOutcome {
-    let mut rng = rand::rng();
-    negamax(&mut pos, depth, 0, &mut rng)
-}
+fn search<Node: NodeType>(
+    pos: &mut Position,
+    thread: &mut ThreadData,
+    shared: &SharedData,
+    rng: &mut ThreadRng,
+    depth: i32,
+    ply: usize,
+) -> Score {
+    if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
+        shared.time_man.set_stop(true);
+        thread.stop = true;
 
-fn negamax(pos: &mut Position, depth: u8, ply: u16, rng: &mut ThreadRng) -> SearchOutcome {
-    if let Some(terminal_state) = pos.board().terminal_state() {
+        return Score::ZERO;
+    }
+
+    if Node::PV {
+        thread.stack[ply].pv.len = 0;
+    }
+
+    thread.sel_depth = thread.sel_depth.max(ply);
+    /*if let Some(terminal_state) = pos.board().terminal_state() {
+        thread.nodes.inc();
         return match terminal_state {
-            TerminalState::Victory(_) => SearchOutcome {
-                score: Some(Score::mated(ply)),
-                mv: None,
-            },
-            TerminalState::Stalemate(_) => SearchOutcome {
-                score: Some(Score::mate(ply)),
-                mv: None,
-            },
-            TerminalState::Draw => SearchOutcome {
-                score: Some(Score::draw()),
-                mv: None,
-            },
+            TerminalState::Victory(_) => Score::mated(ply),
+            TerminalState::Stalemate(_) => Score::mate(ply),
+            TerminalState::Draw => Score::draw(),
         };
+    }*/
+
+    //TODO: Threefold Repetition, make a function `Position::repetition()` or something
+
+    if depth <= 0 {
+        return Score(rng.random_range((-Score::MAX_MATE.0 + 1)..=(Score::MAX_MATE.0 - 1)));
     }
 
-    if depth == 0 || ply >= MAX_PLY {
-        return SearchOutcome {
-            score: Some(eval(pos.board(), rng)),
-            mv: None,
-        };
+    if !Node::ROOT {
+        thread.nodes.inc();
     }
+
+    //FIXME: Remove leading _ when this is used
+    let mut _best_move = None;
+    let mut best_score = None;
 
     let moves = pos.board().gen_moves();
-    let mut best_outcome: SearchOutcome = SearchOutcome {
-        mv: None,
-        score: None,
-    };
-    for &mv in moves.iter() {
+    for (move_count, &mv) in moves.iter().enumerate() {
         pos.make_move(mv);
-        let child_outcome = negamax(pos, depth - 1, ply + 1, rng);
+        let score = -search::<PV>(pos, thread, shared, rng, depth - 1, ply + 1);
         pos.unmake_move();
 
-        let score = child_outcome.score.map(Score::neg);
-        if score > best_outcome.score {
-            best_outcome = SearchOutcome {
-                score,
-                mv: Some(mv),
-            };
+        if Node::ROOT && move_count == 0 {
+            update_pv(thread, mv, ply);
+        }
+
+        if thread.stop {
+            return Score::ZERO;
+        }
+
+        //TODO: Alpha-Beta Pruning will require moving stuff like PV updates
+        if score > best_score {
+            best_score = Some(score);
+            _best_move = Some(mv);
+
+            if Node::PV {
+                update_pv(thread, mv, ply);
+            }
         }
     }
-    best_outcome
-}
 
-#[test]
-fn depth_1() {
-    let board = Board::from_fen("7*/8/8/3PPP2/3PkP2/3PPP2/8/K7 b - - 0 1")
-        .expect("board couldnt parse fen string");
-    let pos = Position::new(board);
-
-    println!("{:?}", start_negamax(pos, 1));
-}
-
-#[test]
-fn depth_2() {
-    let board = Board::from_fen("7*/8/8/3PPP2/3PkP2/3PPP2/8/K7 b - - 0 1")
-        .expect("board couldnt parse fen string");
-    let pos = Position::new(board);
-
-    println!("{:?}", start_negamax(pos, 2));
+    best_score.unwrap()
 }

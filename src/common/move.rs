@@ -51,16 +51,28 @@ impl Move {
     }
 
     #[inline]
-    pub fn display(self, dumb_interface: bool) -> String {
+    pub fn display(self, dumb_interface: bool, frc: bool) -> String {
+        let (src, mut dest) = (self.src(), self.dest());
+
+        if !frc && self.flag().is_castling() {
+            let dest_file = if src.file() < dest.file() {
+                File::G
+            } else {
+                File::C
+            };
+
+            dest = Square::new(dest_file, src.rank());
+        }
+
         let mut out = String::new();
-        write!(out, "{}{}", self.src(), self.dest()).unwrap();
+        write!(out, "{}{}", src, dest).unwrap();
 
         if let Some(promotion) = self.flag().promotion() {
             write!(out, "{}", promotion).unwrap();
         }
 
         if dumb_interface {
-            write!(out, ",{}{}", self.dest(), self.duck()).unwrap(); //just why
+            write!(out, ",{}{}", dest, self.duck()).unwrap(); //just why
         } else {
             write!(out, "@{}", self.duck()).unwrap();
         }

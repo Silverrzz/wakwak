@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 arrayvec = "0.7.8"
+atomic-wait = "1.1.0"
 colored = "3.1.1"
 enum-map = "3.1.0"
 rand = "0.10.2"

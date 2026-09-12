@@ -128,7 +128,8 @@ impl Board {
             return Some(TerminalState::Victory(!self.stm));
         }
 
-        if !self.gen_moves().is_empty() {
+        let any_moves = self.gen_moves().is_empty();
+        if !any_moves {
             //TODO: Insufficient Material (?)
             if self.hmc >= 100 {
                 Some(TerminalState::Draw)
