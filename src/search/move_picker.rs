@@ -75,27 +75,80 @@ impl Default for MoveStack {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
-    YieldMoves,
+    SplitNoisy,
+    YieldNoisy,
+    YieldQuiet,
     Finished,
 }
 
 pub struct MovePicker {
     stage: Stage,
+    skip_quiets: bool,
+    noisy_count: usize,
     cursor: usize,
 }
 
 impl MovePicker {
+    #[inline]
+    pub fn skip_quiets(&mut self) {
+        self.skip_quiets = true;
+
+        if matches!(self.stage, Stage::YieldQuiet) {
+            self.stage = Stage::Finished;
+        }
+    }
+
     pub fn next(&mut self, moves: &mut [ScoredMove]) -> Option<Move> {
-        if self.stage == Stage::YieldMoves {
-            if self.cursor >= moves.len() {
+        if self.stage == Stage::SplitNoisy {
+            // Move all noisies to the front of the list
+            let mut i = 0;
+            for j in 0..moves.len() {
+                if moves[j].0.flag().is_noisy() {
+                    // Score noisies here (moves[j].1 = pluh)
+
+                    moves.swap(i, j);
+                    i += 1;
+                } else {
+                    // Score quiets here (moves[j].1 = pluh)
+                }
+            }
+
+            self.noisy_count = i;
+            self.stage = Stage::YieldNoisy;
+        }
+
+        if self.stage == Stage::YieldNoisy {
+            if self.skip_quiets {
                 self.stage = Stage::Finished;
-                self.cursor = 0;
+            } else if self.cursor >= self.noisy_count {
+                self.stage = Stage::YieldQuiet;
             } else {
-                let (i, mv) = self.select_next(moves);
+                let (i, mv) = self.select_next(&moves[..self.noisy_count]);
                 moves.swap(self.cursor, i);
                 self.cursor += 1;
 
                 return Some(mv);
+            }
+        }
+
+        if self.stage == Stage::YieldQuiet {
+            if self.skip_quiets {
+                // Not sure if it's possible to hit this branch but just to be sure
+                self.stage = Stage::Finished;
+            } else {
+                if self.cursor < self.noisy_count {
+                    self.cursor = self.noisy_count;
+                }
+
+                if self.cursor >= moves.len() {
+                    self.stage = Stage::Finished;
+                } else {
+                    let (i, mv) = self.select_next(moves);
+                    moves.swap(self.cursor, i);
+                    self.cursor += 1;
+
+                    return Some(mv);
+                }
             }
         }
 
@@ -121,7 +174,9 @@ impl Default for MovePicker {
     #[inline]
     fn default() -> Self {
         Self {
-            stage: Stage::YieldMoves,
+            stage: Stage::SplitNoisy,
+            skip_quiets: false,
+            noisy_count: 0,
             cursor: 0,
         }
     }

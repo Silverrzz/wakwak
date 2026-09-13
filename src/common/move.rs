@@ -334,6 +334,16 @@ impl MoveFlag {
     pub const fn is_capture(self) -> bool {
         (self as u8 & 0x8) != 0
     }
+
+    #[inline]
+    pub const fn is_noisy(self) -> bool {
+        self.is_capture() || self.is_promotion()
+    }
+
+    #[inline]
+    pub const fn is_quiet(self) -> bool {
+        !self.is_noisy()
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
