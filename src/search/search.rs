@@ -1,11 +1,10 @@
 use crate::board::TerminalState;
 use crate::common::Move;
 use crate::engine::EngineOptions;
+use crate::eval::evaluator;
 use crate::position::Position;
 use crate::score::Score;
 use crate::search::{MovePicker, PrincipalVariation, SearchInfo, SharedData, ThreadData};
-use rand::RngExt;
-use rand::rngs::ThreadRng;
 use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Default)]
@@ -25,18 +24,9 @@ pub fn iterative_deepening(
     let mut pv = PrincipalVariation::default();
     let mut score = None;
 
-    let mut rng = rand::rng();
-
     'id: loop {
         thread.sel_depth = 0;
-        let new_score = Some(search::<Root>(
-            &mut pos,
-            thread,
-            shared,
-            &mut rng,
-            depth as i32,
-            0,
-        ));
+        let new_score = Some(search::<Root>(&mut pos, thread, shared, depth as i32, 0));
         thread.nodes.flush();
 
         if depth > 1 && thread.stop {
@@ -156,7 +146,6 @@ fn search<Node: NodeType>(
     pos: &mut Position,
     thread: &mut ThreadData,
     shared: &SharedData,
-    rng: &mut ThreadRng,
     depth: i32,
     ply: usize,
 ) -> Score {
@@ -189,7 +178,7 @@ fn search<Node: NodeType>(
     }
 
     if depth <= 0 {
-        return Score(rng.random_range((-Score::MAX_MATE.0 + 1)..=(Score::MAX_MATE.0 - 1)));
+        return Score(evaluator::evaluate(pos.board()));
     }
 
     // FIXME: Remove leading _ when this is used
@@ -202,7 +191,7 @@ fn search<Node: NodeType>(
 
     while let Some(mv) = move_picker.next(thread.move_stack.get_mut()) {
         pos.make_move(mv);
-        let score = -search::<PV>(pos, thread, shared, rng, depth - 1, ply + 1);
+        let score = -search::<PV>(pos, thread, shared, depth - 1, ply + 1);
         pos.unmake_move();
 
         if Node::ROOT && move_count == 0 {
