@@ -204,6 +204,7 @@ impl ThreadData {
     pub fn reset(&mut self) {
         self.nodes.reset();
         self.stack = vec![SearchStack::default(); MAX_PLY + 1];
+        self.move_stack.reset();
         self.sel_depth = 0;
         self.stop = false;
     }

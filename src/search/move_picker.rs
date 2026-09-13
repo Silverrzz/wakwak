@@ -20,6 +20,8 @@ impl MoveStack {
             "MoveStack::push(): Attempted to push on ply `MAX_PLY`"
         );
 
+        self.stack.truncate(self.start[self.ply]);
+
         let mut cursor = self.start[self.ply];
         board.gen_moves(|moves| {
             self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
@@ -51,6 +53,12 @@ impl MoveStack {
         debug_assert!(self.ply > 0, "MoveStack::get_mut(): Empty stack");
 
         &mut self.stack[self.start[self.ply - 1]..]
+    }
+
+    #[inline]
+    pub fn reset(&mut self) {
+        self.stack.clear();
+        self.ply = 0;
     }
 }
 
