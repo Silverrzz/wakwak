@@ -5,7 +5,7 @@ use crate::eval::eval;
 use crate::position::Position;
 use crate::score::Score;
 use crate::search::tt::TTFlag;
-use crate::search::{MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData};
+use crate::search::{MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData};
 use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Default)]
@@ -174,13 +174,8 @@ fn search<Node: NodeType>(
     }
 
     thread.sel_depth = thread.sel_depth.max(ply);
-
-    // TODO: node counting has to be changed once qsearch is implemented
-    if !Node::ROOT {
-        thread.nodes.inc();
-    }
-
     if let Some(terminal_state) = pos.board().terminal_state() {
+        thread.nodes.inc();
         return match terminal_state {
             TerminalState::Victory(_) => Score::mated(ply),
             TerminalState::Stalemate(_) => Score::mate(ply),
@@ -189,6 +184,7 @@ fn search<Node: NodeType>(
     }
 
     if !Node::ROOT && pos.repetition() {
+        thread.nodes.inc();
         return Score::draw();
     }
 
@@ -208,23 +204,27 @@ fn search<Node: NodeType>(
         }
     }
 
-    let static_eval = eval(pos.board());
-
-    if depth <= 0 {
-        return static_eval;
+    if ply >= MAX_PLY {
+        thread.nodes.inc();
+        return eval(pos.board());
     }
 
-    /*
-    Reverse Futility Pruning: If our evaluation of the position is already
-    so high that even a pessimistic estimate is still above beta, we can
-    be reasonably confident that a further search will also fail high.
-    */
+    if depth <= 0 {
+        return qsearch::<Node>(pos.board(), thread, shared, alpha, beta, ply);
+    }
+
+    if !Node::ROOT {
+        thread.nodes.inc();
+    }
+
+    let static_eval = eval(pos.board());
+
     if !Node::ROOT
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth) >= beta
-    {
-        return static_eval;
-    }
+        {
+            return static_eval;
+        }
 
     let mut best_move = None;
     let mut best_score = None;
@@ -358,4 +358,91 @@ fn search<Node: NodeType>(
 
     thread.move_stack.pop();
     best_score.unwrap()
+}
+
+fn qsearch<Node: NodeType>(
+    pos: &mut Position,
+    thread: &mut ThreadData,
+    shared: &SharedData,
+    mut alpha: Score,
+    beta: Score,
+    ply: usize,
+) -> Score {
+    if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
+        shared.time_man.set_stop(true);
+        thread.stop = true;
+
+        return Score::ZERO;
+    }
+
+    if Node::PV {
+        thread.stack[ply].pv.clear();
+    }
+
+    thread.nodes.inc();
+    thread.sel_depth = thread.sel_depth.max(ply);
+
+    if let Some(terminal_state) = pos.board().terminal_state() {
+        return match terminal_state {
+            TerminalState::Victory(_) => Score::mated(ply),
+            TerminalState::Stalemate(_) => Score::mate(ply),
+            TerminalState::Draw => Score::draw(),
+        };
+    }
+
+    if !Node::ROOT && pos.repetition() {
+        return Score::draw();
+    }
+
+    if ply >= MAX_PLY {
+        return evaluator::evaluate(pos.board());
+    }
+
+    // Stand Pat
+    let static_eval = evaluator::evaluate(pos.board());
+    if static_eval >= beta {
+        return static_eval;
+    }
+
+    if static_eval >= alpha {
+        alpha = static_eval;
+    }
+
+    // FIXME: Remove leading _ when this is used
+    let mut _best_move = None;
+    let mut best_score = static_eval;
+
+    thread.move_stack.push(pos.board());
+    let mut move_picker = MovePicker::default();
+
+    move_picker.skip_quiets();
+    while let Some(mv) = move_picker.next(thread.move_stack.get_mut()) {
+        pos.make_move(mv);
+        let score = -qsearch::<PV>(pos, thread, shared, -beta, -alpha, ply + 1);
+        pos.unmake_move();
+
+        if thread.stop {
+            thread.move_stack.pop();
+            return Score::ZERO;
+        }
+
+        if score > best_score {
+            best_score = score;
+        }
+
+        if score > alpha {
+            alpha = score;
+            _best_move = Some(mv);
+            if Node::PV {
+                update_pv(thread, mv, ply);
+            }
+
+            if score >= beta {
+                break;
+            }
+        }
+    }
+
+    thread.move_stack.pop();
+    best_score
 }
