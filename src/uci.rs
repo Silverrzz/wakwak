@@ -186,7 +186,7 @@ fn parse_position_cmd(
         let mv = Move::parse(&current, dumb_interface, token.trim())
             .ok_or_else(|| InvalidMove(token.to_string()))?;
 
-        if !current.gen_moves().contains(&mv) {
+        if !current.any_moves(|moves| moves.has(mv)) {
             return Err(InvalidMove(token.to_string()));
         }
 

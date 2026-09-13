@@ -1,6 +1,8 @@
 use crate::engine::EngineOptions;
 use crate::position::Position;
-use crate::search::{MAX_PLY, SearchInfo, SearchStack, TimeManager, iterative_deepening};
+use crate::search::{
+    MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager, iterative_deepening,
+};
 use crate::uci::SearchLimit;
 use crate::util::{BatchedAtomicCounter, Receiver, Sender, channel};
 use std::sync::Arc;
@@ -176,6 +178,7 @@ impl Default for SharedData {
 
 pub struct ThreadData {
     pub nodes: BatchedAtomicCounter,
+    pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
     pub sel_depth: usize,
     pub stop: bool,
@@ -187,6 +190,7 @@ impl ThreadData {
     pub fn new(nodes: Arc<AtomicU64>, id: usize) -> Self {
         Self {
             nodes: BatchedAtomicCounter::new(nodes),
+            move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
             sel_depth: 0,
             stop: false,

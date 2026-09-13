@@ -3,7 +3,7 @@ use crate::common::Move;
 use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
-use crate::search::{PrincipalVariation, SearchInfo};
+use crate::search::{MovePicker, PrincipalVariation, SearchInfo};
 use crate::search::{SharedData, ThreadData};
 use rand::RngExt;
 use rand::rngs::ThreadRng;
@@ -146,7 +146,6 @@ impl NodeType for NonPV {
 #[inline]
 fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
     let [parent, child] = thread.stack.get_disjoint_mut([ply, ply + 1]).unwrap();
-
     parent.pv.update(mv, &child.pv);
 }
 
@@ -193,8 +192,11 @@ fn search<Node: NodeType>(
     let mut _best_move = None;
     let mut best_score = None;
 
-    let moves = pos.board().gen_moves();
-    for (move_count, &mv) in moves.iter().enumerate() {
+    thread.move_stack.push(pos.board());
+    let mut move_picker = MovePicker::default();
+    let mut move_count = 0;
+
+    while let Some(mv) = move_picker.next(thread.move_stack.get_mut()) {
         pos.make_move(mv);
         let score = -search::<PV>(pos, thread, shared, rng, depth - 1, ply + 1);
         pos.unmake_move();
@@ -216,7 +218,10 @@ fn search<Node: NodeType>(
                 update_pv(thread, mv, ply);
             }
         }
+
+        move_count += 1;
     }
 
+    thread.move_stack.pop();
     best_score.unwrap()
 }

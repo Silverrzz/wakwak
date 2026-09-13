@@ -1,5 +1,4 @@
-use crate::board::sliders::SliderTag;
-use crate::board::{CastlingDirection, CastlingRights, EnPassant, ZOBRIST};
+use crate::board::{CastlingDirection, CastlingRights, EnPassant, SliderTag, ZOBRIST};
 use crate::common::{Bitboard, Color, File, Piece, Rank, Square, pawn_attacks};
 use enum_map::EnumMap;
 
@@ -128,8 +127,7 @@ impl Board {
             return Some(TerminalState::Victory(!self.stm));
         }
 
-        let any_moves = self.gen_moves().is_empty();
-        if !any_moves {
+        if self.any_moves(|_| true) {
             //TODO: Insufficient Material (?)
             if self.hmc >= 100 {
                 Some(TerminalState::Draw)

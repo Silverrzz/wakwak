@@ -3,7 +3,7 @@ use crate::common::Move;
 use crate::position::Position;
 use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher};
 use crate::uci::{SearchLimit, UciCommand, UciParseError};
-use crate::util::EPOCH;
+use crate::util::{Abort, EPOCH};
 use std::io;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
@@ -162,22 +162,26 @@ impl Engine {
         let mut total_time = Duration::ZERO;
         let mut total_nodes = 0;
 
-        for &mv in self.position.board().gen_moves().iter() {
-            let mut board = *self.position.board();
-            board.make_move(mv);
+        self.position.board().gen_moves(|moves| {
+            for mv in moves {
+                let mut board = *self.position.board();
+                board.make_move(mv);
 
-            let start = Instant::now();
-            let nodes = if bulk {
-                self.position.board().perft::<true>(depth - 1)
-            } else {
-                self.position.board().perft::<false>(depth - 1)
-            };
+                let start = Instant::now();
+                let nodes = if bulk {
+                    self.position.board().perft::<true>(depth - 1)
+                } else {
+                    self.position.board().perft::<false>(depth - 1)
+                };
 
-            total_time += start.elapsed();
-            total_nodes += nodes;
+                total_time += start.elapsed();
+                total_nodes += nodes;
 
-            perft_data.push((mv, nodes));
-        }
+                perft_data.push((mv, nodes));
+            }
+
+            Abort::No
+        });
 
         for (mv, nodes) in perft_data {
             println!(
@@ -296,12 +300,6 @@ impl Default for Engine {
     fn default() -> Self {
         Self::new()
     }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Abort {
-    Yes,
-    No,
 }
 
 #[derive(Debug, Copy, Clone)]

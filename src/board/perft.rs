@@ -1,30 +1,34 @@
 use crate::board::Board;
-use crate::common::Piece;
+use crate::util::Abort;
 
 impl Board {
     #[inline]
     pub fn perft<const BULK: bool>(&self, depth: u8) -> u64 {
-        if depth == 0 {
+        if depth == 0 || self.terminal_state().is_some() {
             return 1;
         }
 
-        if self.pieces(Piece::King).popcnt() != 2 {
-            return 0;
-        }
-
-        let moves = self.gen_moves();
         if BULK && depth == 1 {
-            return moves.len() as u64;
+            let mut len = 0;
+            self.gen_moves(|moves| {
+                len += moves.len() as u64;
+                Abort::No
+            });
+            return len;
         }
 
         let mut nodes = 0u64;
-        for &mv in moves.iter() {
-            let mut child = *self;
-            child.make_move(mv);
-            nodes = nodes
-                .checked_add(child.perft::<BULK>(depth - 1))
-                .expect("Board::perft(): Node count overflow");
-        }
+        self.gen_moves(|moves| {
+            for mv in moves {
+                let mut child = *self;
+                child.make_move(mv);
+
+                nodes += child.perft::<BULK>(depth - 1);
+            }
+
+            Abort::No
+        });
+
         nodes
     }
 }
