@@ -211,6 +211,7 @@ fn search<Node: NodeType>(
         }
 
         if thread.stop {
+            thread.move_stack.pop();
             return Score::ZERO;
         }
 
