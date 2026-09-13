@@ -108,9 +108,7 @@ pub fn iterative_deepening(
         );
         println!(
             "bestmove {}",
-            pv.moves[0]
-                .unwrap()
-                .display(options.dumb_interface, options.frc)
+            pv[0].display(options.dumb_interface, options.frc)
         );
     }
 
@@ -148,7 +146,10 @@ impl NodeType for NonPV {
 #[inline]
 fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
     let [parent, child] = thread.stack.get_disjoint_mut([ply, ply + 1]).unwrap();
-    parent.pv.update(mv, &child.pv);
+
+    parent.pv.clear();
+    parent.pv.push(mv);
+    parent.pv.extend(child.pv.iter().copied());
 }
 
 fn search<Node: NodeType>(
@@ -167,7 +168,7 @@ fn search<Node: NodeType>(
     }
 
     if Node::PV {
-        thread.stack[ply].pv.len = 0;
+        thread.stack[ply].pv.clear();
     }
 
     thread.sel_depth = thread.sel_depth.max(ply);

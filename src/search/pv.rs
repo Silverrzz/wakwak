@@ -1,33 +1,21 @@
 use crate::common::Move;
 use crate::engine::EngineOptions;
 use crate::search::MAX_PLY;
+use arrayvec::ArrayVec;
 use std::fmt::Write;
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
 pub struct PrincipalVariation {
-    pub moves: [Option<Move>; MAX_PLY + 1],
-    pub len: usize,
+    moves: ArrayVec<Move, { MAX_PLY + 1 }>,
 }
 
 impl PrincipalVariation {
     #[inline]
-    pub fn update(&mut self, mv: Move, child_pv: &PrincipalVariation) {
-        self.moves[0] = Some(mv);
-        self.len = child_pv.len + 1;
-        self.moves[1..self.len].copy_from_slice(&child_pv.moves[..child_pv.len]);
-    }
-
-    #[inline]
     pub fn display(&self, options: EngineOptions) -> String {
         let mut f = String::new();
-        if self.len != 0 {
-            for &mv in self.moves[..self.len].iter() {
-                if let Some(mv) = mv {
-                    write!(f, "{} ", mv.display(options.dumb_interface, options.frc)).unwrap();
-                } else {
-                    break;
-                }
-            }
+        for mv in self.moves.iter() {
+            write!(f, "{} ", mv.display(options.dumb_interface, options.frc)).unwrap();
         }
 
         f
@@ -38,8 +26,23 @@ impl Default for PrincipalVariation {
     #[inline]
     fn default() -> Self {
         Self {
-            moves: [None; MAX_PLY + 1],
-            len: 0,
+            moves: ArrayVec::new(),
         }
+    }
+}
+
+impl Deref for PrincipalVariation {
+    type Target = ArrayVec<Move, { MAX_PLY + 1 }>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.moves
+    }
+}
+
+impl DerefMut for PrincipalVariation {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.moves
     }
 }
