@@ -215,6 +215,8 @@ fn search<Node: NodeType>(
             return Score::ZERO;
         }
 
+        move_count += 1;
+
         if score > best_score {
             best_score = Some(score);
         }
@@ -230,9 +232,6 @@ fn search<Node: NodeType>(
                 break;
             }
         }
-
-        // TODO: This will be evil when we impl SE so make sure it's before score >= beta when u impl AB so we can use `move_count == 0`
-        move_count += 1;
     }
 
     thread.move_stack.pop();
