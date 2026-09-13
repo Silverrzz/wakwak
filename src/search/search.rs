@@ -1,6 +1,7 @@
 use crate::board::TerminalState;
 use crate::common::Move;
 use crate::engine::EngineOptions;
+use crate::eval::evaluator;
 use crate::position::Position;
 use crate::score::Score;
 use crate::search::{MovePicker, PrincipalVariation, SearchInfo, SharedData, ThreadData};
@@ -177,7 +178,7 @@ fn search<Node: NodeType>(
     }
 
     if depth <= 0 {
-        return Score(0);
+        return Score(evaluator::evaluate(pos.board()));
     }
 
     // FIXME: Remove leading _ when this is used
