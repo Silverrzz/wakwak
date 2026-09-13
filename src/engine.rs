@@ -169,9 +169,9 @@ impl Engine {
 
                 let start = Instant::now();
                 let nodes = if bulk {
-                    self.position.board().perft::<true>(depth - 1)
+                    board.perft::<true>(depth - 1)
                 } else {
-                    self.position.board().perft::<false>(depth - 1)
+                    board.perft::<false>(depth - 1)
                 };
 
                 total_time += start.elapsed();

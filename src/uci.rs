@@ -60,7 +60,7 @@ impl UciCommand {
                     return Err(UnexpectedSplitPerftArgument(token.to_string()));
                 }
 
-                Ok(Perft { depth, bulk })
+                Ok(SplitPerft { depth, bulk })
             }
             "stop" => Ok(Stop),
             "quit" | "q" => Ok(Quit),
