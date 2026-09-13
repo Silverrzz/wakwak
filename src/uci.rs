@@ -1,3 +1,4 @@
+use crate::bench::DEFAULT_BENCH_DEPTH;
 use crate::board::Board;
 use crate::common::Move;
 use std::num::ParseIntError;
@@ -38,7 +39,7 @@ impl UciCommand {
             "isready" => Ok(IsReady),
             "display" | "d" => Ok(Display),
             "bench" => {
-                let depth = reader.next().map_or(Ok(1), str::parse)?;
+                let depth = reader.next().map_or(Ok(DEFAULT_BENCH_DEPTH), str::parse)?;
 
                 Ok(Bench { depth })
             }
