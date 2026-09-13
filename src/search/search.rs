@@ -23,10 +23,20 @@ pub fn iterative_deepening(
     let mut completed_depth = 0;
     let mut pv = PrincipalVariation::default();
     let mut score = None;
+    let alpha = -Score::INFINITE;
+    let beta = Score::INFINITE;
 
     'id: loop {
         thread.sel_depth = 0;
-        let new_score = Some(search::<Root>(&mut pos, thread, shared, depth as i32, 0));
+        let new_score = Some(search::<Root>(
+            &mut pos,
+            thread,
+            shared,
+            alpha,
+            beta,
+            depth as i32,
+            0,
+        ));
         thread.nodes.flush();
 
         if depth > 1 && thread.stop {
@@ -146,6 +156,8 @@ fn search<Node: NodeType>(
     pos: &mut Position,
     thread: &mut ThreadData,
     shared: &SharedData,
+    mut alpha: Score,
+    beta: Score,
     depth: i32,
     ply: usize,
 ) -> Score {
@@ -191,7 +203,7 @@ fn search<Node: NodeType>(
 
     while let Some(mv) = move_picker.next(thread.move_stack.get_mut()) {
         pos.make_move(mv);
-        let score = -search::<PV>(pos, thread, shared, depth - 1, ply + 1);
+        let score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
         pos.unmake_move();
 
         if Node::ROOT && move_count == 0 {
@@ -202,13 +214,19 @@ fn search<Node: NodeType>(
             return Score::ZERO;
         }
 
-        // TODO: Alpha-Beta Pruning will require moving stuff like PV updates
         if score > best_score {
             best_score = Some(score);
-            _best_move = Some(mv);
+        }
 
+        if score > alpha {
+            alpha = score;
+            _best_move = Some(mv);
             if Node::PV {
                 update_pv(thread, mv, ply);
+            }
+
+            if score >= beta {
+                break;
             }
         }
 
