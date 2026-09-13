@@ -1,14 +1,18 @@
 use crate::board::Board;
 use crate::common::Move;
 use crate::position::Position;
-use crate::uci::{UciCommand, UciParseError};
+use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher};
+use crate::uci::{SearchLimit, UciCommand, UciParseError};
+use crate::util::{Abort, EPOCH};
 use std::io;
-use std::time::Instant;
+use std::sync::LazyLock;
+use std::time::{Duration, Instant};
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct Engine {
     pub position: Position,
+    pub searcher: Searcher,
     pub options: EngineOptions,
 }
 
@@ -17,12 +21,15 @@ impl Engine {
     pub fn new() -> Self {
         Self {
             position: Position::new(Board::startpos()),
+            searcher: Searcher::default(),
             options: EngineOptions::default(),
         }
     }
 
     #[inline]
     pub fn run(&mut self) {
+        LazyLock::force(&EPOCH);
+
         let mut buffer = String::new();
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
@@ -72,7 +79,10 @@ impl Engine {
             UciCommand::NewGame => self.newgame(),
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
-            UciCommand::Perft { depth } => self.perft(depth),
+            UciCommand::Bench { depth } => self.bench(depth),
+            UciCommand::Search(limits) => self.search(limits),
+            UciCommand::Perft { depth, bulk } => self.perft(depth, bulk),
+            UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),
             UciCommand::Position { board, moves } => self.set_position(board, moves),
             UciCommand::SetOption { name, value } => self.set_option(name, value),
             UciCommand::Stop => self.stop(),
@@ -86,6 +96,10 @@ impl Engine {
     fn uci() {
         println!("id name wakwak v{ENGINE_VERSION}");
         println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
+        println!("option name Threads type spin default 1 min 1 max 1024");
+        println!("option name MoveOverhead type spin default {DEFAULT_OVERHEAD} min 0 max 5000");
+        println!("option name Minimal type check default false");
+        println!("option name SoftTarget type check default false");
         println!("option name UseDumbInterface type check default true");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
@@ -93,7 +107,9 @@ impl Engine {
     }
 
     #[inline]
-    fn newgame(&mut self) {}
+    fn newgame(&mut self) {
+        self.searcher.newgame();
+    }
 
     #[inline]
     fn isready() {
@@ -105,14 +121,79 @@ impl Engine {
         self.position.board().display(self.options.frc);
     }
 
-    fn perft(&self, depth: u8) {
+    #[inline]
+    fn search(&mut self, limits: Vec<SearchLimit>) {
+        self.searcher.search(
+            self.position.clone(),
+            self.options,
+            limits,
+            if self.options.minimal {
+                SearchInfo::Minimal
+            } else {
+                SearchInfo::Full
+            },
+        );
+    }
+
+    #[inline]
+    fn perft(&self, depth: u8, bulk: bool) {
         let start = Instant::now();
-        let nodes = self.position.board().perft(depth);
+        let nodes = if bulk {
+            self.position.board().perft::<true>(depth)
+        } else {
+            self.position.board().perft::<false>(depth)
+        };
         let elapsed = start.elapsed();
         let nps = (nodes as f64 / elapsed.as_secs_f64()) as u64;
         println!(
             "info string perft depth {depth} nodes {nodes} time {} nps {nps}",
             elapsed.as_millis()
+        );
+    }
+
+    #[inline]
+    fn split_perft(&self, depth: u8, bulk: bool) {
+        if depth == 0 {
+            eprintln!("info string `splitperft` depth cannot be 0");
+            return;
+        }
+
+        let mut perft_data = Vec::new();
+        let mut total_time = Duration::ZERO;
+        let mut total_nodes = 0;
+
+        self.position.board().gen_moves(|moves| {
+            for mv in moves {
+                let mut board = *self.position.board();
+                board.make_move(mv);
+
+                let start = Instant::now();
+                let nodes = if bulk {
+                    board.perft::<true>(depth - 1)
+                } else {
+                    board.perft::<false>(depth - 1)
+                };
+
+                total_time += start.elapsed();
+                total_nodes += nodes;
+
+                perft_data.push((mv, nodes));
+            }
+
+            Abort::No
+        });
+
+        for (mv, nodes) in perft_data {
+            println!(
+                "{:<5}: {nodes}",
+                mv.display(self.options.dumb_interface, self.options.frc)
+            );
+        }
+
+        let nps = (total_nodes as f64 / total_time.as_secs_f64()) as u64;
+        println!(
+            "info string splitperft depth {depth} nodes {total_nodes} time {} nps {nps}",
+            total_time.as_millis()
         );
     }
 
@@ -127,6 +208,54 @@ impl Engine {
     #[inline]
     fn set_option(&mut self, name: String, value: String) {
         match name.as_str() {
+            "Threads" => {
+                let value = match value.parse::<u32>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.searcher.set_threads(value);
+                println!("info string Set Threads to {value}");
+            }
+            "MoveOverhead" => {
+                let value = match value.parse::<u64>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.options.overhead = value;
+                println!("info string Set MoveOverhead to {value}");
+            }
+            "Minimal" => {
+                let value = match value.parse::<bool>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidBoolean(e));
+                        return;
+                    }
+                };
+
+                self.options.minimal = value;
+                println!("info string Set Minimal to {value}");
+            }
+            "SoftTarget" => {
+                let value = match value.parse::<bool>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidBoolean(e));
+                        return;
+                    }
+                };
+
+                self.options.soft_target = value;
+                println!("info string Set SoftTarget to {value}");
+            }
             "UseDumbInterface" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
@@ -168,10 +297,13 @@ impl Engine {
     }
 
     #[inline]
-    fn stop(&mut self) {}
+    fn stop(&mut self) {
+        self.searcher.stop();
+    }
 
     #[inline]
     fn quit(&mut self) -> Abort {
+        self.searcher.quit();
         Abort::Yes
     }
 }
@@ -182,14 +314,11 @@ impl Default for Engine {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Abort {
-    Yes,
-    No,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct EngineOptions {
+    pub overhead: u64,
+    pub minimal: bool,
+    pub soft_target: bool,
     pub dumb_interface: bool,
     pub frc: bool,
     pub variant: Variant,
@@ -204,6 +333,9 @@ impl Default for EngineOptions {
     #[inline]
     fn default() -> Self {
         Self {
+            overhead: DEFAULT_OVERHEAD,
+            minimal: false,
+            soft_target: false,
             dumb_interface: true,
             frc: false,
             variant: Variant::Duck,

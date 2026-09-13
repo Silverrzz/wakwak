@@ -17,12 +17,12 @@ impl Score {
     }
 
     #[inline]
-    pub fn mate(ply: u16) -> Self {
+    pub fn mate(ply: usize) -> Self {
         Self::MIN_MATE - ply as i32
     }
 
     #[inline]
-    pub fn mated(ply: u16) -> Self {
+    pub fn mated(ply: usize) -> Self {
         -Self::MIN_MATE + ply as i32
     }
 

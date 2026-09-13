@@ -1,5 +1,6 @@
 use crate::board::Board;
 use crate::common::Move;
+use crate::search::MAX_PLY;
 
 #[derive(Clone)]
 pub struct Position {
@@ -12,7 +13,7 @@ impl Position {
     pub fn new(board: Board) -> Self {
         Self {
             current: board,
-            previous_boards: Vec::new(),
+            previous_boards: Vec::with_capacity(MAX_PLY),
         }
     }
 
@@ -20,11 +21,6 @@ impl Position {
     pub fn reset(&mut self, board: Board) {
         self.current = board;
         self.previous_boards.clear();
-    }
-
-    #[inline]
-    pub fn board(&self) -> &Board {
-        &self.current
     }
 
     #[inline]
@@ -36,5 +32,19 @@ impl Position {
     #[inline]
     pub fn unmake_move(&mut self) {
         self.current = self.previous_boards.pop().unwrap();
+    }
+
+    #[inline]
+    pub fn board(&self) -> &Board {
+        &self.current
+    }
+
+    #[inline]
+    pub fn repetition(&self) -> bool {
+        self.previous_boards
+            .iter()
+            .rev()
+            .take(self.current.hmc() as usize)
+            .any(|b| b.duckless_hash() == self.current.duckless_hash())
     }
 }

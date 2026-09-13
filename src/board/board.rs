@@ -1,5 +1,4 @@
-use crate::board::sliders::SliderTag;
-use crate::board::{CastlingDirection, CastlingRights, EnPassant, ZOBRIST};
+use crate::board::{CastlingDirection, CastlingRights, EnPassant, SliderTag, ZOBRIST};
 use crate::common::{Bitboard, Color, File, Piece, Rank, Square, pawn_attacks};
 use enum_map::EnumMap;
 
@@ -103,6 +102,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn duckless_hash(&self) -> u64 {
+        self.hash ^ self.duck.map_or(0, |sq| ZOBRIST.duck(sq))
+    }
+
+    #[inline]
     pub fn duck(&self) -> Option<Square> {
         self.duck
     }
@@ -128,7 +132,7 @@ impl Board {
             return Some(TerminalState::Victory(!self.stm));
         }
 
-        if !self.gen_moves().is_empty() {
+        if self.any_moves(|_| true) {
             //TODO: Insufficient Material (?)
             if self.hmc >= 100 {
                 Some(TerminalState::Draw)

@@ -98,7 +98,9 @@ impl Board {
                 self.mailbox[src] = None;
                 self.mailbox[dest] = Some(promotion);
             }
-            _ => unreachable!("All variants are covered by the match arm"),
+            _ => {
+                unreachable!("Board::make_move(): All variants should be covered by the match arm")
+            }
         }
 
         self.toggle_stm();
@@ -206,28 +208,19 @@ mod tests {
         // e4 available for ep
         let mut clear = start;
         let mv = Move::new(Square::E2, Square::E4, Square::E2, MoveFlag::DoublePush);
-        assert!(clear.gen_moves().contains(&mv));
+        assert!(clear.any_moves(|moves| moves.has(mv)));
         clear.make_move(mv);
         assert!(clear.en_passant().is_some());
-        assert!(
-            clear
-                .gen_moves()
-                .iter()
-                .any(|mv| mv.flag() == MoveFlag::EnPassant)
-        );
+        assert!(clear.any_moves(|moves| moves.flag == MoveFlag::EnPassant));
 
         // duck e3 should block ep
         let mut blocked = start;
         let mv = Move::new(Square::E2, Square::E4, Square::E3, MoveFlag::DoublePush);
-        assert!(blocked.gen_moves().contains(&mv));
+        assert!(blocked.any_moves(|moves| moves.has(mv)));
+
         blocked.make_move(mv);
         assert_eq!(blocked.en_passant(), None);
-        assert!(
-            !blocked
-                .gen_moves()
-                .iter()
-                .any(|mv| mv.flag() == MoveFlag::EnPassant)
-        );
+        assert!(!blocked.any_moves(|moves| moves.flag == MoveFlag::EnPassant));
     }
 
     #[test]
@@ -236,7 +229,7 @@ mod tests {
 
         // white rook captures the black knight on d4
         let mv = Move::new(Square::D2, Square::D4, Square::D2, MoveFlag::Capture);
-        assert!(board.gen_moves().contains(&mv));
+        assert!(board.any_moves(|moves| moves.has(mv)));
         board.make_move(mv);
 
         // dest belongs only to white, and the knight is gone.
@@ -255,7 +248,7 @@ mod tests {
 
         // Promote on a8 and place the duck on the old pawn square
         let mv = Move::new(Square::A7, Square::A8, Square::A7, MoveFlag::PromotionQueen);
-        assert!(board.gen_moves().contains(&mv));
+        assert!(board.any_moves(|moves| moves.has(mv)));
         board.make_move(mv);
 
         // The pawn is gone and a white queen occupies a8
@@ -278,7 +271,7 @@ mod tests {
             Square::H2,
             MoveFlag::PromotionKnight,
         );
-        assert!(board.gen_moves().contains(&mv));
+        assert!(board.any_moves(|moves| moves.has(mv)));
         board.make_move(mv);
 
         // The replacement piece belongs to Black
@@ -301,7 +294,7 @@ mod tests {
             Square::B7,
             MoveFlag::CapturePromotionQueen,
         );
-        assert!(board.gen_moves().contains(&mv));
+        assert!(board.any_moves(|moves| moves.has(mv)));
         board.make_move(mv);
 
         // Only black queen castling should be gone
@@ -324,7 +317,7 @@ mod tests {
         assert_eq!(rights.get(CastlingDirection::Short), Some(File::H));
 
         let mv = Move::new(Square::E1, Square::E2, Square::E1, MoveFlag::Normal);
-        assert!(board.gen_moves().contains(&mv));
+        assert!(board.any_moves(|moves| moves.has(mv)));
         board.make_move(mv);
 
         assert_eq!(board.king(Color::White), Square::E2);

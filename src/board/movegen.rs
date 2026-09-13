@@ -1,27 +1,38 @@
-use crate::board::sliders::{bishop_attacks, rook_attacks};
-use crate::board::{Board, CastlingDirection};
+use crate::abort_if;
+use crate::board::{Board, CastlingDirection, bishop_attacks, rook_attacks};
 use crate::common::{
-    Bitboard, Move, MoveFlag, MoveList, North, NorthEast, NorthWest, Piece, Rank, South, SouthEast,
+    Bitboard, DuckMoves, MoveFlag, North, NorthEast, NorthWest, Piece, Rank, South, SouthEast,
     SouthWest, Square, between, king_attacks, knight_attacks,
 };
+use crate::util::Abort;
 
 impl Board {
     #[inline]
-    pub fn gen_moves(&self) -> MoveList {
-        let mut moves = MoveList::default();
+    pub fn gen_moves<V: FnMut(DuckMoves) -> Abort>(&self, mut visitor: V) -> Abort {
         let valid_dest =
             !self.colors(self.stm) & !self.duck.map_or(Bitboard::EMPTY, Square::bitboard);
 
-        self.gen_pawn_moves(&mut moves);
-        self.gen_knight_moves(valid_dest, &mut moves);
-        self.gen_slider_moves(valid_dest, &mut moves);
-        self.gen_king_moves(valid_dest, &mut moves);
+        abort_if!(self.gen_pawn_moves(&mut visitor));
+        abort_if!(self.gen_knight_moves(valid_dest, &mut visitor));
+        abort_if!(self.gen_slider_moves(valid_dest, &mut visitor));
+        abort_if!(self.gen_king_moves(valid_dest, &mut visitor));
 
-        moves
+        Abort::No
     }
 
     #[inline]
-    fn gen_pawn_moves(&self, moves: &mut MoveList) {
+    pub fn any_moves<V: FnMut(DuckMoves) -> bool>(&self, mut visitor: V) -> bool {
+        self.gen_moves(|moves| {
+            if visitor(moves) {
+                Abort::Yes
+            } else {
+                Abort::No
+            }
+        }) == Abort::Yes
+    }
+
+    #[inline]
+    fn gen_pawn_moves<V: FnMut(DuckMoves) -> Abort>(&self, visitor: &mut V) -> Abort {
         let empty = !self.occupied();
         let pawns = self.colored_pieces(self.stm, Piece::Pawn);
         let promo_rank = Rank::Eighth.relative_to(self.stm);
@@ -38,14 +49,17 @@ impl Board {
                     MoveFlag::PromotionBishop,
                     MoveFlag::PromotionKnight,
                 ] {
-                    for duck in empty ^ src ^ dest {
-                        moves.push(Move::new(src, dest, duck, flag));
-                    }
+                    abort_if!(visitor(
+                        DuckMoves::new(src, dest, flag, empty ^ src ^ dest,)
+                    ));
                 }
             } else {
-                for duck in empty ^ src ^ dest {
-                    moves.push(Move::new(src, dest, duck, MoveFlag::Normal));
-                }
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    MoveFlag::Normal,
+                    empty ^ src ^ dest,
+                )));
             }
         }
 
@@ -56,10 +70,12 @@ impl Board {
         //Pawn Double Pushes
         for dest in second_step {
             let src = dest.offset_dir::<South>(2 * self.stm.signum() as isize);
-
-            for duck in empty ^ src ^ dest {
-                moves.push(Move::new(src, dest, duck, MoveFlag::DoublePush));
-            }
+            abort_if!(visitor(DuckMoves::new(
+                src,
+                dest,
+                MoveFlag::DoublePush,
+                empty ^ src ^ dest,
+            )));
         }
 
         //Pawn Captures Left
@@ -75,14 +91,20 @@ impl Board {
                     MoveFlag::CapturePromotionBishop,
                     MoveFlag::CapturePromotionKnight,
                 ] {
-                    for duck in empty & !dest ^ src {
-                        moves.push(Move::new(src, dest, duck, flag));
-                    }
+                    abort_if!(visitor(DuckMoves::new(
+                        src,
+                        dest,
+                        flag,
+                        (empty ^ src) & !dest,
+                    )));
                 }
             } else {
-                for duck in empty & !dest ^ src {
-                    moves.push(Move::new(src, dest, duck, MoveFlag::Capture));
-                }
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    MoveFlag::Capture,
+                    (empty ^ src) & !dest,
+                )));
             }
         }
 
@@ -98,14 +120,20 @@ impl Board {
                     MoveFlag::CapturePromotionBishop,
                     MoveFlag::CapturePromotionKnight,
                 ] {
-                    for duck in empty & !dest ^ src {
-                        moves.push(Move::new(src, dest, duck, flag));
-                    }
+                    abort_if!(visitor(DuckMoves::new(
+                        src,
+                        dest,
+                        flag,
+                        (empty ^ src) & !dest,
+                    )));
                 }
             } else {
-                for duck in empty & !dest ^ src {
-                    moves.push(Move::new(src, dest, duck, MoveFlag::Capture));
-                }
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    MoveFlag::Capture,
+                    (empty ^ src) & !dest,
+                )));
             }
         }
 
@@ -117,17 +145,26 @@ impl Board {
 
             // `calc_en_passant` already calculated all the legal en pheasants
             for src in en_passant.attackers(self.stm) {
-                for duck in empty ^ src ^ dest ^ victim {
-                    moves.push(Move::new(src, dest, duck, MoveFlag::EnPassant));
-                }
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    MoveFlag::EnPassant,
+                    empty ^ src ^ dest ^ victim,
+                )));
             }
         }
+
+        Abort::No
     }
 
     #[inline]
-    pub fn gen_knight_moves(&self, valid_dest: Bitboard, moves: &mut MoveList) {
-        let empty = !self.occupied();
+    pub fn gen_knight_moves<V: FnMut(DuckMoves) -> Abort>(
+        &self,
+        valid_dest: Bitboard,
+        visitor: &mut V,
+    ) -> Abort {
         let knights = self.colored_pieces(self.stm, Piece::Knight);
+        let empty = !self.occupied();
 
         for src in knights {
             for dest in valid_dest & knight_attacks(src) {
@@ -136,16 +173,26 @@ impl Board {
                 } else {
                     MoveFlag::Normal
                 };
-                for duck in empty & !dest ^ src {
-                    moves.push(Move::new(src, dest, duck, flag));
-                }
+
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    flag,
+                    (empty ^ src) & !dest,
+                )));
             }
         }
+
+        Abort::No
     }
 
     #[inline]
-    pub fn gen_slider_moves(&self, valid_dest: Bitboard, moves: &mut MoveList) {
-        let (blockers, empty) = (self.occupied(), !self.occupied());
+    pub fn gen_slider_moves<V: FnMut(DuckMoves) -> Abort>(
+        &self,
+        valid_dest: Bitboard,
+        visitor: &mut V,
+    ) -> Abort {
+        let (empty, blockers) = (!self.occupied(), self.occupied());
         let diag = self.colored_diag_sliders(self.stm);
         let orth = self.colored_orth_sliders(self.stm);
 
@@ -156,9 +203,13 @@ impl Board {
                 } else {
                     MoveFlag::Normal
                 };
-                for duck in empty & !dest ^ src {
-                    moves.push(Move::new(src, dest, duck, flag));
-                }
+
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    flag,
+                    (empty ^ src) & !dest,
+                )));
             }
         }
 
@@ -169,17 +220,27 @@ impl Board {
                 } else {
                     MoveFlag::Normal
                 };
-                for duck in empty & !dest ^ src {
-                    moves.push(Move::new(src, dest, duck, flag));
-                }
+
+                abort_if!(visitor(DuckMoves::new(
+                    src,
+                    dest,
+                    flag,
+                    (empty ^ src) & !dest,
+                )));
             }
         }
+
+        Abort::No
     }
 
     #[inline]
-    pub fn gen_king_moves(&self, valid_dest: Bitboard, moves: &mut MoveList) {
-        let empty = !self.occupied();
+    pub fn gen_king_moves<V: FnMut(DuckMoves) -> Abort>(
+        &self,
+        valid_dest: Bitboard,
+        visitor: &mut V,
+    ) -> Abort {
         let king = self.king(self.stm);
+        let empty = !self.occupied();
 
         for dest in valid_dest & king_attacks(king) {
             let flag = if self.piece_on(dest).is_some() {
@@ -187,9 +248,13 @@ impl Board {
             } else {
                 MoveFlag::Normal
             };
-            for duck in empty & !dest ^ king {
-                moves.push(Move::new(king, dest, duck, flag));
-            }
+
+            abort_if!(visitor(DuckMoves::new(
+                king,
+                dest,
+                flag,
+                (empty ^ king) & !dest,
+            )));
         }
 
         let rank = Rank::First.relative_to(self.stm);
@@ -207,18 +272,19 @@ impl Board {
                     blockers = blockers ^ king_dest ^ rook_dest;
                     let flag = MoveFlag::new_castling(dir);
 
-                    for duck in !blockers {
-                        moves.push(Move::new(king, rook_src, duck, flag))
-                    }
+                    abort_if!(visitor(DuckMoves::new(king, rook_src, flag, !blockers,)));
                 }
             }
         }
+
+        Abort::No
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::board::Board;
+    use crate::util::Abort;
 
     #[test]
     fn pawn_attack() {
@@ -226,7 +292,14 @@ mod tests {
         let board = Board::from_fen("8/3k4/8/2p*p3/3P4/8/3K4/8 w - - 0 1")
             .expect("board couldnt parse fen string");
         board.display(true);
-        assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+
+        let mut len = 0;
+        board.gen_moves(|moves| {
+            len += moves.len();
+            Abort::No
+        });
+
+        assert_eq!(len, EXPECTED_RESULT);
     }
 
     #[test]
@@ -235,7 +308,14 @@ mod tests {
         let board = Board::from_fen("N3k2N/8/8/4*3/8/8/8/N3K2N w - - 0 1")
             .expect("board couldnt parse fen string");
         board.display(true);
-        assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+
+        let mut len = 0;
+        board.gen_moves(|moves| {
+            len += moves.len();
+            Abort::No
+        });
+
+        assert_eq!(len, EXPECTED_RESULT);
     }
 
     #[test]
@@ -244,7 +324,14 @@ mod tests {
         let board = Board::from_fen("7k/7n/4*3/1r3R2/3N4/8/8/K7 w - - 0 1")
             .expect("board couldnt parse fen string");
         board.display(true);
-        assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+
+        let mut len = 0;
+        board.gen_moves(|moves| {
+            len += moves.len();
+            Abort::No
+        });
+
+        assert_eq!(len, EXPECTED_RESULT);
     }
 
     #[test]
@@ -253,7 +340,14 @@ mod tests {
         let board = Board::from_fen("8/4K3/8/4*3/8/8/4k3/8 b - - 0 1")
             .expect("board couldnt parse fen string");
         board.display(true);
-        assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+
+        let mut len = 0;
+        board.gen_moves(|moves| {
+            len += moves.len();
+            Abort::No
+        });
+
+        assert_eq!(len, EXPECTED_RESULT);
     }
 
     #[test]
@@ -262,7 +356,14 @@ mod tests {
         let board = Board::from_fen("7*/8/8/3PPP2/3PkP2/3PPP2/8/K7 b - - 0 1")
             .expect("board couldnt parse fen string");
         board.display(true);
-        assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+
+        let mut len = 0;
+        board.gen_moves(|moves| {
+            len += moves.len();
+            Abort::No
+        });
+
+        assert_eq!(len, EXPECTED_RESULT);
     }
 
     #[test]
@@ -271,6 +372,13 @@ mod tests {
         let board = Board::from_fen("8/1k6/8/8/3*4/6n1/8/R1n1K2R w KQ - 0 1")
             .expect("board couldnt parse fen string");
         board.display(true);
-        assert_eq!(board.gen_moves().len(), EXPECTED_RESULT);
+
+        let mut len = 0;
+        board.gen_moves(|moves| {
+            len += moves.len();
+            Abort::No
+        });
+
+        assert_eq!(len, EXPECTED_RESULT);
     }
 }

@@ -1,5 +1,6 @@
 use crate::engine::Engine;
 
+pub mod bench;
 pub mod board;
 pub mod common;
 pub mod engine;

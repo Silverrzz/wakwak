@@ -1,5 +1,6 @@
 use crate::common::{Color, Direction, File, Rank, Square, horizontal_shift_mask};
-use std::{fmt::Display, ops::*};
+use std::fmt;
+use std::ops::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub struct Bitboard(pub u64);
@@ -141,8 +142,8 @@ impl Not for Bitboard {
     }
 }
 
-impl Display for Bitboard {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Bitboard {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for &rank in Rank::ALL.iter().rev() {
             writeln!(f)?;
             for &file in File::ALL {

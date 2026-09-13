@@ -1,7 +1,7 @@
 use crate::board::Board;
 use crate::common::Move;
 use std::num::ParseIntError;
-use std::str::{ParseBoolError, SplitWhitespace};
+use std::str::{FromStr, ParseBoolError, SplitWhitespace};
 
 #[derive(Clone)]
 pub enum UciCommand {
@@ -9,7 +9,10 @@ pub enum UciCommand {
     NewGame,
     IsReady,
     Display,
-    Perft { depth: u8 },
+    Bench { depth: u8 },
+    Search(Vec<SearchLimit>),
+    Perft { depth: u8, bulk: bool },
+    SplitPerft { depth: u8, bulk: bool },
     Position { board: Board, moves: Vec<Move> },
     SetOption { name: String, value: String },
     Stop,
@@ -34,15 +37,34 @@ impl UciCommand {
             "ucinewgame" => Ok(NewGame),
             "isready" => Ok(IsReady),
             "display" | "d" => Ok(Display),
+            "bench" => {
+                let depth = reader.next().map_or(Ok(1), str::parse)?;
+
+                Ok(Bench { depth })
+            }
             "perft" => {
                 let depth = reader.next().ok_or(MissingPerftDepth)?.parse()?;
+                let bulk = reader.next().ok_or(MissingPerftBulk)?.parse()?;
+
                 if let Some(token) = reader.next() {
                     return Err(UnexpectedPerftArgument(token.to_string()));
                 }
-                Ok(Perft { depth })
+
+                Ok(Perft { depth, bulk })
+            }
+            "splitperft" => {
+                let depth = reader.next().ok_or(MissingSplitPerftDepth)?.parse()?;
+                let bulk = reader.next().ok_or(MissingSplitPerftBulk)?.parse()?;
+
+                if let Some(token) = reader.next() {
+                    return Err(UnexpectedSplitPerftArgument(token.to_string()));
+                }
+
+                Ok(SplitPerft { depth, bulk })
             }
             "stop" => Ok(Stop),
             "quit" | "q" => Ok(Quit),
+            "go" => parse_search_cmd(reader),
             "position" | "pos" => parse_position_cmd(reader, dumb_interface, frc),
             "setoption" => {
                 if reader.next() != Some("name") {
@@ -60,6 +82,44 @@ impl UciCommand {
             _ => Err(UnknownCommand(cmd.to_string())),
         }
     }
+}
+
+fn parse_search_cmd(mut reader: SplitWhitespace) -> Result<UciCommand, UciParseError> {
+    use SearchLimit::*;
+    use UciCommand::*;
+    use UciParseError::*;
+
+    #[inline]
+    fn parse_int<T: FromStr<Err = ParseIntError>>(
+        reader: &mut SplitWhitespace,
+        token: &str,
+    ) -> Result<T, UciParseError> {
+        Ok(reader
+            .next()
+            .ok_or_else(|| MissingLimitValue(token.to_string()))?
+            .parse::<T>()?)
+    }
+
+    let mut limits = Vec::new();
+    while let Some(token) = reader.next() {
+        match token {
+            "infinite" => {}
+            "wtime" => limits.push(WhiteTime(
+                parse_int::<i64>(&mut reader, token)?.max(0) as u64
+            )),
+            "btime" => limits.push(BlackTime(
+                parse_int::<i64>(&mut reader, token)?.max(0) as u64
+            )),
+            "winc" => limits.push(WhiteInc(parse_int(&mut reader, token)?)),
+            "binc" => limits.push(BlackInc(parse_int(&mut reader, token)?)),
+            "movetime" => limits.push(MoveTime(parse_int(&mut reader, token)?)),
+            "nodes" => limits.push(Nodes(parse_int(&mut reader, token)?)),
+            "depth" => limits.push(Depth(parse_int(&mut reader, token)?)),
+            _ => return Err(UnknownLimit(token.to_string())),
+        }
+    }
+
+    Ok(Search(limits))
 }
 
 fn parse_position_cmd(
@@ -126,7 +186,7 @@ fn parse_position_cmd(
         let mv = Move::parse(&current, dumb_interface, token.trim())
             .ok_or_else(|| InvalidMove(token.to_string()))?;
 
-        if !current.gen_moves().contains(&mv) {
+        if !current.any_moves(|moves| moves.has(mv)) {
             return Err(InvalidMove(token.to_string()));
         }
 
@@ -140,6 +200,17 @@ fn parse_position_cmd(
     })
 }
 
+#[derive(Debug, Copy, Clone)]
+pub enum SearchLimit {
+    WhiteTime(u64),
+    BlackTime(u64),
+    WhiteInc(u64),
+    BlackInc(u64),
+    MoveTime(u64),
+    Nodes(u64),
+    Depth(u8),
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum UciParseError {
     #[error("Missing command")]
@@ -147,10 +218,19 @@ pub enum UciParseError {
     #[error("Unknown command: `{0}`")]
     UnknownCommand(String),
 
-    #[error("Missing perft depth (usage: perft <depth>)")]
+    #[error("Missing perft depth (usage: perft <depth> <bulk: true|false>)")]
     MissingPerftDepth,
-    #[error("Unexpected perft argument: `{0}` (usage: perft <depth>)")]
+    #[error("Missing perft bulk (usage: perft <depth> <bulk: true|false>)")]
+    MissingPerftBulk,
+    #[error("Unexpected perft argument: `{0}` (usage: perft <depth> <bulk: true|false>)")]
     UnexpectedPerftArgument(String),
+
+    #[error("Missing perft depth (usage: splitperft <depth> <bulk: true|false>)")]
+    MissingSplitPerftDepth,
+    #[error("Missing perft bulk (usage: splitperft <depth> <bulk: true|false>)")]
+    MissingSplitPerftBulk,
+    #[error("Unexpected splitperft argument: `{0}` (usage: splitperft <depth> <bulk: true|false>)")]
+    UnexpectedSplitPerftArgument(String),
 
     #[error("FRC not enabled in `position frc/dfrc` command")]
     FrcNotEnabled,
@@ -163,6 +243,11 @@ pub enum UciParseError {
     MissingPositionType,
     #[error("Invalid FEN in `position fen` command: `{0}`")]
     InvalidFen(String),
+
+    #[error("Unknown search limit: `{0}`")]
+    UnknownLimit(String),
+    #[error("Missing value for search limit: `{0}`")]
+    MissingLimitValue(String),
 
     #[error("Missing `moves` token in `position` command")]
     MissingPositionMovesToken,

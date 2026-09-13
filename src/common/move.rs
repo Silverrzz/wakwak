@@ -1,11 +1,9 @@
 use crate::board::{Board, CastlingDirection};
-use crate::common::{Bitboard, File, Piece, Rank, Square};
-use arrayvec::ArrayVec;
+use crate::common::{Bitboard, BitboardIter, File, Piece, Rank, Square};
 use std::fmt::Write;
 use std::num::NonZeroU32;
-use std::ops::{Deref, DerefMut};
 
-const MAX_MOVES: usize = 218 * Square::COUNT;
+pub const MAX_MOVES: usize = 218 * Square::COUNT;
 
 /// A duck chess move. Bit Layout:
 /// - Bits 0-5: Source Square
@@ -18,14 +16,14 @@ pub struct Move(NonZeroU32);
 
 impl Move {
     #[inline]
-    pub const fn new(src: Square, dest: Square, duck: Square, flag: MoveFlag) -> Move {
+    pub const fn new(src: Square, dest: Square, duck: Square, flag: MoveFlag) -> Self {
         let mut bits = 0;
         bits |= src as u32;
         bits |= (dest as u32) << 6;
         bits |= (duck as u32) << 12;
         bits |= (flag as u32) << 18;
 
-        Move(NonZeroU32::new(bits).unwrap())
+        Self(NonZeroU32::new(bits).unwrap())
     }
 
     #[inline]
@@ -51,16 +49,28 @@ impl Move {
     }
 
     #[inline]
-    pub fn display(self, dumb_interface: bool) -> String {
+    pub fn display(self, dumb_interface: bool, frc: bool) -> String {
+        let (src, mut dest) = (self.src(), self.dest());
+
+        if !frc && self.flag().is_castling() {
+            let dest_file = if src.file() < dest.file() {
+                File::G
+            } else {
+                File::C
+            };
+
+            dest = Square::new(dest_file, src.rank());
+        }
+
         let mut out = String::new();
-        write!(out, "{}{}", self.src(), self.dest()).unwrap();
+        write!(out, "{}{}", src, dest).unwrap();
 
         if let Some(promotion) = self.flag().promotion() {
             write!(out, "{}", promotion).unwrap();
         }
 
         if dumb_interface {
-            write!(out, ",{}{}", self.dest(), self.duck()).unwrap(); //just why
+            write!(out, ",{}{}", dest, self.duck()).unwrap(); //just why
         } else {
             write!(out, "@{}", self.duck()).unwrap();
         }
@@ -326,22 +336,96 @@ impl MoveFlag {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct MoveList(ArrayVec<Move, MAX_MOVES>);
+#[derive(Debug, Copy, Clone)]
+pub struct DuckMoves {
+    pub src: Square,
+    pub dest: Square,
+    pub flag: MoveFlag,
+    pub duck: Bitboard,
+}
 
-impl Deref for MoveList {
-    type Target = ArrayVec<Move, MAX_MOVES>;
+impl DuckMoves {
+    #[inline]
+    pub fn new(src: Square, dest: Square, flag: MoveFlag, duck: Bitboard) -> Self {
+        Self {
+            src,
+            dest,
+            duck,
+            flag,
+        }
+    }
 
     #[inline]
-    fn deref(&self) -> &Self::Target {
-        &self.0
+    pub fn has(&self, mv: Move) -> bool {
+        self.src == mv.src()
+            && self.dest == mv.dest()
+            && self.duck.has(mv.duck())
+            && self.flag == mv.flag()
+    }
+
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.duck.popcnt()
+    }
+
+    #[inline]
+    pub fn is_nonempty(&self) -> bool {
+        self.duck.is_nonempty()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.duck.is_empty()
+    }
+
+    #[inline]
+    pub fn iter(&self) -> DuckMovesIter {
+        self.into_iter()
     }
 }
 
-impl DerefMut for MoveList {
+impl IntoIterator for DuckMoves {
+    type Item = Move;
+    type IntoIter = DuckMovesIter;
+
     #[inline]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    fn into_iter(self) -> Self::IntoIter {
+        DuckMovesIter {
+            src: self.src,
+            dest: self.dest,
+            flag: self.flag,
+            duck: self.duck.iter(),
+        }
+    }
+}
+
+pub struct DuckMovesIter {
+    src: Square,
+    dest: Square,
+    flag: MoveFlag,
+    duck: BitboardIter,
+}
+
+impl Iterator for DuckMovesIter {
+    type Item = Move;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let duck = self.duck.next()?;
+        Some(Move::new(self.src, self.dest, duck, self.flag))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl ExactSizeIterator for DuckMovesIter {
+    #[inline]
+    fn len(&self) -> usize {
+        self.duck.len()
     }
 }
 
