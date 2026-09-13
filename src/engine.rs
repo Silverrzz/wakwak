@@ -5,9 +5,8 @@ use crate::position::Position;
 use crate::search::Params;
 use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher};
 use crate::uci::{SearchLimit, UciCommand, UciParseError};
-use crate::util::{Abort, EPOCH};
+use crate::util::Abort;
 use std::io;
-use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -30,8 +29,6 @@ impl Engine {
 
     #[inline]
     pub fn run(&mut self) {
-        LazyLock::force(&EPOCH);
-
         let mut buffer = String::new();
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 

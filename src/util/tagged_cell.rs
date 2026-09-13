@@ -67,7 +67,7 @@ impl<T, Tag> TaggedCell<T, Tag> {
 
 #[macro_export]
 macro_rules! tagged_cell {
-    (static $name:ident : TaggedCell<$type:ty, _> = TaggedCell::new();) => {
+    ($(#[$meta:meta])* static $name:ident : TaggedCell<$type:ty, _> = TaggedCell::new();) => {
         #[allow(non_snake_case)]
         mod $name {
             #[allow(dead_code)]
@@ -75,9 +75,10 @@ macro_rules! tagged_cell {
             pub struct TagType;
         }
 
+        $(#[$meta])*
         static $name: $crate::util::tagged_cell::TaggedCell<$type, self::$name::TagType> = unsafe { $crate::util::tagged_cell::TaggedCell::new() };
     };
-    (static $name:ident : TaggedCell<$type:ty, $vis:vis $tag:ident> = TaggedCell::new();) => {
+    ($(#[$meta:meta])* static $name:ident : TaggedCell<$type:ty, $vis:vis $tag:ident> = TaggedCell::new();) => {
         $crate::tagged_cell!(static $name: TaggedCell<$type, _> = TaggedCell::new(););
         $vis type $tag = $crate::util::tagged_cell::Init<self::$name::TagType>;
     }
