@@ -56,7 +56,8 @@ impl MoveStack {
     }
 
     #[inline]
-    pub fn reset_ply(&mut self) {
+    pub fn reset(&mut self) {
+        self.stack.truncate(self.start[self.ply]);
         self.ply = 0;
     }
 }
