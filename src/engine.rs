@@ -208,6 +208,18 @@ impl Engine {
     #[inline]
     fn set_option(&mut self, name: String, value: String) {
         match name.as_str() {
+            "Threads" => {
+                let value = match value.parse::<u32>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.searcher.set_threads(value);
+                println!("info string Set Threads to {value}");
+            }
             "MoveOverhead" => {
                 let value = match value.parse::<u64>() {
                     Ok(value) => value,
