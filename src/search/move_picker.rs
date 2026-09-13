@@ -3,6 +3,7 @@ use crate::common::Move;
 use crate::search::MAX_PLY;
 use crate::util::Abort;
 
+#[expect(dead_code)]
 pub struct ScoredMove(Move, i32);
 
 pub struct MoveStack {
@@ -47,7 +48,7 @@ impl MoveStack {
 
     #[inline]
     pub fn get_mut(&mut self) -> &mut [ScoredMove] {
-        debug_assert!(self.ply > 0, "MoveStack::get(): Empty stack");
+        debug_assert!(self.ply > 0, "MoveStack::get_mut(): Empty stack");
 
         &mut self.stack[self.start[self.ply - 1]..]
     }
@@ -95,7 +96,7 @@ impl MovePicker {
 
     #[inline]
     fn select_next(&self, moves: &[ScoredMove]) -> (usize, Move) {
-        let i = moves
+        /*let i = moves
             .iter()
             .enumerate()
             .skip(self.cursor)
@@ -103,7 +104,8 @@ impl MovePicker {
             .map(|(i, _)| i)
             .unwrap();
 
-        (i, moves[i].0)
+        (i, moves[i].0)*/
+        (self.cursor, moves[self.cursor].0)
     }
 }
 

@@ -71,14 +71,14 @@ pub fn iterative_deepening(
         }
     }
 
-    //Wait for `stop` command if search is infinite
+    // Wait for `stop` command if search is infinite
     if shared.time_man.infinite() {
         shared.time_man.wait_for_stop();
     }
 
     let last_thread = shared.num_searching.fetch_sub(1, Ordering::AcqRel) == 2;
 
-    //The last thread to decrement wakes the main thread, unless the last thread is the main thread.
+    // The last thread to decrement wakes the main thread, unless the last thread is the main thread.
     if last_thread && thread.id != 0 {
         atomic_wait::wake_all(&shared.num_searching);
     }
@@ -114,7 +114,7 @@ pub fn iterative_deepening(
         );
     }
 
-    //Wake the other threads after printing
+    // Wake the other threads after printing
     if thread.id == 0 {
         atomic_wait::wake_all(&shared.num_searching);
     }
@@ -180,7 +180,7 @@ fn search<Node: NodeType>(
         };
     }
 
-    //TODO: Threefold Repetition, make a function `Position::repetition()` or something
+    // TODO: Threefold Repetition, make a function `Position::repetition()` or something
 
     if !Node::ROOT {
         thread.nodes.inc();
@@ -190,7 +190,7 @@ fn search<Node: NodeType>(
         return Score(rng.random_range((-Score::MAX_MATE.0 + 1)..=(Score::MAX_MATE.0 - 1)));
     }
 
-    //FIXME: Remove leading _ when this is used
+    // FIXME: Remove leading _ when this is used
     let mut _best_move = None;
     let mut best_score = None;
 
@@ -211,7 +211,7 @@ fn search<Node: NodeType>(
             return Score::ZERO;
         }
 
-        //TODO: Alpha-Beta Pruning will require moving stuff like PV updates
+        // TODO: Alpha-Beta Pruning will require moving stuff like PV updates
         if score > best_score {
             best_score = Some(score);
             _best_move = Some(mv);
@@ -221,6 +221,7 @@ fn search<Node: NodeType>(
             }
         }
 
+        // TODO: This will be evil when we impl SE so make sure it's before score >= beta when u impl AB so we can use `move_count == 0`
         move_count += 1;
     }
 
