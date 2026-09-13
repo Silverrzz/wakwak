@@ -72,7 +72,7 @@ impl fmt::Display for Score {
         if let Some(ply) = self.mate_in() {
             write!(f, "#{}", ply)
         } else {
-            write!(f, "{:+.2}", self.0 as f32 / 100.0)
+            write!(f, "{}", self.0)
         }
     }
 }
