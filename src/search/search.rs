@@ -201,7 +201,6 @@ fn search<Node: NodeType>(
         return static_eval;
     }
 
-    // FIXME: Remove leading _ when this is used
     let mut best_move = None;
     let mut best_score = None;
 
