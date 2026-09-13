@@ -24,11 +24,6 @@ impl Position {
     }
 
     #[inline]
-    pub fn board(&self) -> &Board {
-        &self.current
-    }
-
-    #[inline]
     pub fn make_move(&mut self, mv: Move) {
         self.previous_boards.push(self.current);
         self.current.make_move(mv);
@@ -37,5 +32,19 @@ impl Position {
     #[inline]
     pub fn unmake_move(&mut self) {
         self.current = self.previous_boards.pop().unwrap();
+    }
+
+    #[inline]
+    pub fn board(&self) -> &Board {
+        &self.current
+    }
+
+    #[inline]
+    pub fn repetition(&self) -> bool {
+        self.previous_boards
+            .iter()
+            .rev()
+            .take(self.current.hmc() as usize)
+            .any(|b| b.duckless_hash() == self.current.duckless_hash())
     }
 }

@@ -102,6 +102,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn duckless_hash(&self) -> u64 {
+        self.hash ^ self.duck.map_or(0, |sq| ZOBRIST.duck(sq))
+    }
+
+    #[inline]
     pub fn duck(&self) -> Option<Square> {
         self.duck
     }

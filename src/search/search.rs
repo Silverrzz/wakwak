@@ -171,8 +171,11 @@ fn search<Node: NodeType>(
     }
 
     thread.sel_depth = thread.sel_depth.max(ply);
-    if let Some(terminal_state) = pos.board().terminal_state() {
+    if !Node::ROOT {
         thread.nodes.inc();
+    }
+
+    if let Some(terminal_state) = pos.board().terminal_state() {
         return match terminal_state {
             TerminalState::Victory(_) => Score::mated(ply),
             TerminalState::Stalemate(_) => Score::mate(ply),
@@ -180,10 +183,8 @@ fn search<Node: NodeType>(
         };
     }
 
-    // TODO: Threefold Repetition, make a function `Position::repetition()` or something
-
-    if !Node::ROOT {
-        thread.nodes.inc();
+    if !Node::ROOT && pos.repetition() {
+        return Score::draw();
     }
 
     if depth <= 0 {
