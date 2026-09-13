@@ -74,6 +74,22 @@ impl Default for MoveStack {
     }
 }
 
+#[inline]
+fn mvv(board: &Board, mv: Move) -> i32 {
+    let victim = if mv.flag() == MoveFlag::EnPassant {
+        Params::piece_value(Piece::Pawn)
+    } else if mv.flag().is_capture() {
+        Params::piece_value(board.piece_on(mv.dest()).unwrap())
+    } else {
+        0
+    };
+    let promotion = mv.flag().promotion().map_or(0, |p| {
+        Params::piece_value(p) - Params::piece_value(Piece::Pawn)
+    });
+
+    victim + promotion
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
     SplitNoisy,
@@ -109,22 +125,12 @@ impl MovePicker {
                 let mv = moves[j].0;
                 if moves[j].0.flag().is_noisy() {
                     // Score noisies here (moves[j].1 = pluh)
-                    let attacker = Params::piece_value(board.piece_on(mv.src()).unwrap());
-                    let victim = if mv.flag() == MoveFlag::EnPassant {
-                        Params::piece_value(Piece::Pawn)
-                    } else if mv.flag().is_capture() {
-                        Params::piece_value(board.piece_on(mv.dest()).unwrap())
-                    } else {
-                        0
-                    };
-                    let promotion = mv.flag().promotion().map_or(0, Params::piece_value);
-
-                    moves[j].1 = 100 * victim + promotion - attacker;
+                    moves[j].1 = mvv(board, mv) * 8 + thread.history.noisy(pos.board(), mv) / 8;
                     moves.swap(i, j);
                     i += 1;
                 } else {
                     // Score quiets here (moves[j].1 = pluh)
-                    moves[j].1 = thread.history.quiet(pos.board(), moves[j].0);
+                    moves[j].1 = thread.history.quiet(board, mv);
                 }
             }
 

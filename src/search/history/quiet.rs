@@ -7,6 +7,7 @@ pub struct QuietEntry(pub i16);
 
 #[derive(Debug, Copy, Clone)]
 pub struct QuietHistory {
+    // Indexing: [stm][src][dest]
     entries: [[[QuietEntry; Square::COUNT]; Square::COUNT]; Color::COUNT],
 }
 

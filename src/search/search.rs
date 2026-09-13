@@ -207,6 +207,7 @@ fn search<Node: NodeType>(
 
     thread.move_stack.push(pos.board());
     let mut failed_quiets = Vec::new();
+    let mut failed_noisies = Vec::new();
     let mut move_picker = MovePicker::default();
     let mut move_count = 0;
 
@@ -238,15 +239,23 @@ fn search<Node: NodeType>(
             }
 
             if score >= beta {
-                thread
-                    .history
-                    .update(pos.board(), depth, best_move.unwrap(), &failed_quiets);
+                thread.history.update(
+                    pos.board(),
+                    depth,
+                    best_move.unwrap(),
+                    &failed_quiets,
+                    &failed_noisies,
+                );
                 break;
             }
         }
 
-        if best_move != Some(mv) && mv.flag().is_quiet() {
-            failed_quiets.push(mv);
+        if best_move != Some(mv) {
+            if mv.flag().is_noisy() {
+                failed_noisies.push(mv);
+            } else {
+                failed_quiets.push(mv);
+            }
         }
     }
 
