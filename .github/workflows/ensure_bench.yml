@@ -1,0 +1,10 @@
+on: push
+name: Ensure bench in commit message
+
+jobs:
+  ensure_bench:
+    name: Ensure bench
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: "git log -1 --pretty=%B | grep -E '[Bb]ench:? +[0-9]'"
