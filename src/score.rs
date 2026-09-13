@@ -69,10 +69,18 @@ impl Score {
 impl fmt::Display for Score {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(ply) = self.mate_in() {
-            write!(f, "#{}", ply)
+        if f.alternate() {
+            if let Some(ply) = self.mate_in() {
+                write!(f, "#{}", ply)
+            } else {
+                write!(f, "{:+.2}", self.0 as f32 / 100.0)
+            }
         } else {
-            write!(f, "{}", self.0)
+            if let Some(ply) = self.mate_in() {
+                write!(f, "mate {}", ply)
+            } else {
+                write!(f, "cp {}", self.0)
+            }
         }
     }
 }
