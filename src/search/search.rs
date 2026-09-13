@@ -22,13 +22,14 @@ pub fn iterative_deepening(
 ) {
     let mut depth = 1;
     let mut completed_depth = 0;
-    let mut score;
-    let mut pv;
+    let mut pv = PrincipalVariation::default();
+    let mut score = None;
 
     let mut rng = rand::rng();
 
     'id: loop {
-        score = Some(search::<Root>(
+        thread.sel_depth = 0;
+        let new_score = Some(search::<Root>(
             &mut pos,
             thread,
             shared,
@@ -36,12 +37,14 @@ pub fn iterative_deepening(
             depth as i32,
             0,
         ));
-        pv = thread.stack[0].pv.clone();
         thread.nodes.flush();
 
         if depth > 1 && thread.stop {
             break 'id;
         }
+
+        score = new_score;
+        pv = thread.stack[0].pv.clone();
 
         if thread.id == 0 {
             if shared.time_man.stop_id(depth, thread.nodes.global()) {
