@@ -69,6 +69,7 @@ impl Searcher {
             .collect();
 
         self.sender = tx;
+        self.sender.send(ThreadCommand::Sync);
     }
 
     #[inline]
@@ -115,7 +116,7 @@ impl Default for Searcher {
     #[inline]
     fn default() -> Self {
         let shared = Arc::new(SharedData::default());
-        let (tx, mut rx) = channel(1);
+        let (mut tx, mut rx) = channel(1);
         let thread = std::thread::spawn({
             let shared = shared.clone();
 
@@ -127,6 +128,7 @@ impl Default for Searcher {
                 }
             }
         });
+        tx.send(ThreadCommand::Sync);
 
         Self {
             shared,
