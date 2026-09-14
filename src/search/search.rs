@@ -368,7 +368,7 @@ fn qsearch<Node: NodeType>(
     beta: Score,
     ply: usize,
 ) -> Score {
-    if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
+    if thread.stop || shared.time_man.stop_search(thread) {
         shared.time_man.set_stop(true);
         thread.stop = true;
 
@@ -395,11 +395,11 @@ fn qsearch<Node: NodeType>(
     }
 
     if ply >= MAX_PLY {
-        return evaluator::evaluate(pos.board());
+        return eval(pos.board());
     }
 
     // Stand Pat
-    let static_eval = evaluator::evaluate(pos.board());
+    let static_eval = eval(pos.board());
     if static_eval >= beta {
         return static_eval;
     }
@@ -414,9 +414,19 @@ fn qsearch<Node: NodeType>(
 
     thread.move_stack.push(pos.board());
     let mut move_picker = MovePicker::default();
+    let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
 
     move_picker.skip_quiets();
-    while let Some(mv) = move_picker.next(thread.move_stack.get_mut()) {
+    while let Some(mv) = move_picker.next(pos, thread) {
+        let (src, dest) = (mv.src(), mv.dest());
+        let count = &mut duck_counts[src][dest];
+
+        if *count >= Params::qldp_threshold() as u8 {
+            continue;
+        }
+
+        *count += 1;
+
         pos.make_move(mv);
         let score = -qsearch::<PV>(pos, thread, shared, -beta, -alpha, ply + 1);
         pos.unmake_move();
