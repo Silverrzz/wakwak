@@ -274,6 +274,19 @@ fn search<Node: NodeType>(
             continue;
         }
 
+        /*
+        Late Move Pruning (LMP): After a certain number of moves have been
+        examined, we can be reasonably confident they're not gonna get much
+        better, so we skip the rest of them.
+         */
+        if !Node::ROOT
+            && is_quiet
+            && depth <= Params::lmp_depth()
+            && move_count > Params::lmp_threshold(depth)
+        {
+            continue;
+        }
+
         duck_counts[src][dest] += 1;
         pos.make_move(mv);
 
