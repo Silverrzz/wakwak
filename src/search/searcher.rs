@@ -1,10 +1,9 @@
 use crate::engine::EngineOptions;
 use crate::position::Position;
-use crate::search::{
-    History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager, iterative_deepening,
-};
+use crate::search::{History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager};
 use crate::uci::SearchLimit;
-use crate::util::{BatchedAtomicCounter, Receiver, Sender, channel};
+use crate::util::{Abort, BatchedAtomicCounter, Receiver, Sender, channel};
+use rand::seq::IndexedRandom;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::thread::JoinHandle;
@@ -83,6 +82,9 @@ impl Searcher {
 
     #[inline]
     pub fn quit(&mut self) {
+        if self.threads.is_empty() {
+            return;
+        }
         self.shared.time_man.set_stop(true);
         self.sender.send(ThreadCommand::Quit);
         self.threads.drain(..).for_each(|t| t.join().unwrap());
@@ -90,10 +92,6 @@ impl Searcher {
 
     #[inline]
     pub fn stop(&self) {
-        assert!(
-            self.is_searching(),
-            "Called `Searcher::stop()` while not searching"
-        );
         self.shared.time_man.set_stop(true);
     }
 
@@ -109,6 +107,12 @@ impl Searcher {
     #[inline]
     pub fn is_searching(&self) -> bool {
         self.shared.num_searching.load(Ordering::Relaxed) != 0
+    }
+}
+
+impl Drop for Searcher {
+    fn drop(&mut self) {
+        self.quit();
     }
 }
 
@@ -139,8 +143,6 @@ impl Default for Searcher {
 }
 
 fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usize) {
-    let mut thread = ThreadData::new(shared.nodes.clone(), id);
-
     loop {
         match rx.recv(|cmd| cmd.clone()) {
             ThreadCommand::Search {
@@ -149,14 +151,32 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
                 limits: _,
                 info,
             } => {
-                shared.num_searching.fetch_add(1, Ordering::Relaxed);
-
-                thread.reset();
-                iterative_deepening(position, &mut thread, &shared, options, info);
+                if id != 0 {
+                    continue;
+                }
+                let board = position.board();
+                let mut moves = Vec::new();
+                if board.try_king(board.stm()).is_some() && board.try_king(!board.stm()).is_some() {
+                    board.gen_moves(|batch| {
+                        moves.extend(batch);
+                        Abort::No
+                    });
+                }
+                let mv = moves.choose(&mut rand::rng()).map_or_else(
+                    || "0000".to_string(),
+                    |mv| mv.display(options.dumb_interface, options.frc),
+                );
+                if shared.time_man.infinite() {
+                    shared.time_man.wait_for_stop();
+                }
+                shared.num_searching.store(0, Ordering::Release);
+                if info != SearchInfo::None {
+                    println!("info depth 1 seldepth 1 score cp 0 time 0 nodes 1 nps 0 pv {mv}");
+                    println!("bestmove {mv}");
+                }
+                atomic_wait::wake_all(&shared.num_searching);
             }
-            ThreadCommand::NewGame => {
-                thread.history = unsafe { Box::new_zeroed().assume_init() };
-            }
+            ThreadCommand::NewGame => {}
             ThreadCommand::Sync => {}
             ThreadCommand::Quit => return,
         }
