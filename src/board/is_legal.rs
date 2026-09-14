@@ -222,7 +222,7 @@ mod tests {
             let mut child = *board;
             child.make_move(mv);
 
-            is_legal_all(&child, depth - 1, &all_moves);
+            is_legal_all(&child, depth - 1, all_moves);
         }
     }
 
