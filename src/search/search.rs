@@ -1,5 +1,5 @@
 use crate::board::TerminalState;
-use crate::common::{Bitboard, Move, Piece, Square, between};
+use crate::common::{Bitboard, Move, Square, between};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
 use crate::position::Position;
@@ -302,7 +302,6 @@ fn search<Node: NodeType>(
         // Duck Refutations
         if score <= alpha
             && let Some(reply) = thread.stack[ply + 1].pv.first()
-            && (reply.flag().is_capture() || pos.board().piece_on(reply.src()) == Some(Piece::Pawn))
         {
             let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
             if duck_refutations[dest].0 == piece_move {
