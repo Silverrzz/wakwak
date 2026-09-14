@@ -218,7 +218,7 @@ fn search<Node: NodeType>(
     }
 
     let mut best_move = None;
-    let mut best_score = -Score::INFINITE;
+    let mut best_score = None;
 
     thread.move_stack.push(pos.board());
     let mut failed_quiets = Vec::new();
@@ -255,7 +255,7 @@ fn search<Node: NodeType>(
         move_count += 1;
 
         if score > best_score {
-            best_score = score;
+            best_score = Some(score);
         }
 
         if score > alpha {
@@ -291,11 +291,11 @@ fn search<Node: NodeType>(
     shared.tt.insert(
         pos.board().hash(),
         best_move,
-        best_score.0,
+        best_score.unwrap().0,
         depth as u8,
         flag,
     );
 
     thread.move_stack.pop();
-    best_score
+    best_score.unwrap()
 }
