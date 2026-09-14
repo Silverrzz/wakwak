@@ -111,7 +111,7 @@ impl MovePicker {
     #[inline]
     pub fn new(tt_move: Option<Move>) -> Self {
         Self {
-            stage: Stage::SplitNoisy,
+            stage: Stage::TTMove,
             tt_move,
             skip_quiets: false,
             noisy_count: 0,
@@ -131,7 +131,6 @@ impl MovePicker {
         let board = pos.board();
         if self.stage == Stage::TTMove {
             self.stage = Stage::SplitNoisy;
-
             if let Some(mv) = self.tt_move
                 && board.is_legal(mv)
             {
