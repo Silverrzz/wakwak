@@ -87,20 +87,20 @@ impl TranspositionTable {
     }
 
     pub fn clear(&self) {
-        self.table.iter().for_each(|slot| {
-            slot.packed.store(0, Ordering::Relaxed);
-            slot.best_move.store(0, Ordering::Relaxed);
+        self.table.iter().for_each(|entry| {
+            entry.packed.store(0, Ordering::Relaxed);
+            entry.best_move.store(0, Ordering::Relaxed);
         });
     }
 
     pub fn probe(&self, hash: u64) -> Option<TTEntry> {
         let idx = self.idx(hash);
-        let slot = &self.table[idx];
-        let packed = slot.packed.load(Ordering::Relaxed);
+        let atomic_entry = &self.table[idx];
+        let packed = atomic_entry.packed.load(Ordering::Relaxed);
 
         let entry = TTEntry {
             key: (packed >> KEY_SHIFT) as u16,
-            best_move: slot.best_move.load(Ordering::Relaxed),
+            best_move: atomic_entry.best_move.load(Ordering::Relaxed),
             score: (packed >> SCORE_SHIFT) as u16 as i16,
             depth: (packed >> DEPTH_SHIFT) as u8,
             flag: (packed >> FLAG_SHIFT) as u8,
@@ -115,7 +115,7 @@ impl TranspositionTable {
 
     pub fn insert(&self, hash: u64, best_move: Option<Move>, score: i32, depth: u8, flag: TTFlag) {
         let idx = self.idx(hash);
-        let slot = &self.table[idx];
+        let entry = &self.table[idx];
 
         let key = hash as u16;
         let packed = (key as u64) << KEY_SHIFT
@@ -123,9 +123,10 @@ impl TranspositionTable {
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT;
 
-        slot.best_move
+        entry
+            .best_move
             .store(best_move.map_or(0, |mv| mv.raw().get()), Ordering::Relaxed);
-        slot.packed.store(packed, Ordering::Relaxed);
+        entry.packed.store(packed, Ordering::Relaxed);
     }
 
     fn idx(&self, hash: u64) -> usize {
