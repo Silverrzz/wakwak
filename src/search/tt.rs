@@ -79,7 +79,7 @@ impl Default for TranspositionTable {
 
 impl TranspositionTable {
     pub const DEFAULT_SIZE_MB: usize = 64;
-    pub const MAX_SIZE_MB: usize = 16 * 1024 * 1024;
+    pub const MAX_SIZE_MB: usize = 16 * 1024 * 1024; // duck it we ball
 
     pub fn new(size_mb: usize) -> TranspositionTable {
         let size = size_mb * 1024 * 1024 / size_of::<AtomicTTEntry>();
