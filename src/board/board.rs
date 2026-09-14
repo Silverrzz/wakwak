@@ -1,5 +1,9 @@
-use crate::board::{CastlingDirection, CastlingRights, EnPassant, SliderTag, ZOBRIST};
-use crate::common::{Bitboard, Color, File, Piece, Rank, Square, pawn_attacks};
+use crate::board::{
+    CastlingDirection, CastlingRights, EnPassant, SliderTag, ZOBRIST, bishop_attacks, rook_attacks,
+};
+use crate::common::{
+    Bitboard, Color, File, Piece, Rank, Square, between, king_attacks, knight_attacks, pawn_attacks,
+};
 use enum_map::EnumMap;
 
 #[derive(Clone, Copy)]
@@ -124,6 +128,29 @@ impl Board {
     #[inline]
     pub fn hmc(&self) -> u8 {
         self.hmc
+    }
+
+    #[inline]
+    pub fn king_capture_blocks(&self, color: Color) -> Bitboard {
+        if self.try_king(!color).is_none() {
+            return Bitboard::FULL;
+        }
+        let king = self.king(color);
+        let unblockable = (pawn_attacks(king, color) & self.colored_pieces(!color, Piece::Pawn))
+            | (knight_attacks(king) & self.colored_pieces(!color, Piece::Knight))
+            | (king_attacks(king) & self.colored_pieces(!color, Piece::King));
+        if unblockable.is_nonempty() {
+            return Bitboard::EMPTY;
+        }
+        let blockers = self.colors(color) | self.colors(!color);
+        let sliders = (bishop_attacks(blockers, king, self.slider_tag)
+            & self.colored_diag_sliders(!color))
+            | (rook_attacks(blockers, king, self.slider_tag) & self.colored_orth_sliders(!color));
+        let mut safe = Bitboard::FULL;
+        for attacker in sliders {
+            safe &= between(king, attacker);
+        }
+        safe
     }
 
     #[inline]

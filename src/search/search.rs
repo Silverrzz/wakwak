@@ -226,34 +226,34 @@ fn search<Node: NodeType>(
     let mut move_picker = MovePicker::default();
     let mut move_count = 0;
     let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
-    let mut flag = TTFlag::Upper;
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
+    let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(pos, thread) {
         let (src, dest) = (mv.src(), mv.dest());
         let is_quiet = mv.flag().is_quiet();
-        let count = &mut duck_counts[src][dest];
-        let cached = &mut duck_safety[dest];
-        if cached.0 != Some(src) {
+        if duck_safety[dest].0 != Some(src) {
             let mut board = *pos.board();
+            // TODO: Calculate king capture blocks without making the full move.
             board.make_move(mv);
-            *cached = (Some(src), board.duck_survival_squares(!board.stm()));
+            duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
         }
-        let safe = cached.1;
+        let safe = duck_safety[dest].1;
 
         if is_quiet
             && safe == Bitboard::FULL
             && depth <= Params::ldp_depth()
-            && *count >= Params::ldp_threshold(depth) as u8
+            && duck_counts[src][dest] >= Params::ldp_threshold(depth) as u8
         {
             continue;
         }
 
-        *count += 1;
+        duck_counts[src][dest] += 1;
         pos.make_move(mv);
         // Duck or die pruning
         // Score placements that allow immediate king capture as losses, unless the turn ends in a draw.
         let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+            // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
             Score::mated(ply + 2)
         } else {
