@@ -215,12 +215,15 @@ fn search<Node: NodeType>(
         return static_eval;
     }
 
+    let king_attacked = pos.board().king_attacked();
+
     /*
     Reverse Futility Pruning: If our evaluation of the position is already
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
     if !Node::ROOT
+        && !king_attacked
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth) >= beta
     {

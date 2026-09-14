@@ -131,6 +131,32 @@ impl Board {
     }
 
     #[inline]
+    pub fn king_attacked(&self) -> bool {
+        let our_king = self.king(self.stm);
+        let blockers = self.colors(self.stm) | self.colors(!self.stm);
+
+        let their_diags = self.colored_diag_sliders(!self.stm);
+        if (bishop_attacks(blockers, our_king, self.slider_tag) & their_diags).is_nonempty() {
+            return true;
+        }
+
+        let their_orthos = self.colored_orth_sliders(!self.stm);
+        if (rook_attacks(blockers, our_king, self.slider_tag) & their_orthos).is_nonempty() {
+            return true;
+        }
+
+        let their_knights = self.colored_pieces(!self.stm, Piece::Knight);
+        if (knight_attacks(our_king) & their_knights).is_nonempty() {
+            return true;
+        }
+        let their_pawns = self.colored_pieces(!self.stm, Piece::Pawn);
+        if (pawn_attacks(our_king, self.stm) & their_pawns).is_nonempty() {
+            return true;
+        }
+        false
+    }
+
+    #[inline]
     pub fn king_capture_blocks(&self, color: Color) -> Bitboard {
         if self.try_king(!color).is_none() {
             return Bitboard::FULL;
