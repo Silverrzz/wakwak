@@ -193,7 +193,9 @@ fn search<Node: NodeType>(
     }
 
     // Transposition table lookup
-    if let Some(entry) = shared.tt.probe(pos.board().hash()) {
+    if !Node::ROOT
+        && let Some(entry) = shared.tt.probe(pos.board().hash())
+    {
         let tt_flag = entry.flag();
         let tt_depth = entry.depth() as i32;
         let tt_score = Score(entry.score() as i32);
