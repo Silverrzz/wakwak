@@ -1,5 +1,7 @@
-use crate::board::Board;
-use crate::common::{Move, MoveFlag, Piece, Rank, Square, between};
+use crate::board::{Board, bishop_attacks, rook_attacks};
+use crate::common::{
+    Move, MoveFlag, Piece, Rank, Square, between, king_attacks, knight_attacks, pawn_attacks,
+};
 
 impl Board {
     #[inline]
@@ -16,8 +18,13 @@ impl Board {
             MoveFlag::DoublePush => {
                 let src_rank = Rank::Second.relative_to(self.stm);
                 let dest_rank = Rank::Fourth.relative_to(self.stm);
+                let between = src.offset(0, self.stm.signum() as isize);
 
-                if src_piece != Piece::Pawn || src.rank() != src_rank || dest.rank() != dest_rank {
+                if src_piece != Piece::Pawn
+                    || src.rank() != src_rank
+                    || dest.rank() != dest_rank
+                    || self.occupied().has(between)
+                {
                     return false;
                 }
             }
@@ -82,7 +89,22 @@ impl Board {
                 }
             }
             _ => {
-                if self.colors(self.stm).has(dest)
+                let legal_piece_moves = match src_piece {
+                    Piece::Pawn => {
+                        pawn_attacks(src, self.stm) | src.offset(0, self.stm.signum() as isize)
+                    }
+                    Piece::Knight => knight_attacks(src),
+                    Piece::Bishop => bishop_attacks(self.occupied(), src, self.slider_tag),
+                    Piece::Rook => rook_attacks(self.occupied(), src, self.slider_tag),
+                    Piece::Queen => {
+                        bishop_attacks(self.occupied(), src, self.slider_tag)
+                            | rook_attacks(self.occupied(), src, self.slider_tag)
+                    }
+                    Piece::King => king_attacks(src),
+                };
+
+                if !legal_piece_moves.has(dest)
+                    || self.colors(self.stm).has(dest)
                     || self.colors(!self.stm).has(dest) != flag.is_capture()
                 {
                     return false;
