@@ -15,11 +15,6 @@ macro_rules! debug_hit {
         {
             $crate::tools::stat::stat_map().add($key.to_string(), $value as i64, true);
         }
-
-        #[cfg(not(feature = "stat"))]
-        {
-            eprintln!("Warning: `debug_hit!` used, but the `stat` feature is not enabled");
-        }
     };
 }
 
@@ -29,11 +24,6 @@ macro_rules! debug_stat {
         #[cfg(feature = "stat")]
         {
             $crate::tools::stat::stat_map().add($key.to_string(), $value as i64, false);
-        }
-
-        #[cfg(not(feature = "stat"))]
-        {
-            eprintln!("Warning: `debug_stat!` used, but the `stat` feature is not enabled");
         }
     };
 }
