@@ -251,6 +251,8 @@ fn search<Node: NodeType>(
 
         *count += 1;
         pos.make_move(mv);
+        // Duck or die pruning
+        // Score placements that allow immediate king capture as losses, unless the turn ends in a draw.
         let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
             thread.stack[ply + 1].pv.clear();
             Score::mated(ply + 2)
