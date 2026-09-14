@@ -197,7 +197,10 @@ fn search<Node: NodeType>(
         return static_eval;
     }
 
-    if !Node::ROOT && depth <= 8 && static_eval - Params::rfp_margin(depth) >= beta {
+    if !Node::ROOT
+        && depth <= Params::rfp_depth()
+        && static_eval - Params::rfp_margin(depth) >= beta
+    {
         return static_eval;
     }
 
@@ -216,9 +219,7 @@ fn search<Node: NodeType>(
         let is_quiet = mv.flag().is_quiet();
         let count = &mut duck_counts[src][dest];
 
-        if is_quiet
-            && depth <= Params::ldp_max_depth()
-            && *count >= Params::ldp_threshold(depth) as u8
+        if is_quiet && depth <= Params::ldp_depth() && *count >= Params::ldp_threshold(depth) as u8
         {
             continue;
         }

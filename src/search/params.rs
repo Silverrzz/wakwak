@@ -80,6 +80,7 @@ params! {
     duck_malus_scale: i32 => 128;
     duck_malus_max:   i32 => 2048;
 
+    rfp_depth: i32 => 8;
     rfp_base: i32 => 0;
     rfp_scale: i32 => 50;
 
@@ -89,7 +90,7 @@ params! {
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
 
-    ldp_max_depth: i32 => 8;
+    ldp_depth: i32 => 8;
     ldp_threshold_base: i32 => 2;
     ldp_threshold_scale: i32 => 2;
 }
