@@ -282,14 +282,6 @@ pub enum MoveFlag {
 
 impl MoveFlag {
     #[inline]
-    pub const fn new_castling(dir: CastlingDirection) -> MoveFlag {
-        match dir {
-            CastlingDirection::Long => MoveFlag::LongCastling,
-            CastlingDirection::Short => MoveFlag::ShortCastling,
-        }
-    }
-
-    #[inline]
     pub const fn new_promotion(piece: Piece) -> Option<MoveFlag> {
         match piece {
             Piece::Knight => Some(MoveFlag::PromotionKnight),
@@ -308,6 +300,14 @@ impl MoveFlag {
             Piece::Rook => Some(MoveFlag::CapturePromotionRook),
             Piece::Queen => Some(MoveFlag::CapturePromotionQueen),
             _ => None,
+        }
+    }
+
+    #[inline]
+    pub const fn new_castling(dir: CastlingDirection) -> MoveFlag {
+        match dir {
+            CastlingDirection::Long => MoveFlag::LongCastling,
+            CastlingDirection::Short => MoveFlag::ShortCastling,
         }
     }
 
