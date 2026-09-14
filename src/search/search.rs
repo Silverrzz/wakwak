@@ -29,7 +29,7 @@ pub fn iterative_deepening(
     let mut delta = Score(24);
 
     'id: loop {
-        if depth >= 4
+        if depth >= 2
             && let Some(score) = score
         {
             alpha = (score - delta).max(-Score::INFINITE);
