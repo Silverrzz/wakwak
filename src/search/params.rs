@@ -88,6 +88,10 @@ params! {
     mvvlva_bishop: i32 => 330;
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
+
+    ldp_max_depth: i32 => 8;
+    ldp_threshold_base: i32 => 5;
+    ldp_threshold_scale: i32 => 4;
 }
 
 impl Params {
@@ -124,6 +128,11 @@ impl Params {
     #[inline]
     pub const fn rfp_margin(depth: i32) -> i32 {
         Self::rfp_base() + Self::rfp_scale() * depth
+    }
+
+    #[inline]
+    pub const fn ldp_threshold(depth: i32) -> i32 {
+        Self::ldp_threshold_base() + Self::ldp_threshold_scale() * depth
     }
 
     #[inline]
