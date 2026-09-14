@@ -95,7 +95,7 @@ params! {
     ldp_threshold_scale: i32 => 2;
 
     lmp_depth: i32 => 4;
-    lmp_threshold_base: i32 => 4;
+    lmp_threshold_base: i32 => 6;
     lmp_threshold_scale: i32 => 3;
 }
 
