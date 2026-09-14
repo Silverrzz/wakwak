@@ -7,6 +7,7 @@ pub mod pv;
 pub mod search;
 pub mod searcher;
 pub mod time;
+pub mod tt;
 
 pub use history::*;
 pub use info::*;

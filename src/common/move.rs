@@ -27,6 +27,19 @@ impl Move {
     }
 
     #[inline]
+    pub const fn from_raw(bits: u32) -> Option<Self> {
+        match NonZeroU32::new(bits) {
+            Some(nz) => Some(Self(nz)),
+            None => None,
+        }
+    }
+
+    #[inline]
+    pub const fn raw(self) -> NonZeroU32 {
+        self.0
+    }
+
+    #[inline]
     pub const fn src(self) -> Square {
         Square::index(self.0.get() as usize & 0b111111)
     }

@@ -1,5 +1,6 @@
 use crate::engine::EngineOptions;
 use crate::position::Position;
+use crate::search::tt::TranspositionTable;
 use crate::search::{
     History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager, iterative_deepening,
 };
@@ -51,7 +52,33 @@ impl Searcher {
 
         self.sender.send(ThreadCommand::Quit);
         self.threads.drain(..).for_each(|t| t.join().unwrap());
+        self.respawn_threads(threads);
+    }
 
+    #[inline]
+    pub fn resize_tt(&mut self, size_mb: usize) {
+        assert!(
+            !self.is_searching(),
+            "Called `Searcher::resize_tt()` while searching"
+        );
+
+        let threads = self.threads.len() as u32;
+
+        self.sender.send(ThreadCommand::Quit);
+        self.threads.drain(..).for_each(|t| t.join().unwrap());
+
+        self.shared = Arc::new(SharedData {
+            nodes: Arc::new(AtomicU64::new(0)),
+            time_man: TimeManager::default(),
+            tt: TranspositionTable::new(size_mb),
+            num_searching: AtomicU32::new(0),
+        });
+
+        self.respawn_threads(threads);
+    }
+
+    #[inline]
+    fn respawn_threads(&mut self, threads: u32) {
         let (tx, rx) = channel(threads);
         self.threads = rx
             .enumerate()
@@ -78,6 +105,7 @@ impl Searcher {
             !self.is_searching(),
             "Called `Searcher::newgame()` while searching"
         );
+        self.shared.tt.clear();
         self.sender.send(ThreadCommand::NewGame);
     }
 
@@ -166,6 +194,7 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
 pub struct SharedData {
     pub nodes: Arc<AtomicU64>,
     pub time_man: TimeManager,
+    pub tt: TranspositionTable,
     pub num_searching: AtomicU32,
 }
 
@@ -174,6 +203,7 @@ impl Default for SharedData {
     fn default() -> Self {
         Self {
             nodes: Arc::new(AtomicU64::new(0)),
+            tt: TranspositionTable::default(),
             time_man: TimeManager::default(),
             num_searching: AtomicU32::new(0),
         }
