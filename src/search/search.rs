@@ -126,7 +126,6 @@ trait NodeType {
 
 struct Root;
 struct PV;
-#[expect(dead_code)]
 struct NonPV;
 
 impl NodeType for Root {
@@ -287,17 +286,27 @@ fn search<Node: NodeType>(
         duck_counts[src][dest] += 1;
         pos.make_move(mv);
 
-        /*
-        Duck or Die Pruning: Treat duck moves that let the opponent capture
-        the king as instant losses, unless it is a repetition.
-        */
-        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+        let mut score;
+
+        if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+            /*
+            Duck or Die Pruning: Treat duck moves that let the opponent capture
+            the king as instant losses, unless it is a repetition.
+            */
+
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
-            Score::mated(ply + 2)
+            score = Score::mated(ply + 2)
+        } else if move_count == 0 {
+            score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
         } else {
-            -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1)
-        };
+            score = -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, depth - 1, ply + 1);
+
+            if Node::PV && score > alpha {
+                score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
+            }
+        }
+
         pos.unmake_move();
 
         if Node::ROOT && move_count == 0 {
