@@ -98,8 +98,9 @@ impl Engine {
         println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
         println!("option name Threads type spin default 1 min 1 max 1024");
         println!(
-            "option name Hash type spin default {} min 1 max 1024",
-            TranspositionTable::DEFAULT_SIZE_MB
+            "option name Hash type spin default {} min 1 max {}",
+            TranspositionTable::DEFAULT_SIZE_MB,
+            TranspositionTable::MAX_SIZE_MB
         );
         println!("option name MoveOverhead type spin default {DEFAULT_OVERHEAD} min 0 max 5000");
         println!("option name Minimal type check default false");
