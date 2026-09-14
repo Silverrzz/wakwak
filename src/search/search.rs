@@ -145,6 +145,11 @@ impl NodeType for NonPV {
 }
 
 #[inline]
+fn adjust_eval(eval: Score, corr: i32) -> Score {
+    (eval + corr).clamp_mate()
+}
+
+#[inline]
 fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
     let [parent, child] = thread.stack.get_disjoint_mut([ply, ply + 1]).unwrap();
 
@@ -209,7 +214,12 @@ fn search<Node: NodeType>(
         }
     }
 
-    let static_eval = eval(pos.board());
+    // TODO: uncomment this when it is used
+    // let in_check = pos.board().in_check();
+    let raw_eval = eval(pos.board());
+    let corr = thread.history.corr(pos.board());
+    let static_eval = adjust_eval(raw_eval, corr);
+    let raw_eval = eval(pos.board());
 
     if depth <= 0 {
         return static_eval;
@@ -347,14 +357,21 @@ fn search<Node: NodeType>(
         }
     }
 
-    shared.tt.insert(
-        pos.board().hash(),
-        best_move,
-        best_score.unwrap().0,
-        depth as u8,
-        flag,
-    );
+    let best_score = best_score.unwrap();
+
+    shared
+        .tt
+        .insert(pos.board().hash(), best_move, best_score, depth, flag);
+
+    let static_eval = adjust_eval(raw_eval, thread.history.corr(pos.board()));
+    if best_move.is_none_or(|mv| mv.flag().is_quiet())
+        && flag.bounds_match(best_score, static_eval, static_eval)
+    {
+        thread
+            .history
+            .update_corr(pos.board(), depth, best_score, static_eval);
+    }
 
     thread.move_stack.pop();
-    best_score.unwrap()
+    best_score
 }

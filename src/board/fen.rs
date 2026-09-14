@@ -28,6 +28,7 @@ impl Board {
             en_passant: None,
             duck: None,
             hash: 0,
+            pawn_hash: 0,
             stm: Color::White,
             fmc: 0,
             hmc: 0,

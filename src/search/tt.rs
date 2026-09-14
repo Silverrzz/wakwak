@@ -120,13 +120,20 @@ impl TranspositionTable {
         }
     }
 
-    pub fn insert(&self, hash: u64, best_move: Option<Move>, score: i32, depth: u8, flag: TTFlag) {
+    pub fn insert(
+        &self,
+        hash: u64,
+        best_move: Option<Move>,
+        score: Score,
+        depth: i32,
+        flag: TTFlag,
+    ) {
         let idx = self.idx(hash);
         let entry = &self.table[idx];
 
         let key = hash as u16;
         let packed = (key as u64) << KEY_SHIFT
-            | ((score as u16) as u64) << SCORE_SHIFT
+            | ((score.0 as u16) as u64) << SCORE_SHIFT
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT;
 
@@ -144,6 +151,7 @@ impl TranspositionTable {
 }
 
 impl TTFlag {
+    #[inline]
     pub fn bounds_match(&self, score: Score, lower: Score, upper: Score) -> bool {
         match self {
             TTFlag::None => false,

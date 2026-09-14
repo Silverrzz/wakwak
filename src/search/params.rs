@@ -59,6 +59,9 @@ macro_rules! params {
 }
 
 params! {
+    pawn_corr:        i32 => 64;
+    corr_bonus_scale: i64 => 128;
+
     quiet_bonus_base:  i32 => 128;
     quiet_bonus_scale: i32 => 128;
     quiet_bonus_max:   i32 => 2048;
@@ -81,7 +84,7 @@ params! {
     duck_malus_max:   i32 => 2048;
 
     rfp_depth: i32 => 8;
-    rfp_base: i32 => 0;
+    rfp_base:  i32 => 0;
     rfp_scale: i32 => 50;
 
     mvvlva_pawn:   i32 => 100;
@@ -90,12 +93,17 @@ params! {
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
 
-    ldp_depth: i32 => 8;
-    ldp_threshold_base: i32 => 2;
+    ldp_depth:           i32 => 8;
+    ldp_threshold_base:  i32 => 2;
     ldp_threshold_scale: i32 => 2;
 }
 
 impl Params {
+    #[inline]
+    pub fn corr_bonus(depth: i32, diff: i64) -> i32 {
+        (diff * depth as i64 * Params::corr_bonus_scale() / 1024) as i32
+    }
+
     #[inline]
     pub fn quiet_bonus(depth: i32) -> i32 {
         (Self::quiet_bonus_base() + Self::quiet_bonus_scale() * depth).min(Self::quiet_bonus_max())
