@@ -194,12 +194,12 @@ fn search<Node: NodeType>(
 
 
     // Transposition table lookup
-    let tt_entry = (!Node::ROOT)
-        .then(|| shared.tt.probe(pos.board().hash()))
-        .flatten();
+    let tt_entry = shared.tt.probe(pos.board().hash());
     let tt_move = tt_entry.and_then(|e| e.best_move());
 
-    if let Some(entry) = tt_entry {
+    if !Node::ROOT
+        && let Some(entry) = tt_entry
+    {
         let score = entry.score();
         if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
             return score;
