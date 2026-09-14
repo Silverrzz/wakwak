@@ -111,16 +111,12 @@ impl Move {
             }
         };
 
-        if duck == dest {
-            return None;
-        }
-
         let is_capture = board.piece_on(dest).is_some();
         let flag = match board.piece_on(src)? {
             Piece::Pawn => Self::parse_pawn_flag(board, src, dest, duck, promotion, is_capture)?,
             Piece::King => Self::parse_king_flag(board, src, &mut dest, duck, is_capture)?,
             _ => {
-                if !(board.occupied() ^ src).has(duck) {
+                if !(board.occupied() ^ src | dest).has(duck) {
                     if is_capture {
                         MoveFlag::Capture
                     } else {
@@ -146,7 +142,7 @@ impl Move {
     ) -> Option<MoveFlag> {
         let stm = board.stm();
 
-        if let Some(promotion) = promotion {
+        let flag = if let Some(promotion) = promotion {
             if is_capture {
                 MoveFlag::new_capture_promotion(promotion)
             } else {
@@ -172,7 +168,18 @@ impl Move {
             Some(MoveFlag::DoublePush)
         } else {
             Some(MoveFlag::Normal)
+        };
+
+        if duck == dest
+            && matches!(
+                flag,
+                Some(MoveFlag::Normal | MoveFlag::DoublePush | MoveFlag::Capture)
+            )
+        {
+            return None;
         }
+
+        flag
     }
 
     #[inline]
@@ -206,7 +213,7 @@ impl Move {
                         .get(CastlingDirection::Long)
                         .map(|f| Square::new(f, our_back_rank))
                 {
-                    let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0x6).relative_to(stm);
+                    let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0xC).relative_to(stm);
                     if !blockers.has(duck) {
                         Some(MoveFlag::LongCastling)
                     } else {
