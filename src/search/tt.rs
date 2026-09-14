@@ -44,19 +44,23 @@ pub enum TTFlag {
 }
 
 impl TTEntry {
+    #[inline]
     pub fn best_move(&self) -> Option<Move> {
         // SAFETY: `self.best_move` was created via `Move::raw()`, so we can convert it back.
         unsafe { Move::from_raw(self.best_move) }
     }
 
-    pub fn score(&self) -> i16 {
-        self.score
+    #[inline]
+    pub fn score(&self) -> Score {
+        Score(self.score as i32)
     }
 
-    pub fn depth(&self) -> u8 {
-        self.depth
+    #[inline]
+    pub fn depth(&self) -> i32 {
+        self.depth as i32
     }
 
+    #[inline]
     pub fn flag(&self) -> TTFlag {
         match self.flag {
             0 => TTFlag::None,
@@ -67,6 +71,7 @@ impl TTEntry {
         }
     }
 
+    #[inline]
     pub fn validate_key(&self, key: u64) -> bool {
         self.key == (key & 0xFFFF) as u16
     }

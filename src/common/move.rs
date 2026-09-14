@@ -67,14 +67,8 @@ impl Move {
     pub fn display(self, dumb_interface: bool, frc: bool) -> String {
         let (src, mut dest) = (self.src(), self.dest());
 
-        if !frc && self.flag().is_castling() {
-            let dest_file = if src.file() < dest.file() {
-                File::G
-            } else {
-                File::C
-            };
-
-            dest = Square::new(dest_file, src.rank());
+        if !frc && let Some(dir) = self.flag().castling_dir() {
+            dest = Square::new(dir.king_dest(), src.rank());
         }
 
         let mut out = String::new();
@@ -206,7 +200,7 @@ impl Move {
         is_capture: bool,
     ) -> Option<MoveFlag> {
         let stm = board.stm();
-        let our_back_rank = Rank::First.relative_to(stm);
+        let rank = Rank::First.relative_to(stm);
 
         if is_capture {
             return if board.color_on(*dest) == Some(stm) {
@@ -215,7 +209,7 @@ impl Move {
                 if Some(*dest)
                     == rights
                         .get(CastlingDirection::Short)
-                        .map(|f| Square::new(f, our_back_rank))
+                        .map(|f| Square::new(f, rank))
                 {
                     let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0x60).relative_to(stm);
                     if !blockers.has(duck) {
@@ -226,7 +220,7 @@ impl Move {
                 } else if Some(*dest)
                     == rights
                         .get(CastlingDirection::Long)
-                        .map(|f| Square::new(f, our_back_rank))
+                        .map(|f| Square::new(f, rank))
                 {
                     let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0xC).relative_to(stm);
                     if !blockers.has(duck) {
@@ -242,34 +236,25 @@ impl Move {
             };
         }
 
-        let castling_src = Square::new(File::E, our_back_rank);
+        let castling_src = Square::new(File::E, rank);
         if src == castling_src {
             let rights = board.castling_rights(stm);
-            let short_dest = Square::new(File::G, our_back_rank);
-            let long_dest = Square::new(File::C, our_back_rank);
+            for &dir in &CastlingDirection::ALL {
+                let king_dest = Square::new(dir.king_dest(), rank);
+                let rook_dest = Square::new(dir.rook_dest(), rank);
 
-            if let Some(rook_src) = rights.get(CastlingDirection::Short)
-                && *dest == short_dest
-            {
-                *dest = Square::new(rook_src, our_back_rank);
+                if let Some(rook_src) = rights.get(dir)
+                    && *dest == king_dest
+                {
+                    let rook_src = Square::new(rook_src, rank);
+                    let blockers = board.occupied() ^ src ^ rook_src ^ *dest ^ rook_dest;
 
-                let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0x60).relative_to(stm);
-                return if !blockers.has(duck) {
-                    Some(MoveFlag::ShortCastling)
-                } else {
-                    None
-                };
-            } else if let Some(rook_src) = rights.get(CastlingDirection::Long)
-                && *dest == long_dest
-            {
-                *dest = Square::new(rook_src, our_back_rank);
-
-                let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0x6).relative_to(stm);
-                return if !blockers.has(duck) {
-                    Some(MoveFlag::LongCastling)
-                } else {
-                    None
-                };
+                    return if !blockers.has(duck) {
+                        Some(MoveFlag::ShortCastling)
+                    } else {
+                        None
+                    };
+                }
             }
         }
 
@@ -335,6 +320,19 @@ impl MoveFlag {
         const LOOKUP: [Piece; 4] = [Piece::Queen, Piece::Rook, Piece::Bishop, Piece::Knight];
 
         Some(LOOKUP[self as usize & 0x3])
+    }
+
+    #[inline]
+    pub const fn castling_dir(self) -> Option<CastlingDirection> {
+        if !self.is_castling() {
+            return None;
+        }
+
+        match self {
+            MoveFlag::LongCastling => Some(CastlingDirection::Long),
+            MoveFlag::ShortCastling => Some(CastlingDirection::Short),
+            _ => unreachable!(),
+        }
     }
 
     #[inline]

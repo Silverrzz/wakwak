@@ -192,19 +192,17 @@ fn search<Node: NodeType>(
         return Score::draw();
     }
 
-    /*
-    Transposition Table Cutoffs (TT Cutoffs): If we've already searched this position
-    and the stored result indicates that its value is outside the window, we can return
-    that stored result instead of wasting time searching it again.
-    */
-    if !Node::ROOT
-        && let Some(entry) = shared.tt.probe(pos.board().hash())
-    {
-        let tt_flag = entry.flag();
-        let tt_depth = entry.depth() as i32;
-        let tt_score = Score(entry.score() as i32);
-        if tt_depth >= depth && tt_flag.bounds_match(tt_score, alpha, beta) {
-            return tt_score;
+
+    // Transposition table lookup
+    let tt_entry = (!Node::ROOT)
+        .then(|| shared.tt.probe(pos.board().hash()))
+        .flatten();
+    let tt_move = tt_entry.and_then(|e| e.best_move());
+
+    if let Some(entry) = tt_entry {
+        let score = entry.score();
+        if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
+            return score;
         }
     }
 
@@ -226,14 +224,14 @@ fn search<Node: NodeType>(
         return static_eval;
     }
 
+    thread.move_stack.push(pos.board());
+
     let mut best_move = None;
     let mut best_score = None;
-
-    thread.move_stack.push(pos.board());
+    let mut move_count = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
-    let mut move_picker = MovePicker::default();
-    let mut move_count = 0;
+    let mut move_picker = MovePicker::new(tt_move);
     let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];

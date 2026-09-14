@@ -92,6 +92,7 @@ fn mvv(board: &Board, mv: Move) -> i32 {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
+    TTMove,
     SplitNoisy,
     YieldNoisy,
     YieldQuiet,
@@ -100,12 +101,24 @@ pub enum Stage {
 
 pub struct MovePicker {
     stage: Stage,
+    tt_move: Option<Move>,
     skip_quiets: bool,
     noisy_count: usize,
     cursor: usize,
 }
 
 impl MovePicker {
+    #[inline]
+    pub fn new(tt_move: Option<Move>) -> Self {
+        Self {
+            stage: Stage::SplitNoisy,
+            tt_move,
+            skip_quiets: false,
+            noisy_count: 0,
+            cursor: 0,
+        }
+    }
+
     #[inline]
     pub fn skip_quiets(&mut self) {
         self.skip_quiets = true;
@@ -115,21 +128,36 @@ impl MovePicker {
     }
 
     pub fn next(&mut self, pos: &Position, thread: &mut ThreadData) -> Option<Move> {
-        let moves = thread.move_stack.get_mut();
         let board = pos.board();
+        if self.stage == Stage::TTMove {
+            self.stage = Stage::SplitNoisy;
 
+            if let Some(mv) = self.tt_move
+                && board.is_legal(mv)
+            {
+                return Some(mv);
+            }
+        }
+
+        let moves = thread.move_stack.get_mut();
         if self.stage == Stage::SplitNoisy {
             // Move all noisies to the front of the list
-            let mut i = 0;
+            self.noisy_count = 0;
             for j in 0..moves.len() {
                 let mv = moves[j].0;
+
+                // Don't yield the TT move a second time
+                if self.tt_move == Some(mv) {
+                    continue;
+                }
+
                 if moves[j].0.flag().is_noisy() {
                     // Score noisies here (moves[j].1 = pluh)
                     moves[j].1 = mvv(board, mv) * 8
                         + thread.history.noisy(pos.board(), mv) / 8
                         + thread.history.duck(pos.board(), mv) / 8;
-                    moves.swap(i, j);
-                    i += 1;
+                    moves.swap(self.noisy_count, j);
+                    self.noisy_count += 1;
                 } else {
                     // Score quiets here (moves[j].1 = pluh)
                     moves[j].1 =
@@ -137,20 +165,22 @@ impl MovePicker {
                 }
             }
 
-            self.noisy_count = i;
-            self.stage = Stage::YieldNoisy;
-
             moves[..self.noisy_count].sort_unstable_by_key(|m| Reverse(m.1));
+            self.stage = Stage::YieldNoisy;
         }
 
         if self.stage == Stage::YieldNoisy {
-            if self.cursor >= self.noisy_count {
-                self.stage = Stage::YieldQuiet;
-                moves[self.noisy_count..].sort_unstable_by_key(|m| Reverse(m.1));
-            } else {
+            while self.cursor < self.noisy_count {
+                let mv = moves[self.cursor].0;
                 self.cursor += 1;
-                return Some(moves[self.cursor - 1].0);
+
+                if self.tt_move != Some(mv) {
+                    return Some(mv);
+                }
             }
+
+            moves[self.noisy_count..].sort_unstable_by_key(|m| Reverse(m.1));
+            self.stage = Stage::YieldQuiet;
         }
 
         if self.stage == Stage::YieldQuiet {
@@ -161,27 +191,19 @@ impl MovePicker {
                     self.cursor = self.noisy_count;
                 }
 
-                if self.cursor >= moves.len() {
-                    self.stage = Stage::Finished;
-                } else {
+                while self.cursor < moves.len() {
+                    let mv = moves[self.cursor].0;
                     self.cursor += 1;
-                    return Some(moves[self.cursor - 1].0);
+
+                    if self.tt_move != Some(mv) {
+                        return Some(mv);
+                    }
                 }
+
+                self.stage = Stage::Finished;
             }
         }
 
         None
-    }
-}
-
-impl Default for MovePicker {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            stage: Stage::SplitNoisy,
-            skip_quiets: false,
-            noisy_count: 0,
-            cursor: 0,
-        }
     }
 }

@@ -64,4 +64,6 @@ impl CastlingDirection {
             CastlingDirection::Short => File::F,
         }
     }
+
+    pub const ALL: [Self; 2] = [Self::Long, Self::Short];
 }
