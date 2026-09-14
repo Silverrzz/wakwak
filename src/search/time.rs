@@ -2,7 +2,7 @@ use crate::common::Color;
 use crate::engine::EngineOptions;
 use crate::search::{MAX_DEPTH, ThreadData};
 use crate::uci::SearchLimit;
-use crate::util::AtomicInstant;
+use crate::util::{AtomicInstant, EpochTag, init_epoch};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -22,6 +22,9 @@ pub struct TimeManager {
     soft_nodes: AtomicU64,
     hard_nodes: AtomicU64,
     depth: AtomicU8,
+
+    // Access tag for AtomicInstant operations
+    epoch_tag: EpochTag,
 }
 
 impl TimeManager {
@@ -93,7 +96,8 @@ impl TimeManager {
             self.hard_time.store(hard_time, Ordering::Relaxed);
         }
 
-        self.start.store(Instant::now(), Ordering::Relaxed);
+        self.start
+            .store(Instant::now(), Ordering::Relaxed, self.epoch_tag);
     }
 
     #[inline]
@@ -142,7 +146,7 @@ impl TimeManager {
 
     #[inline]
     pub fn elapsed(&self) -> Duration {
-        self.start.load(Ordering::Relaxed).elapsed()
+        self.start.load(Ordering::Relaxed, self.epoch_tag).elapsed()
     }
 
     #[inline]
@@ -159,8 +163,9 @@ impl TimeManager {
 impl Default for TimeManager {
     #[inline]
     fn default() -> Self {
+        let epoch_tag = init_epoch();
         Self {
-            start: AtomicInstant::now(),
+            start: AtomicInstant::now(epoch_tag),
             infinite: AtomicBool::new(true),
             manage_time: AtomicBool::new(true),
             check_time: AtomicBool::new(false),
@@ -173,6 +178,8 @@ impl Default for TimeManager {
             soft_nodes: AtomicU64::new(u64::MAX),
             hard_nodes: AtomicU64::new(u64::MAX),
             depth: AtomicU8::new(MAX_DEPTH),
+
+            epoch_tag,
         }
     }
 }

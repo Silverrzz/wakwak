@@ -5,7 +5,7 @@ use crate::uci::SearchLimit;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-pub const DEFAULT_BENCH_DEPTH: u8 = 2;
+pub const DEFAULT_BENCH_DEPTH: u8 = 3;
 
 const BENCH_FENS: &[&str] = &[
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P1*P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
@@ -86,5 +86,10 @@ impl Engine {
 
         let nps = (total_nodes as f64 / total_time.as_secs_f64()) as u64;
         println!("nodes {total_nodes} time {total_time:.2?} nps {nps}");
+
+        #[cfg(feature = "stat")]
+        {
+            crate::tools::stat::stat_map().print();
+        }
     }
 }

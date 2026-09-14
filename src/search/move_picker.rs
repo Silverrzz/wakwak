@@ -1,9 +1,10 @@
 use crate::board::Board;
-use crate::common::Move;
-use crate::search::MAX_PLY;
+use crate::common::{Move, MoveFlag, Piece};
+use crate::position::Position;
+use crate::search::{MAX_PLY, Params, ThreadData};
 use crate::util::Abort;
+use std::cmp::Reverse;
 
-#[expect(dead_code)]
 pub struct ScoredMove(Move, i32);
 
 pub struct MoveStack {
@@ -73,8 +74,25 @@ impl Default for MoveStack {
     }
 }
 
+#[inline]
+fn mvv(board: &Board, mv: Move) -> i32 {
+    let victim = if mv.flag() == MoveFlag::EnPassant {
+        Params::piece_value(Piece::Pawn)
+    } else if mv.flag().is_capture() {
+        Params::piece_value(board.piece_on(mv.dest()).unwrap())
+    } else {
+        0
+    };
+    let promotion = mv.flag().promotion().map_or(0, |p| {
+        Params::piece_value(p) - Params::piece_value(Piece::Pawn)
+    });
+
+    victim + promotion
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Stage {
+    TTMove,
     SplitNoisy,
     YieldNoisy,
     YieldQuiet,
@@ -83,6 +101,7 @@ pub enum Stage {
 
 pub struct MovePicker {
     stage: Stage,
+    tt_move: Option<Move>,
     skip_quiets: bool,
     noisy_count: usize,
     cursor: usize,
@@ -90,94 +109,100 @@ pub struct MovePicker {
 
 impl MovePicker {
     #[inline]
+    pub fn new(tt_move: Option<Move>) -> Self {
+        Self {
+            stage: Stage::TTMove,
+            tt_move,
+            skip_quiets: false,
+            noisy_count: 0,
+            cursor: 0,
+        }
+    }
+
+    #[inline]
     pub fn skip_quiets(&mut self) {
         self.skip_quiets = true;
-
         if matches!(self.stage, Stage::YieldQuiet) {
             self.stage = Stage::Finished;
         }
     }
 
-    pub fn next(&mut self, moves: &mut [ScoredMove]) -> Option<Move> {
-        if self.stage == Stage::SplitNoisy {
-            // Move all noisies to the front of the list
-            let mut i = 0;
-            for j in 0..moves.len() {
-                if moves[j].0.flag().is_noisy() {
-                    // Score noisies here (moves[j].1 = pluh)
-
-                    moves.swap(i, j);
-                    i += 1;
-                } else {
-                    // Score quiets here (moves[j].1 = pluh)
-                }
-            }
-
-            self.noisy_count = i;
-            self.stage = Stage::YieldNoisy;
-        }
-
-        if self.stage == Stage::YieldNoisy {
-            if self.skip_quiets {
-                self.stage = Stage::Finished;
-            } else if self.cursor >= self.noisy_count {
-                self.stage = Stage::YieldQuiet;
-            } else {
-                let (i, mv) = self.select_next(&moves[..self.noisy_count]);
-                moves.swap(self.cursor, i);
-                self.cursor += 1;
-
+    pub fn next(&mut self, pos: &Position, thread: &mut ThreadData) -> Option<Move> {
+        let board = pos.board();
+        if self.stage == Stage::TTMove {
+            self.stage = Stage::SplitNoisy;
+            if let Some(mv) = self.tt_move
+                && board.is_legal(mv)
+            {
                 return Some(mv);
             }
         }
 
+        let moves = thread.move_stack.get_mut();
+        if self.stage == Stage::SplitNoisy {
+            // Move all noisies to the front of the list
+            self.noisy_count = 0;
+            for j in 0..moves.len() {
+                let mv = moves[j].0;
+
+                // Don't yield the TT move a second time
+                if self.tt_move == Some(mv) {
+                    continue;
+                }
+
+                if moves[j].0.flag().is_noisy() {
+                    // Score noisies here (moves[j].1 = pluh)
+                    moves[j].1 = mvv(board, mv) * 8
+                        + thread.history.noisy(pos.board(), mv) / 8
+                        + thread.history.duck(pos.board(), mv) / 8;
+                    moves.swap(self.noisy_count, j);
+                    self.noisy_count += 1;
+                } else {
+                    // Score quiets here (moves[j].1 = pluh)
+                    moves[j].1 =
+                        thread.history.quiet(board, mv) + thread.history.duck(pos.board(), mv);
+                }
+            }
+
+            moves[..self.noisy_count].sort_unstable_by_key(|m| Reverse(m.1));
+            self.stage = Stage::YieldNoisy;
+        }
+
+        if self.stage == Stage::YieldNoisy {
+            while self.cursor < self.noisy_count {
+                let mv = moves[self.cursor].0;
+                self.cursor += 1;
+
+                if self.tt_move != Some(mv) {
+                    return Some(mv);
+                }
+            }
+
+            moves[self.noisy_count..].sort_unstable_by_key(|m| Reverse(m.1));
+            self.stage = Stage::YieldQuiet;
+        }
+
         if self.stage == Stage::YieldQuiet {
             if self.skip_quiets {
-                // Not sure if it's possible to hit this branch but just to be sure
                 self.stage = Stage::Finished;
             } else {
                 if self.cursor < self.noisy_count {
                     self.cursor = self.noisy_count;
                 }
 
-                if self.cursor >= moves.len() {
-                    self.stage = Stage::Finished;
-                } else {
-                    let (i, mv) = self.select_next(moves);
-                    moves.swap(self.cursor, i);
+                while self.cursor < moves.len() {
+                    let mv = moves[self.cursor].0;
                     self.cursor += 1;
 
-                    return Some(mv);
+                    if self.tt_move != Some(mv) {
+                        return Some(mv);
+                    }
                 }
+
+                self.stage = Stage::Finished;
             }
         }
 
         None
-    }
-
-    #[inline]
-    fn select_next(&self, moves: &[ScoredMove]) -> (usize, Move) {
-        /*let i = moves
-            .iter()
-            .enumerate()
-            .skip(self.cursor)
-            .max_by_key(|(_, mv)| mv.1)
-            .map(|(i, _)| i)
-            .unwrap();
-
-        (i, moves[i].0)*/
-        (self.cursor, moves[self.cursor].0)
-    }
-}
-
-impl Default for MovePicker {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            stage: Stage::SplitNoisy,
-            skip_quiets: false,
-            noisy_count: 0,
-            cursor: 0,
-        }
     }
 }

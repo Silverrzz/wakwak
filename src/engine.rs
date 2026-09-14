@@ -1,12 +1,14 @@
 use crate::board::Board;
 use crate::common::Move;
 use crate::position::Position;
-use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher};
+#[cfg(feature = "tune")]
+use crate::search::Params;
+use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher, tt};
 use crate::uci::{SearchLimit, UciCommand, UciParseError};
-use crate::util::{Abort, EPOCH};
+use crate::util::Abort;
 use std::io;
-use std::sync::LazyLock;
 use std::time::{Duration, Instant};
+use tt::TranspositionTable;
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -28,8 +30,6 @@ impl Engine {
 
     #[inline]
     pub fn run(&mut self) {
-        LazyLock::force(&EPOCH);
-
         let mut buffer = String::new();
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
@@ -97,6 +97,11 @@ impl Engine {
         println!("id name wakwak v{ENGINE_VERSION}");
         println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
         println!("option name Threads type spin default 1 min 1 max 1024");
+        println!(
+            "option name Hash type spin default {} min 1 max {}",
+            TranspositionTable::DEFAULT_SIZE_MB,
+            TranspositionTable::MAX_SIZE_MB
+        );
         println!("option name MoveOverhead type spin default {DEFAULT_OVERHEAD} min 0 max 5000");
         println!("option name Minimal type check default false");
         println!("option name SoftTarget type check default false");
@@ -220,6 +225,18 @@ impl Engine {
                 self.searcher.set_threads(value);
                 println!("info string Set Threads to {value}");
             }
+            "Hash" => {
+                let value = match value.parse::<u32>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.searcher.resize_tt(value as usize);
+                println!("info string Set Hash to {value}");
+            }
             "MoveOverhead" => {
                 let value = match value.parse::<u64>() {
                     Ok(value) => value,
@@ -292,6 +309,8 @@ impl Engine {
                 self.options.variant = variant;
                 println!("info string Set UCI_Variant to {value}");
             }
+            #[cfg(feature = "tune")]
+            name if Params::is_weight(name) => Params::set_param(name, value),
             _ => eprintln!("info string Unknown Option: `{name}`"),
         }
     }

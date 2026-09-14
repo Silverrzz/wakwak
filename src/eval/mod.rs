@@ -1,2 +1,5 @@
-pub mod evaluator;
-mod piece_square_tables;
+#[allow(clippy::module_inception)]
+pub mod eval;
+pub mod psqt;
+
+pub use eval::*;

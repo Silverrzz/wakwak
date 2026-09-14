@@ -257,8 +257,9 @@ impl Board {
             )));
         }
 
+        // Castling
         let rank = Rank::First.relative_to(self.stm);
-        for &dir in &[CastlingDirection::Long, CastlingDirection::Short] {
+        for &dir in &CastlingDirection::ALL {
             if let Some(file) = self.castling_rights(self.stm).get(dir) {
                 let king_dest = Square::new(dir.king_dest(), rank);
                 let rook_dest = Square::new(dir.rook_dest(), rank);

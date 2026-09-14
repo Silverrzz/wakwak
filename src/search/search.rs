@@ -1,10 +1,11 @@
 use crate::board::TerminalState;
-use crate::common::Move;
+use crate::common::{Bitboard, Move, Piece, Square, between};
 use crate::engine::EngineOptions;
-use crate::eval::evaluator;
+use crate::eval::eval;
 use crate::position::Position;
 use crate::score::Score;
-use crate::search::{MovePicker, PrincipalVariation, SearchInfo, SharedData, ThreadData};
+use crate::search::tt::TTFlag;
+use crate::search::{MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData};
 use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Default)]
@@ -215,27 +216,102 @@ fn search<Node: NodeType>(
         return Score::draw();
     }
 
-    let static_eval = evaluator::evaluate(pos.board());
+    /*
+    Transposition Table Cutoffs (TT Cutoffs): If we've already searched this position
+    and the stored result indicates that its value is outside the window, we can return
+    that stored result instead of wasting time searching it again.
+    */
+    let tt_entry = shared.tt.probe(pos.board().hash());
+    let tt_move = tt_entry.and_then(|e| e.best_move());
+
+    if !Node::ROOT
+        && let Some(entry) = tt_entry
+    {
+        let score = entry.score();
+        if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
+            return score;
+        }
+    }
+
+    let static_eval = eval(pos.board());
 
     if depth <= 0 {
         return static_eval;
     }
 
-    if !Node::ROOT && depth <= 8 && static_eval - 50 * depth >= beta {
+    /*
+    Reverse Futility Pruning: If our evaluation of the position is already
+    so high that even a pessimistic estimate is still above beta, we can
+    be reasonably confident that a further search will also fail high.
+    */
+    if !Node::ROOT
+        && depth <= Params::rfp_depth()
+        && static_eval - Params::rfp_margin(depth) >= beta
+    {
         return static_eval;
     }
 
-    // FIXME: Remove leading _ when this is used
-    let mut _best_move = None;
-    let mut best_score = None;
-
     thread.move_stack.push(pos.board());
-    let mut move_picker = MovePicker::default();
-    let mut move_count = 0;
 
-    while let Some(mv) = move_picker.next(thread.move_stack.get_mut()) {
+    let mut best_move = None;
+    let mut best_score = None;
+    let mut move_count = 0;
+    let mut failed_quiets = Vec::new();
+    let mut failed_noisies = Vec::new();
+    let mut move_picker = MovePicker::new(tt_move);
+    let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
+    let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
+    let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
+    let mut flag = TTFlag::Upper;
+
+    while let Some(mv) = move_picker.next(pos, thread) {
+        let (src, dest) = (mv.src(), mv.dest());
+        let piece_move = Some((src, mv.flag()));
+        let is_quiet = mv.flag().is_quiet();
+
+        /*
+        Duck Refutations: If the opponent immediately refutes a duck move,
+        we can skip the rest of the duck moves that don't block the refutation(s).
+        */
+        if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+            continue;
+        }
+
+        if duck_safety[dest].0 != Some(src) {
+            let mut board = *pos.board();
+            // TODO: Calculate king capture blocks without making the full move.
+            board.make_move(mv);
+            duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
+        }
+        let safe = duck_safety[dest].1;
+
+        /*
+        Late Duck Pruning (LDP): After a certain number of duck moves for
+        a certain move, we can be reasonably confident they're not gonna get
+        much better, so we can skip the rest of them.
+        */
+        if is_quiet
+            && safe == Bitboard::FULL
+            && depth <= Params::ldp_depth()
+            && duck_counts[src][dest] >= Params::ldp_threshold(depth) as u8
+        {
+            continue;
+        }
+
+        duck_counts[src][dest] += 1;
         pos.make_move(mv);
-        let score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
+
+        /*
+        Duck or Die Pruning: Treat duck moves that let the opponent capture
+        the king as instant losses, unless it is a repetition.
+        */
+        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+            // Clear the previous child's continuation because this move skips recursive search.
+            thread.stack[ply + 1].pv.clear();
+            Score::mated(ply + 2)
+        } else {
+            -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1)
+        };
         pos.unmake_move();
 
         if Node::ROOT && move_count == 0 {
@@ -247,6 +323,19 @@ fn search<Node: NodeType>(
             return Score::ZERO;
         }
 
+        // Duck Refutations
+        if score <= alpha
+            && let Some(reply) = thread.stack[ply + 1].pv.first()
+            && (reply.flag().is_capture() || pos.board().piece_on(reply.src()) == Some(Piece::Pawn))
+        {
+            let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
+            if duck_refutations[dest].0 == piece_move {
+                duck_refutations[dest].1 |= refuted;
+            } else {
+                duck_refutations[dest] = (piece_move, refuted);
+            }
+        }
+
         move_count += 1;
 
         if score > best_score {
@@ -255,16 +344,41 @@ fn search<Node: NodeType>(
 
         if score > alpha {
             alpha = score;
-            _best_move = Some(mv);
+            best_move = Some(mv);
+            flag = TTFlag::Exact;
             if Node::PV {
                 update_pv(thread, mv, ply);
             }
 
             if score >= beta {
+                flag = TTFlag::Lower;
+                thread.history.update(
+                    pos.board(),
+                    depth,
+                    best_move.unwrap(),
+                    &failed_quiets,
+                    &failed_noisies,
+                );
                 break;
             }
         }
+
+        if best_move != Some(mv) {
+            if mv.flag().is_noisy() {
+                failed_noisies.push(mv);
+            } else {
+                failed_quiets.push(mv);
+            }
+        }
     }
+
+    shared.tt.insert(
+        pos.board().hash(),
+        best_move,
+        best_score.unwrap().0,
+        depth as u8,
+        flag,
+    );
 
     thread.move_stack.pop();
     best_score.unwrap()

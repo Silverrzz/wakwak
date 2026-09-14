@@ -19,6 +19,15 @@ repos:
         pass_filenames: false
         entry: cargo clippy
         args: ["--workspace", "--", "-Dwarnings"]
+
+      - id: ensure-bench
+        name: ensure bench
+        description: Ensure the commit messages contain a bench number.
+        language: pygrep
+        entry: '[Bb]ench:? +[0-9]+'
+        args: [--multiline, --negate]
+        stages: [commit-msg]
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
