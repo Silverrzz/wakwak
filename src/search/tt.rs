@@ -119,7 +119,7 @@ impl TranspositionTable {
 
         let key = hash as u16;
         let packed = (key as u64) << KEY_SHIFT
-            | ((score as i16 as u16) as u64) << SCORE_SHIFT
+            | ((score as u16) as u64) << SCORE_SHIFT
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT;
 
