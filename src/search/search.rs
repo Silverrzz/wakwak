@@ -213,7 +213,7 @@ fn search<Node: NodeType>(
     }
 
     if depth <= 0 {
-        return qsearch::<Node>(pos.board(), thread, shared, alpha, beta, ply);
+        return qsearch::<Node>(pos, thread, shared, alpha, beta, ply);
     }
 
     if !Node::ROOT {
@@ -224,9 +224,9 @@ fn search<Node: NodeType>(
     if !Node::ROOT
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth) >= beta
-        {
-            return static_eval;
-        }
+    {
+        return static_eval;
+    }
 
     let mut best_move = None;
     let mut best_score = None;
