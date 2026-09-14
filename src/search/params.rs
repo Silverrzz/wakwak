@@ -90,8 +90,8 @@ params! {
     mvvlva_queen:  i32 => 900;
 
     ldp_max_depth: i32 => 8;
-    ldp_threshold_base: i32 => 5;
-    ldp_threshold_scale: i32 => 4;
+    ldp_threshold_base: i32 => 2;
+    ldp_threshold_scale: i32 => 2;
 }
 
 impl Params {
