@@ -1,5 +1,5 @@
 use crate::board::TerminalState;
-use crate::common::{Bitboard, Move, Square};
+use crate::common::{Bitboard, Move, MoveFlag, Square, between};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
 use crate::position::Position;
@@ -227,10 +227,15 @@ fn search<Node: NodeType>(
     let mut move_count = 0;
     let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
+    let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
     let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(pos, thread) {
         let (src, dest) = (mv.src(), mv.dest());
+        let piece_move = Some((src, mv.flag()));
+        if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+            continue;
+        }
         let is_quiet = mv.flag().is_quiet();
         if duck_safety[dest].0 != Some(src) {
             let mut board = *pos.board();
@@ -268,6 +273,19 @@ fn search<Node: NodeType>(
         if thread.stop {
             thread.move_stack.pop();
             return Score::ZERO;
+        }
+
+        if score <= alpha
+            && let Some(reply) = thread.stack[ply + 1].pv.first()
+            && reply.flag().is_capture()
+            && reply.flag() != MoveFlag::EnPassant
+        {
+            let refuted = !(between(reply.src(), reply.dest()) | reply.duck());
+            if duck_refutations[dest].0 == piece_move {
+                duck_refutations[dest].1 |= refuted;
+            } else {
+                duck_refutations[dest] = (piece_move, refuted);
+            }
         }
 
         move_count += 1;
