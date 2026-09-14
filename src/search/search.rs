@@ -227,24 +227,30 @@ fn search<Node: NodeType>(
     let mut move_count = 0;
     let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut flag = TTFlag::Upper;
+    let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
 
     while let Some(mv) = move_picker.next(pos, thread) {
         let (src, dest) = (mv.src(), mv.dest());
         let is_quiet = mv.flag().is_quiet();
         let count = &mut duck_counts[src][dest];
-        pos.make_move(mv);
-        let safe = pos.board().duck_survival_squares(!pos.board().stm());
+        let cached = &mut duck_safety[dest];
+        if cached.0 != Some(src) {
+            let mut board = *pos.board();
+            board.make_move(mv);
+            *cached = (Some(src), board.duck_survival_squares(!board.stm()));
+        }
+        let safe = cached.1;
 
         if is_quiet
             && safe == Bitboard::FULL
             && depth <= Params::ldp_depth()
             && *count >= Params::ldp_threshold(depth) as u8
         {
-            pos.unmake_move();
             continue;
         }
 
         *count += 1;
+        pos.make_move(mv);
         let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
             thread.stack[ply + 1].pv.clear();
             Score::mated(ply + 2)
