@@ -146,7 +146,10 @@ impl MovePicker {
         if self.stage == Stage::YieldNoisy {
             if self.cursor >= self.noisy_count {
                 self.stage = Stage::YieldQuiet;
-                moves[self.noisy_count..].sort_unstable_by_key(|m| Reverse(m.1));
+
+                if !self.skip_quiets {
+                    moves[self.noisy_count..].sort_unstable_by_key(|m| Reverse(m.1));
+                }
             } else {
                 self.cursor += 1;
                 return Some(moves[self.cursor - 1].0);

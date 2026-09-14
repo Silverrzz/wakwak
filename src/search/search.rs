@@ -5,7 +5,9 @@ use crate::eval::eval;
 use crate::position::Position;
 use crate::score::Score;
 use crate::search::tt::TTFlag;
-use crate::search::{MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData};
+use crate::search::{
+    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData,
+};
 use std::sync::atomic::Ordering;
 
 #[derive(Debug, Clone, Default)]
@@ -200,6 +202,7 @@ fn search<Node: NodeType>(
         let tt_depth = entry.depth() as i32;
         let tt_score = Score(entry.score() as i32);
         if tt_depth >= depth && tt_flag.bounds_match(tt_score, alpha, beta) {
+            thread.nodes.inc();
             return tt_score;
         }
     }
@@ -218,7 +221,6 @@ fn search<Node: NodeType>(
     }
 
     let static_eval = eval(pos.board());
-
     if !Node::ROOT
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth) >= beta
