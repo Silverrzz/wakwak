@@ -1,8 +1,10 @@
+pub mod duck;
 pub mod noisy;
 pub mod quiet;
 
 use crate::board::Board;
 use crate::common::Move;
+pub use duck::*;
 pub use noisy::*;
 pub use quiet::*;
 
@@ -11,6 +13,7 @@ pub const MAX_HISTORY: i32 = 16384;
 pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
+    duck: DuckHistory,
 }
 
 impl History {
@@ -22,6 +25,11 @@ impl History {
     #[inline]
     pub fn noisy(&self, board: &Board, mv: Move) -> i32 {
         self.noisy.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn duck(&self, board: &Board, mv: Move) -> i32 {
+        self.duck.entry(board, mv)
     }
 
     #[inline]
@@ -48,6 +56,14 @@ impl History {
         for &noisy in failed_noisies {
             self.update_noisy::<false>(board, depth, noisy);
         }
+
+        self.update_duck::<true>(board, depth, best_move);
+        for &quiet in failed_quiets {
+            self.update_duck::<false>(board, depth, quiet);
+        }
+        for &noisy in failed_noisies {
+            self.update_duck::<false>(board, depth, noisy);
+        }
     }
 
     #[inline]
@@ -58,6 +74,11 @@ impl History {
     #[inline]
     fn update_noisy<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
         self.noisy.update::<BONUS>(board, depth, mv);
+    }
+
+    #[inline]
+    fn update_duck<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
+        self.duck.update::<BONUS>(board, depth, mv);
     }
 }
 

@@ -125,12 +125,15 @@ impl MovePicker {
                 let mv = moves[j].0;
                 if moves[j].0.flag().is_noisy() {
                     // Score noisies here (moves[j].1 = pluh)
-                    moves[j].1 = mvv(board, mv) * 8 + thread.history.noisy(pos.board(), mv) / 8;
+                    moves[j].1 = mvv(board, mv) * 8
+                        + thread.history.noisy(pos.board(), mv) / 8
+                        + thread.history.duck(pos.board(), mv) / 16;
                     moves.swap(i, j);
                     i += 1;
                 } else {
                     // Score quiets here (moves[j].1 = pluh)
-                    moves[j].1 = thread.history.quiet(board, mv);
+                    moves[j].1 =
+                        thread.history.quiet(board, mv) + thread.history.duck(pos.board(), mv);
                 }
             }
 

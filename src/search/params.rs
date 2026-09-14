@@ -73,6 +73,13 @@ params! {
     noisy_malus_scale: i32 => 128;
     noisy_malus_max:   i32 => 2048;
 
+    duck_bonus_base:  i32 => 128;
+    duck_bonus_scale: i32 => 128;
+    duck_bonus_max:   i32 => 2048;
+    duck_malus_base:  i32 => 128;
+    duck_malus_scale: i32 => 128;
+    duck_malus_max:   i32 => 2048;
+
     rfp_base: i32 => 0;
     rfp_scale: i32 => 50;
 
@@ -102,6 +109,16 @@ impl Params {
     #[inline]
     pub fn noisy_malus(depth: i32) -> i32 {
         -(Self::noisy_malus_base() + Self::noisy_malus_scale() * depth).min(Self::noisy_malus_max())
+    }
+
+    #[inline]
+    pub fn duck_bonus(depth: i32) -> i32 {
+        (Self::duck_bonus_base() + Self::duck_bonus_scale() * depth).min(Self::duck_bonus_max())
+    }
+
+    #[inline]
+    pub fn duck_malus(depth: i32) -> i32 {
+        -(Self::duck_malus_base() + Self::duck_malus_scale() * depth).min(Self::duck_malus_max())
     }
 
     #[inline]
