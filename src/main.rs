@@ -8,6 +8,7 @@ pub mod eval;
 pub mod position;
 pub mod score;
 pub mod search;
+pub mod tools;
 pub mod uci;
 pub mod util;
 
