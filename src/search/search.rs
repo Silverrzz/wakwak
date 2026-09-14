@@ -1,5 +1,5 @@
 use crate::board::TerminalState;
-use crate::common::{Move, Square};
+use crate::common::{Bitboard, Move, Square};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
 use crate::position::Position;
@@ -232,15 +232,25 @@ fn search<Node: NodeType>(
         let (src, dest) = (mv.src(), mv.dest());
         let is_quiet = mv.flag().is_quiet();
         let count = &mut duck_counts[src][dest];
+        pos.make_move(mv);
+        let safe = pos.board().duck_survival_squares(!pos.board().stm());
 
-        if is_quiet && depth <= Params::ldp_depth() && *count >= Params::ldp_threshold(depth) as u8
+        if is_quiet
+            && safe == Bitboard::FULL
+            && depth <= Params::ldp_depth()
+            && *count >= Params::ldp_threshold(depth) as u8
         {
+            pos.unmake_move();
             continue;
         }
 
         *count += 1;
-        pos.make_move(mv);
-        let score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
+        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+            thread.stack[ply + 1].pv.clear();
+            Score::mated(ply + 2)
+        } else {
+            -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1)
+        };
         pos.unmake_move();
 
         if Node::ROOT && move_count == 0 {
