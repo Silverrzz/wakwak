@@ -127,7 +127,7 @@ impl MovePicker {
                     // Score noisies here (moves[j].1 = pluh)
                     moves[j].1 = mvv(board, mv) * 8
                         + thread.history.noisy(pos.board(), mv) / 8
-                        + thread.history.duck(pos.board(), mv) / 16;
+                        + thread.history.duck(pos.board(), mv) / 8;
                     moves.swap(i, j);
                     i += 1;
                 } else {
