@@ -86,5 +86,10 @@ impl Engine {
 
         let nps = (total_nodes as f64 / total_time.as_secs_f64()) as u64;
         println!("nodes {total_nodes} time {total_time:.2?} nps {nps}");
+
+        #[cfg(feature = "stat")]
+        {
+            crate::tools::stat::stat_map().print();
+        }
     }
 }

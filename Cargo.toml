@@ -5,12 +5,13 @@ edition = "2024"
 
 [features]
 tune = []
+stat = ["dep:dashmap"]
 
 [dependencies]
 arrayvec = "0.7.8"
 atomic-wait = "1.1.0"
 colored = "3.1.1"
+dashmap = { version = "6.2.1", optional = true }
 enum-map = "3.1.0"
-rand = "0.10.2"
 thiserror = "2.0.20"
 zerocopy = "0.8.56"
