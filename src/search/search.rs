@@ -1,5 +1,5 @@
 use crate::board::TerminalState;
-use crate::common::Move;
+use crate::common::{Move, Square};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
 use crate::position::Position;
@@ -209,8 +209,21 @@ fn search<Node: NodeType>(
     let mut failed_noisies = Vec::new();
     let mut move_picker = MovePicker::default();
     let mut move_count = 0;
+    let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
 
     while let Some(mv) = move_picker.next(pos, thread) {
+        let (src, dest) = (mv.src(), mv.dest());
+        let is_quiet = mv.flag().is_quiet();
+        let count = &mut duck_counts[src][dest];
+
+        if is_quiet
+            && depth <= Params::ldp_max_depth()
+            && *count >= Params::ldp_threshold(depth) as u8
+        {
+            continue;
+        }
+
+        *count += 1;
         pos.make_move(mv);
         let score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
         pos.unmake_move();
