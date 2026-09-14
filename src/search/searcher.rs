@@ -171,7 +171,7 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
                 }
                 shared.num_searching.store(0, Ordering::Release);
                 if info != SearchInfo::None {
-                    println!("info depth 1 seldepth 1 score cp 0 time 0 nodes 1 nps 0 pv {mv}");
+                    println!("info depth 1 seldepth 1 score cp 0 time 0 nodes 1 nps 1 pv {mv}");
                     println!("bestmove {mv}");
                 }
                 atomic_wait::wake_all(&shared.num_searching);
