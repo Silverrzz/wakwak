@@ -321,8 +321,8 @@ fn search<Node: NodeType>(
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1
+                let reduction = if depth >= 3 && searched_moves > 2 && is_quiet {
+                    1 + (searched_moves > 6) as i32
                 } else {
                     0
                 };
