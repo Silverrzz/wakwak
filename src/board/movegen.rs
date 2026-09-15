@@ -6,23 +6,61 @@ use crate::common::{
 };
 use crate::util::Abort;
 
-impl Board {
-    #[inline]
-    pub fn gen_moves<V: FnMut(DuckMoves) -> Abort>(&self, mut visitor: V) -> Abort {
-        let valid_dest =
-            !self.colors(self.stm) & !self.duck.map_or(Bitboard::EMPTY, Square::bitboard);
+pub trait MoveFilter {
+    const NOISY: bool;
+    const QUIET: bool;
+}
 
-        abort_if!(self.gen_pawn_moves(&mut visitor));
+pub struct All;
+pub struct Noisy;
+pub struct Quiet;
+
+impl MoveFilter for All {
+    const NOISY: bool = true;
+    const QUIET: bool = true;
+}
+
+impl MoveFilter for Noisy {
+    const NOISY: bool = true;
+    const QUIET: bool = false;
+}
+
+impl MoveFilter for Quiet {
+    const NOISY: bool = false;
+    const QUIET: bool = true;
+}
+
+impl Board {
+    pub fn gen_all_moves<V: FnMut(DuckMoves) -> Abort>(&self, visitor: V) -> Abort {
+        self.gen_moves::<All, _>(visitor)
+    }
+
+    #[inline]
+    pub fn gen_moves<F: MoveFilter, V: FnMut(DuckMoves) -> Abort>(&self, mut visitor: V) -> Abort {
+        let valid_dest = self.valid_dest::<F>();
+
+        abort_if!(self.gen_pawn_moves::<F, _>(&mut visitor));
         abort_if!(self.gen_knight_moves(valid_dest, &mut visitor));
         abort_if!(self.gen_slider_moves(valid_dest, &mut visitor));
-        abort_if!(self.gen_king_moves(valid_dest, &mut visitor));
+        abort_if!(self.gen_king_moves::<F, _>(valid_dest, &mut visitor));
 
         Abort::No
     }
 
     #[inline]
+    fn valid_dest<F: MoveFilter>(&self) -> Bitboard {
+        if F::NOISY && F::QUIET {
+            !self.colors(self.stm) & !self.duck.map_or(Bitboard::EMPTY, Square::bitboard)
+        } else if F::NOISY {
+            self.colors(!self.stm)
+        } else {
+            !self.occupied()
+        }
+    }
+
+    #[inline]
     pub fn any_moves<V: FnMut(DuckMoves) -> bool>(&self, mut visitor: V) -> bool {
-        self.gen_moves(|moves| {
+        self.gen_all_moves(|moves| {
             if visitor(moves) {
                 Abort::Yes
             } else {
@@ -32,13 +70,24 @@ impl Board {
     }
 
     #[inline]
-    fn gen_pawn_moves<V: FnMut(DuckMoves) -> Abort>(&self, visitor: &mut V) -> Abort {
+    fn gen_pawn_moves<F: MoveFilter, V: FnMut(DuckMoves) -> Abort>(
+        &self,
+        visitor: &mut V,
+    ) -> Abort {
         let empty = !self.occupied();
         let pawns = self.colored_pieces(self.stm, Piece::Pawn);
         let promo_rank = Rank::Eighth.relative_to(self.stm);
 
+        let push_mask = if F::NOISY && F::QUIET {
+            Bitboard::FULL
+        } else if F::NOISY {
+            promo_rank.bitboard() // Only promos
+        } else {
+            !promo_rank.bitboard() // Only non-promos
+        };
+
         //Pawn Pushes
-        for dest in empty & pawns.shift::<North>(self.stm.signum()) {
+        for dest in empty & pawns.shift::<North>(self.stm.signum()) & push_mask {
             let src = dest.offset_dir::<South>(self.stm.signum() as isize);
 
             if dest.rank() == promo_rank {
@@ -63,94 +112,99 @@ impl Board {
             }
         }
 
-        let start_rank = Rank::Second.relative_to(self.stm);
-        let first_step = empty & (pawns & start_rank).shift::<North>(self.stm.signum());
-        let second_step = empty & first_step.shift::<North>(self.stm.signum());
-
         //Pawn Double Pushes
-        for dest in second_step {
-            let src = dest.offset_dir::<South>(2 * self.stm.signum() as isize);
-            abort_if!(visitor(DuckMoves::new(
-                src,
-                dest,
-                MoveFlag::DoublePush,
-                empty ^ src ^ dest,
-            )));
-        }
+        if F::QUIET {
+            let start_rank = Rank::Second.relative_to(self.stm);
+            let first_step = empty & (pawns & start_rank).shift::<North>(self.stm.signum());
+            let second_step = empty & first_step.shift::<North>(self.stm.signum());
 
-        //Pawn Captures Left
-        let their_pieces = self.colors(!self.stm);
-        for dest in their_pieces & pawns.shift::<NorthWest>(self.stm.signum()) {
-            let src = dest.offset_dir::<SouthEast>(self.stm.signum() as isize);
-
-            if dest.rank() == promo_rank {
-                //Capture Promotions
-                for &flag in &[
-                    MoveFlag::CapturePromotionQueen,
-                    MoveFlag::CapturePromotionRook,
-                    MoveFlag::CapturePromotionBishop,
-                    MoveFlag::CapturePromotionKnight,
-                ] {
-                    abort_if!(visitor(DuckMoves::new(
-                        src,
-                        dest,
-                        flag,
-                        (empty ^ src) & !dest,
-                    )));
-                }
-            } else {
+            //Pawn Double Pushes
+            for dest in second_step {
+                let src = dest.offset_dir::<South>(2 * self.stm.signum() as isize);
                 abort_if!(visitor(DuckMoves::new(
                     src,
                     dest,
-                    MoveFlag::Capture,
-                    (empty ^ src) & !dest,
+                    MoveFlag::DoublePush,
+                    empty ^ src ^ dest,
                 )));
             }
         }
 
-        //Pawn Captures Right
-        for dest in their_pieces & pawns.shift::<NorthEast>(self.stm.signum()) {
-            let src = dest.offset_dir::<SouthWest>(self.stm.signum() as isize);
+        if F::NOISY {
+            //Pawn Captures Left
+            let their_pieces = self.colors(!self.stm);
+            for dest in their_pieces & pawns.shift::<NorthWest>(self.stm.signum()) {
+                let src = dest.offset_dir::<SouthEast>(self.stm.signum() as isize);
 
-            if dest.rank() == promo_rank {
-                //Capture Promotions
-                for &flag in &[
-                    MoveFlag::CapturePromotionQueen,
-                    MoveFlag::CapturePromotionRook,
-                    MoveFlag::CapturePromotionBishop,
-                    MoveFlag::CapturePromotionKnight,
-                ] {
+                if dest.rank() == promo_rank {
+                    //Capture Promotions
+                    for &flag in &[
+                        MoveFlag::CapturePromotionQueen,
+                        MoveFlag::CapturePromotionRook,
+                        MoveFlag::CapturePromotionBishop,
+                        MoveFlag::CapturePromotionKnight,
+                    ] {
+                        abort_if!(visitor(DuckMoves::new(
+                            src,
+                            dest,
+                            flag,
+                            (empty ^ src) & !dest,
+                        )));
+                    }
+                } else {
                     abort_if!(visitor(DuckMoves::new(
                         src,
                         dest,
-                        flag,
+                        MoveFlag::Capture,
                         (empty ^ src) & !dest,
                     )));
                 }
-            } else {
-                abort_if!(visitor(DuckMoves::new(
-                    src,
-                    dest,
-                    MoveFlag::Capture,
-                    (empty ^ src) & !dest,
-                )));
             }
-        }
 
-        //En Passant
-        if let Some(en_passant) = self.en_passant() {
-            let file = en_passant.file();
-            let dest = Square::new(file, Rank::Sixth.relative_to(self.stm));
-            let victim = Square::new(file, Rank::Fifth.relative_to(self.stm));
+            //Pawn Captures Right
+            for dest in their_pieces & pawns.shift::<NorthEast>(self.stm.signum()) {
+                let src = dest.offset_dir::<SouthWest>(self.stm.signum() as isize);
 
-            // `calc_en_passant` already calculated all the legal en pheasants
-            for src in en_passant.attackers(self.stm) {
-                abort_if!(visitor(DuckMoves::new(
-                    src,
-                    dest,
-                    MoveFlag::EnPassant,
-                    empty ^ src ^ dest ^ victim,
-                )));
+                if dest.rank() == promo_rank {
+                    //Capture Promotions
+                    for &flag in &[
+                        MoveFlag::CapturePromotionQueen,
+                        MoveFlag::CapturePromotionRook,
+                        MoveFlag::CapturePromotionBishop,
+                        MoveFlag::CapturePromotionKnight,
+                    ] {
+                        abort_if!(visitor(DuckMoves::new(
+                            src,
+                            dest,
+                            flag,
+                            (empty ^ src) & !dest,
+                        )));
+                    }
+                } else {
+                    abort_if!(visitor(DuckMoves::new(
+                        src,
+                        dest,
+                        MoveFlag::Capture,
+                        (empty ^ src) & !dest,
+                    )));
+                }
+            }
+
+            //En Passant
+            if let Some(en_passant) = self.en_passant() {
+                let file = en_passant.file();
+                let dest = Square::new(file, Rank::Sixth.relative_to(self.stm));
+                let victim = Square::new(file, Rank::Fifth.relative_to(self.stm));
+
+                // `calc_en_passant` already calculated all the legal en pheasants
+                for src in en_passant.attackers(self.stm) {
+                    abort_if!(visitor(DuckMoves::new(
+                        src,
+                        dest,
+                        MoveFlag::EnPassant,
+                        empty ^ src ^ dest ^ victim,
+                    )));
+                }
             }
         }
 
@@ -234,7 +288,7 @@ impl Board {
     }
 
     #[inline]
-    pub fn gen_king_moves<V: FnMut(DuckMoves) -> Abort>(
+    pub fn gen_king_moves<F: MoveFilter, V: FnMut(DuckMoves) -> Abort>(
         &self,
         valid_dest: Bitboard,
         visitor: &mut V,
@@ -258,22 +312,26 @@ impl Board {
         }
 
         // Castling
-        let rank = Rank::First.relative_to(self.stm);
-        for &dir in &CastlingDirection::ALL {
-            if let Some(file) = self.castling_rights(self.stm).get(dir) {
-                let king_dest = Square::new(dir.king_dest(), rank);
-                let rook_dest = Square::new(dir.rook_dest(), rank);
-                let rook_src = Square::new(file, rank);
+        if F::QUIET {
+            let rank = Rank::First.relative_to(self.stm);
+            for &dir in &CastlingDirection::ALL {
+                if let Some(file) = self.castling_rights(self.stm).get(dir) {
+                    let king_dest = Square::new(dir.king_dest(), rank);
+                    let rook_dest = Square::new(dir.rook_dest(), rank);
+                    let rook_src = Square::new(file, rank);
 
-                let must_be_empty =
-                    between(king, king_dest) | between(rook_src, rook_dest) | king_dest | rook_dest;
-                let mut blockers = self.occupied() ^ king ^ rook_src;
+                    let must_be_empty = between(king, king_dest)
+                        | between(rook_src, rook_dest)
+                        | king_dest
+                        | rook_dest;
+                    let mut blockers = self.occupied() ^ king ^ rook_src;
 
-                if (blockers & must_be_empty).is_empty() {
-                    blockers = blockers ^ king_dest ^ rook_dest;
-                    let flag = MoveFlag::new_castling(dir);
+                    if (blockers & must_be_empty).is_empty() {
+                        blockers = blockers ^ king_dest ^ rook_dest;
+                        let flag = MoveFlag::new_castling(dir);
 
-                    abort_if!(visitor(DuckMoves::new(king, rook_src, flag, !blockers,)));
+                        abort_if!(visitor(DuckMoves::new(king, rook_src, flag, !blockers,)));
+                    }
                 }
             }
         }
@@ -295,7 +353,7 @@ mod tests {
         board.display(true);
 
         let mut len = 0;
-        board.gen_moves(|moves| {
+        board.gen_all_moves(|moves| {
             len += moves.len();
             Abort::No
         });
@@ -311,7 +369,7 @@ mod tests {
         board.display(true);
 
         let mut len = 0;
-        board.gen_moves(|moves| {
+        board.gen_all_moves(|moves| {
             len += moves.len();
             Abort::No
         });
@@ -327,7 +385,7 @@ mod tests {
         board.display(true);
 
         let mut len = 0;
-        board.gen_moves(|moves| {
+        board.gen_all_moves(|moves| {
             len += moves.len();
             Abort::No
         });
@@ -343,7 +401,7 @@ mod tests {
         board.display(true);
 
         let mut len = 0;
-        board.gen_moves(|moves| {
+        board.gen_all_moves(|moves| {
             len += moves.len();
             Abort::No
         });
@@ -359,7 +417,7 @@ mod tests {
         board.display(true);
 
         let mut len = 0;
-        board.gen_moves(|moves| {
+        board.gen_all_moves(|moves| {
             len += moves.len();
             Abort::No
         });
@@ -375,7 +433,7 @@ mod tests {
         board.display(true);
 
         let mut len = 0;
-        board.gen_moves(|moves| {
+        board.gen_all_moves(|moves| {
             len += moves.len();
             Abort::No
         });

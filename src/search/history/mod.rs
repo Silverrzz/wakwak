@@ -1,37 +1,32 @@
+pub mod corr;
 pub mod duck;
 pub mod noisy;
 pub mod quiet;
 
 use crate::board::Board;
 use crate::common::Move;
+use crate::score::Score;
+use crate::search::Params;
+use crate::search::corr::{CorrHistory, MAX_CORR};
 pub use duck::*;
 pub use noisy::*;
 pub use quiet::*;
 
 pub const MAX_HISTORY: i32 = 16384;
+pub const PAWN_CORR_SIZE: usize = 4096;
+pub const MINOR_CORR_SIZE: usize = 16384;
+pub const MAJOR_CORR_SIZE: usize = 16384;
 
 pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
     duck: DuckHistory,
+    pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
+    minor_corr: CorrHistory<MINOR_CORR_SIZE>,
+    major_corr: CorrHistory<MAJOR_CORR_SIZE>,
 }
 
 impl History {
-    #[inline]
-    pub fn quiet(&self, board: &Board, mv: Move) -> i32 {
-        self.quiet.entry(board, mv)
-    }
-
-    #[inline]
-    pub fn noisy(&self, board: &Board, mv: Move) -> i32 {
-        self.noisy.entry(board, mv)
-    }
-
-    #[inline]
-    pub fn duck(&self, board: &Board, mv: Move) -> i32 {
-        self.duck.entry(board, mv)
-    }
-
     #[inline]
     pub fn update(
         &mut self,
@@ -67,6 +62,16 @@ impl History {
     }
 
     #[inline]
+    pub fn update_corr(&mut self, board: &Board, depth: i32, score: Score, static_eval: Score) {
+        let stm = board.stm();
+        let diff = score.0 as i64 - static_eval.0 as i64;
+
+        self.pawn_corr.update(stm, board.pawn_hash(), depth, diff);
+        self.minor_corr.update(stm, board.minor_hash(), depth, diff);
+        self.major_corr.update(stm, board.major_hash(), depth, diff);
+    }
+
+    #[inline]
     fn update_quiet<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
         self.quiet.update::<BONUS>(board, depth, mv);
     }
@@ -79,6 +84,32 @@ impl History {
     #[inline]
     fn update_duck<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
         self.duck.update::<BONUS>(board, depth, mv);
+    }
+
+    #[inline]
+    pub fn quiet(&self, board: &Board, mv: Move) -> i32 {
+        self.quiet.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn noisy(&self, board: &Board, mv: Move) -> i32 {
+        self.noisy.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn duck(&self, board: &Board, mv: Move) -> i32 {
+        self.duck.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn corr(&self, board: &Board) -> i32 {
+        let stm = board.stm();
+        let mut corr = 0;
+
+        corr += Params::pawn_corr() * self.pawn_corr.entry(stm, board.pawn_hash());
+        corr += Params::minor_corr() * self.minor_corr.entry(stm, board.minor_hash());
+        corr += Params::major_corr() * self.major_corr.entry(stm, board.major_hash());
+        corr / MAX_CORR
     }
 }
 

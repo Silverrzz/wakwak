@@ -167,7 +167,7 @@ impl Engine {
         let mut total_time = Duration::ZERO;
         let mut total_nodes = 0;
 
-        self.position.board().gen_moves(|moves| {
+        self.position.board().gen_all_moves(|moves| {
             for mv in moves {
                 let mut board = *self.position.board();
                 board.make_move(mv);

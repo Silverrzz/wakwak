@@ -198,7 +198,7 @@ mod tests {
     #[inline]
     fn is_legal_all(board: &Board, depth: u8, all_moves: &[Move]) {
         let mut moves = Vec::new();
-        board.gen_moves(|duck_moves| {
+        board.gen_all_moves(|duck_moves| {
             moves.extend(duck_moves.iter());
             Abort::No
         });

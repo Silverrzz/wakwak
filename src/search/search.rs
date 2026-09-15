@@ -1,5 +1,4 @@
-use crate::board::TerminalState;
-use crate::common::{Bitboard, Move, Piece, Square, between};
+use crate::common::{Bitboard, Move, Square, between};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
 use crate::position::Position;
@@ -11,6 +10,9 @@ use std::sync::atomic::Ordering;
 #[derive(Debug, Clone, Default)]
 pub struct SearchStack {
     pv: PrincipalVariation,
+    raw_eval: Option<Score>,
+    static_eval: Option<Score>,
+    mv: Option<Move>,
 }
 
 pub fn iterative_deepening(
@@ -150,7 +152,6 @@ trait NodeType {
 
 struct Root;
 struct PV;
-#[expect(dead_code)]
 struct NonPV;
 
 impl NodeType for Root {
@@ -166,6 +167,11 @@ impl NodeType for PV {
 impl NodeType for NonPV {
     const PV: bool = false;
     const ROOT: bool = false;
+}
+
+#[inline]
+fn adjust_eval(eval: Score, corr: i32) -> Score {
+    (eval + corr).clamp_mate()
 }
 
 #[inline]
@@ -196,6 +202,7 @@ fn search<Node: NodeType>(
     if Node::PV {
         thread.stack[ply].pv.clear();
     }
+    thread.stack[ply].mv = None;
 
     thread.sel_depth = thread.sel_depth.max(ply);
 
@@ -204,14 +211,17 @@ fn search<Node: NodeType>(
         thread.nodes.inc();
     }
 
-    if let Some(terminal_state) = pos.board().terminal_state() {
-        return match terminal_state {
-            TerminalState::Victory(_) => Score::mated(ply),
-            TerminalState::Stalemate(_) => Score::mate(ply),
-            TerminalState::Draw => Score::draw(),
-        };
+    // King captured, gg
+    if pos.board().try_king(pos.board().stm()).is_none() {
+        return Score::mated(ply);
     }
 
+    // 50-move-rule detection
+    if pos.board().hmc() >= 100 {
+        return Score::draw();
+    }
+
+    // Three-fold repetition detection
     if !Node::ROOT && pos.repetition() {
         return Score::draw();
     }
@@ -233,29 +243,51 @@ fn search<Node: NodeType>(
         }
     }
 
-    let static_eval = eval(pos.board());
+    // TODO: uncomment this when it is used
+    // let in_check = pos.board().in_check();
+    let raw_eval = eval(pos.board());
+    let corr = thread.history.corr(pos.board());
+    let static_eval = adjust_eval(raw_eval, corr);
+    let raw_eval = eval(pos.board());
 
     if depth <= 0 {
         return static_eval;
     }
+
+    let improving = {
+        let prev2 = ply.wrapping_sub(2);
+        let prev4 = ply.wrapping_sub(4);
+
+        if ply >= 2 && thread.stack[prev2].static_eval.is_some() {
+            static_eval > thread.stack[prev2].static_eval
+        } else if ply >= 4 && thread.stack[prev4].static_eval.is_some() {
+            static_eval > thread.stack[prev4].static_eval
+        } else {
+            true
+        }
+    };
+
+    thread.stack[ply].raw_eval = Some(raw_eval);
+    thread.stack[ply].static_eval = Some(static_eval);
 
     /*
     Reverse Futility Pruning: If our evaluation of the position is already
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::ROOT
+    if !Node::PV
         && depth <= Params::rfp_depth()
-        && static_eval - Params::rfp_margin(depth) >= beta
+        && static_eval - Params::rfp_margin(depth, improving) >= beta
     {
         return static_eval;
     }
 
-    thread.move_stack.push(pos.board());
+    thread.move_stack.push_ply();
 
     let mut best_move = None;
     let mut best_score = None;
-    let mut move_count = 0;
+    let mut legal_moves = 0;
+    let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
     let mut move_picker = MovePicker::new(tt_move);
@@ -268,6 +300,7 @@ fn search<Node: NodeType>(
         let (src, dest) = (mv.src(), mv.dest());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        legal_moves += 1;
 
         /*
         Duck Refutations: If the opponent immediately refutes a duck move,
@@ -290,10 +323,9 @@ fn search<Node: NodeType>(
         a certain move, we can be reasonably confident they're not gonna get
         much better, so we can skip the rest of them.
         */
-        if is_quiet
-            && safe == Bitboard::FULL
-            && depth <= Params::ldp_depth()
-            && duck_counts[src][dest] >= Params::ldp_threshold(depth) as u8
+        if safe == Bitboard::FULL
+            && depth <= Params::ldp_depth(is_quiet)
+            && duck_counts[src][dest] >= Params::ldp_threshold(depth, is_quiet, improving) as u8
         {
             continue;
         }
@@ -310,24 +342,42 @@ fn search<Node: NodeType>(
             thread.stack[ply + 1].pv.clear();
             Score::mated(ply + 2)
         } else {
-            -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1)
+            let new_depth = depth - 1;
+            let mut score = -Score::INFINITE;
+            if !Node::PV || legal_moves > 1 {
+                let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
+                    1
+                } else {
+                    0
+                };
+                score = -search::<NonPV>(
+                    pos,
+                    thread,
+                    shared,
+                    -alpha - 1,
+                    -alpha,
+                    new_depth - reduction,
+                    ply + 1,
+                )
+            }
+            if Node::PV && (legal_moves == 1 || score > alpha) {
+                score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
+            }
+            score
         };
         pos.unmake_move();
 
-        if Node::ROOT && move_count == 0 {
+        if Node::ROOT && searched_moves == 0 {
             update_pv(thread, mv, ply);
         }
 
         if thread.stop {
-            thread.move_stack.pop();
+            thread.move_stack.pop_ply();
             return Score::ZERO;
         }
 
         // Duck Refutations
-        if score <= alpha
-            && let Some(reply) = thread.stack[ply + 1].pv.first()
-            && (reply.flag().is_capture() || pos.board().piece_on(reply.src()) == Some(Piece::Pawn))
-        {
+        if let Some(reply) = thread.stack[ply + 1].mv {
             let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
             if duck_refutations[dest].0 == piece_move {
                 duck_refutations[dest].1 |= refuted;
@@ -336,7 +386,7 @@ fn search<Node: NodeType>(
             }
         }
 
-        move_count += 1;
+        searched_moves += 1;
 
         if score > best_score {
             best_score = Some(score);
@@ -345,6 +395,7 @@ fn search<Node: NodeType>(
         if score > alpha {
             alpha = score;
             best_move = Some(mv);
+            thread.stack[ply].mv = best_move;
             flag = TTFlag::Exact;
             if Node::PV {
                 update_pv(thread, mv, ply);
@@ -372,14 +423,27 @@ fn search<Node: NodeType>(
         }
     }
 
-    shared.tt.insert(
-        pos.board().hash(),
-        best_move,
-        best_score.unwrap().0,
-        depth as u8,
-        flag,
-    );
+    thread.move_stack.pop_ply();
 
-    thread.move_stack.pop();
-    best_score.unwrap()
+    // Stalemate detection
+    if legal_moves == 0 {
+        return Score::mate(ply);
+    }
+
+    let best_score = best_score.unwrap();
+
+    shared
+        .tt
+        .insert(pos.board().hash(), best_move, best_score, depth, flag);
+
+    let static_eval = adjust_eval(raw_eval, thread.history.corr(pos.board()));
+    if best_move.is_none_or(|mv| mv.flag().is_quiet())
+        && flag.bounds_match(best_score, static_eval, static_eval)
+    {
+        thread
+            .history
+            .update_corr(pos.board(), depth, best_score, static_eval);
+    }
+
+    best_score
 }

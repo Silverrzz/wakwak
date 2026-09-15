@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::ops::*;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Score(pub i32);
 
 impl Score {

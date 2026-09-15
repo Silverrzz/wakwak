@@ -59,6 +59,11 @@ macro_rules! params {
 }
 
 params! {
+    pawn_corr:        i32 => 64;
+    minor_corr:       i32 => 64;
+    major_corr:       i32 => 64;
+    corr_bonus_scale: i64 => 128;
+
     quiet_bonus_base:  i32 => 128;
     quiet_bonus_scale: i32 => 128;
     quiet_bonus_max:   i32 => 2048;
@@ -80,9 +85,11 @@ params! {
     duck_malus_scale: i32 => 128;
     duck_malus_max:   i32 => 2048;
 
-    rfp_depth: i32 => 8;
-    rfp_base: i32 => 0;
-    rfp_scale: i32 => 50;
+    rfp_depth:     i32 => 8;
+    rfp_base:      i32 => 0;
+    rfp_scale:     i32 => 50;
+    rfp_imp_base:  i32 => -50;
+    rfp_imp_scale: i32 => 50;
 
     mvvlva_pawn:   i32 => 100;
     mvvlva_knight: i32 => 320;
@@ -90,12 +97,25 @@ params! {
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
 
-    ldp_depth: i32 => 8;
-    ldp_threshold_base: i32 => 2;
-    ldp_threshold_scale: i32 => 2;
+    quiet_ldp_depth:               i32 => 8;
+    quiet_ldp_imp_threshold_base:  i32 => 2;
+    quiet_ldp_imp_threshold_scale: i32 => 2;
+    quiet_ldp_threshold_base:      i32 => 1;
+    quiet_ldp_threshold_scale:     i32 => 1;
+
+    noisy_ldp_depth:               i32 => 8;
+    noisy_ldp_imp_threshold_base:  i32 => 4;
+    noisy_ldp_imp_threshold_scale: i32 => 4;
+    noisy_ldp_threshold_base:      i32 => 4;
+    noisy_ldp_threshold_scale:     i32 => 4;
 }
 
 impl Params {
+    #[inline]
+    pub fn corr_bonus(depth: i32, diff: i64) -> i32 {
+        (diff * depth as i64 * Params::corr_bonus_scale() / 1024) as i32
+    }
+
     #[inline]
     pub fn quiet_bonus(depth: i32) -> i32 {
         (Self::quiet_bonus_base() + Self::quiet_bonus_scale() * depth).min(Self::quiet_bonus_max())
@@ -127,13 +147,47 @@ impl Params {
     }
 
     #[inline]
-    pub const fn rfp_margin(depth: i32) -> i32 {
-        Self::rfp_base() + Self::rfp_scale() * depth
+    pub const fn rfp_margin(depth: i32, improving: bool) -> i32 {
+        let (base, scale) = if improving {
+            (Self::rfp_imp_base(), Self::rfp_imp_scale())
+        } else {
+            (Self::rfp_base(), Self::rfp_scale())
+        };
+
+        base + scale * depth
     }
 
     #[inline]
-    pub const fn ldp_threshold(depth: i32) -> i32 {
-        Self::ldp_threshold_base() + Self::ldp_threshold_scale() * depth
+    pub const fn ldp_depth(is_quiet: bool) -> i32 {
+        if is_quiet {
+            Self::quiet_ldp_depth()
+        } else {
+            Self::noisy_ldp_depth()
+        }
+    }
+
+    #[inline]
+    pub const fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool) -> i32 {
+        let (base, scale) = match (is_quiet, improving) {
+            (true, true) => (
+                Self::quiet_ldp_imp_threshold_base(),
+                Self::quiet_ldp_imp_threshold_scale(),
+            ),
+            (true, false) => (
+                Self::quiet_ldp_threshold_base(),
+                Self::quiet_ldp_threshold_scale(),
+            ),
+            (false, true) => (
+                Self::noisy_ldp_imp_threshold_base(),
+                Self::noisy_ldp_imp_threshold_scale(),
+            ),
+            (false, false) => (
+                Self::noisy_ldp_threshold_base(),
+                Self::noisy_ldp_threshold_scale(),
+            ),
+        };
+
+        base + scale * depth
     }
 
     #[inline]

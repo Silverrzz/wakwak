@@ -15,6 +15,9 @@ pub struct Board {
     pub(super) en_passant: Option<EnPassant>,
     pub(super) duck: Option<Square>,
     pub(super) hash: u64,
+    pub(super) pawn_hash: u64,
+    pub(super) minor_hash: u64,
+    pub(super) major_hash: u64,
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
@@ -106,6 +109,21 @@ impl Board {
     }
 
     #[inline]
+    pub fn pawn_hash(&self) -> u64 {
+        self.pawn_hash
+    }
+
+    #[inline]
+    pub fn minor_hash(&self) -> u64 {
+        self.minor_hash
+    }
+
+    #[inline]
+    pub fn major_hash(&self) -> u64 {
+        self.major_hash
+    }
+
+    #[inline]
     pub fn duckless_hash(&self) -> u64 {
         self.hash ^ self.duck.map_or(0, |sq| ZOBRIST.duck(sq))
     }
@@ -128,6 +146,14 @@ impl Board {
     #[inline]
     pub fn hmc(&self) -> u8 {
         self.hmc
+    }
+
+    #[inline]
+    pub fn in_check(&self) -> bool {
+        // TODO: maybe make it incremental (?) idk
+        let blocks = self.king_capture_blocks(self.stm);
+
+        blocks != Bitboard::FULL && self.duck.is_none_or(|sq| !blocks.has(sq))
     }
 
     #[inline]
@@ -204,7 +230,21 @@ impl Board {
     pub fn toggle_square(&mut self, sq: Square, piece: Piece, color: Color) {
         self.pieces[piece] ^= sq;
         self.colors[color] ^= sq;
-        self.hash ^= ZOBRIST.piece(sq, piece, color);
+
+        let value = ZOBRIST.piece(sq, piece, color);
+        self.hash ^= value;
+
+        match piece {
+            Piece::Pawn => self.pawn_hash ^= value,
+            Piece::Knight => self.minor_hash ^= value,
+            Piece::Bishop => self.minor_hash ^= value,
+            Piece::Rook => self.major_hash ^= value,
+            Piece::Queen => self.major_hash ^= value,
+            Piece::King => {
+                self.minor_hash ^= value;
+                self.major_hash ^= value;
+            }
+        }
     }
 
     #[inline]
