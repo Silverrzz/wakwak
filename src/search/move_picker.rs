@@ -112,16 +112,18 @@ pub struct MovePicker {
     tt_move: Option<Move>,
     skip_quiets: bool,
     cursor: usize,
+    ply: usize,
 }
 
 impl MovePicker {
     #[inline]
-    pub fn new(tt_move: Option<Move>) -> Self {
+    pub fn new(tt_move: Option<Move>, ply: usize) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
             skip_quiets: false,
             cursor: 0,
+            ply,
         }
     }
 
@@ -225,8 +227,13 @@ impl MovePicker {
             if self.tt_move == Some(mv) {
                 continue;
             }
+            let killer_score = thread.stack[self.ply]
+                .killer_duck()
+                .filter(|duck| *duck == mv.duck())
+                .map_or(0, |_| Params::killer_duck_bonus());
 
-            scored.1 = thread.history.quiet(board, mv) + thread.history.duck(board, mv);
+            scored.1 =
+                killer_score + thread.history.quiet(board, mv) + thread.history.duck(board, mv);
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));

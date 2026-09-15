@@ -13,6 +13,14 @@ pub struct SearchStack {
     raw_eval: Option<Score>,
     static_eval: Option<Score>,
     mv: Option<Move>,
+    killer_duck: Option<Square>,
+}
+
+impl SearchStack {
+    #[inline]
+    pub fn killer_duck(&self) -> Option<Square> {
+        self.killer_duck
+    }
 }
 
 pub fn iterative_deepening(
@@ -266,14 +274,14 @@ fn search<Node: NodeType>(
     let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker = MovePicker::new(tt_move, ply);
     let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
     let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(pos, thread) {
-        let (src, dest) = (mv.src(), mv.dest());
+        let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
         legal_moves += 1;
@@ -379,6 +387,7 @@ fn search<Node: NodeType>(
 
             if score >= beta {
                 flag = TTFlag::Lower;
+                thread.stack[ply].killer_duck = Some(duck);
                 thread.history.update(
                     pos.board(),
                     depth,
