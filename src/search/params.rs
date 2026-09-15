@@ -62,6 +62,7 @@ params! {
     pawn_corr:        i32 => 64;
     minor_corr:       i32 => 64;
     major_corr:       i32 => 64;
+    ducking_corr:     i32 => 64;
     corr_bonus_scale: i64 => 128;
 
     quiet_bonus_base:  i32 => 128;

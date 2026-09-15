@@ -31,6 +31,7 @@ impl Board {
             pawn_hash: 0,
             minor_hash: 0,
             major_hash: 0,
+            ducking_hash: 0,
             stm: Color::White,
             fmc: 0,
             hmc: 0,

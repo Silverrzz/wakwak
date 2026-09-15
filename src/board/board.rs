@@ -18,6 +18,7 @@ pub struct Board {
     pub(super) pawn_hash: u64,
     pub(super) minor_hash: u64,
     pub(super) major_hash: u64,
+    pub(super) ducking_hash: u64,
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
@@ -121,6 +122,11 @@ impl Board {
     #[inline]
     pub fn major_hash(&self) -> u64 {
         self.major_hash
+    }
+
+    #[inline]
+    pub fn ducking_hash(&self) -> u64 {
+        self.ducking_hash
     }
 
     #[inline]
@@ -243,6 +249,7 @@ impl Board {
             Piece::King => {
                 self.minor_hash ^= value;
                 self.major_hash ^= value;
+                self.ducking_hash ^= value;
             }
         }
     }
@@ -279,11 +286,15 @@ impl Board {
     #[inline]
     pub fn set_duck(&mut self, duck: Option<Square>) {
         if let Some(prev) = core::mem::replace(&mut self.duck, duck) {
-            self.hash ^= ZOBRIST.duck(prev);
+            let value = ZOBRIST.duck(prev);
+            self.hash ^= value;
+            self.ducking_hash ^= value;
         }
 
         if let Some(sq) = duck {
-            self.hash ^= ZOBRIST.duck(sq);
+            let value = ZOBRIST.duck(sq);
+            self.hash ^= value;
+            self.ducking_hash ^= value;
         }
     }
 
