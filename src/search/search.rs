@@ -232,6 +232,7 @@ fn search<Node: NodeType>(
     be reasonably confident that a further search will also fail high.
     */
     if !Node::ROOT
+        && !Node::PV
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth) >= beta
     {
