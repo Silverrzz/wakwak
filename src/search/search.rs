@@ -399,9 +399,10 @@ fn search<Node: NodeType>(
         }
     }
 
+    thread.move_stack.pop_ply();
+
     // Stalemate detection
     if legal_moves == 0 {
-        thread.move_stack.pop_ply();
         return Score::mate(ply);
     }
 
@@ -420,6 +421,5 @@ fn search<Node: NodeType>(
             .update_corr(pos.board(), depth, best_score, static_eval);
     }
 
-    thread.move_stack.pop_ply();
     best_score
 }
