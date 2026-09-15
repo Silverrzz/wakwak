@@ -3,6 +3,7 @@ use crate::engine::EngineOptions;
 use crate::eval::eval;
 use crate::position::Position;
 use crate::score::Score;
+use crate::search::cont::ContIndices;
 use crate::search::tt::TTFlag;
 use crate::search::{MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData};
 use std::sync::atomic::Ordering;
@@ -272,7 +273,8 @@ fn search<Node: NodeType>(
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
     let mut flag = TTFlag::Upper;
 
-    while let Some(mv) = move_picker.next(pos, thread) {
+    let indices = ContIndices::new(pos);
+    while let Some(mv) = move_picker.next(pos, thread, indices) {
         let (src, dest) = (mv.src(), mv.dest());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
@@ -381,6 +383,7 @@ fn search<Node: NodeType>(
                 flag = TTFlag::Lower;
                 thread.history.update(
                     pos.board(),
+                    indices,
                     depth,
                     best_move.unwrap(),
                     &failed_quiets,

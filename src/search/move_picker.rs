@@ -1,6 +1,7 @@
 use crate::board::{Board, MoveFilter, Noisy, Quiet};
 use crate::common::{Move, MoveFlag, Piece};
 use crate::position::Position;
+use crate::search::cont::ContIndices;
 use crate::search::{MAX_PLY, Params, ThreadData};
 use crate::util::Abort;
 use std::cmp::Reverse;
@@ -133,7 +134,12 @@ impl MovePicker {
         }
     }
 
-    pub fn next(&mut self, pos: &Position, thread: &mut ThreadData) -> Option<Move> {
+    pub fn next(
+        &mut self,
+        pos: &Position,
+        thread: &mut ThreadData,
+        indices: ContIndices,
+    ) -> Option<Move> {
         let board = pos.board();
         if self.stage == Stage::TTMove {
             self.stage = Stage::GenerateNoisies;
@@ -163,7 +169,7 @@ impl MovePicker {
                 self.stage = Stage::Finished;
             } else {
                 let start = thread.move_stack.add_moves::<Quiet>(board);
-                self.score_quiets(board, thread, start);
+                self.score_quiets(board, thread, indices, start);
                 self.stage = Stage::YieldQuiets;
             }
         }
@@ -217,7 +223,13 @@ impl MovePicker {
     }
 
     #[inline]
-    fn score_quiets(&self, board: &Board, thread: &mut ThreadData, start: usize) {
+    fn score_quiets(
+        &self,
+        board: &Board,
+        thread: &mut ThreadData,
+        indices: ContIndices,
+        start: usize,
+    ) {
         let moves = thread.move_stack.get_mut();
 
         for scored in moves[start..].iter_mut() {
@@ -226,7 +238,9 @@ impl MovePicker {
                 continue;
             }
 
-            scored.1 = thread.history.quiet(board, mv) + thread.history.duck(board, mv);
+            scored.1 = thread.history.quiet(board, mv)
+                + thread.history.duck(board, mv)
+                + thread.history.cont(board, indices, mv);
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));

@@ -1,3 +1,4 @@
+pub mod cont;
 pub mod corr;
 pub mod duck;
 pub mod noisy;
@@ -7,7 +8,8 @@ use crate::board::Board;
 use crate::common::Move;
 use crate::score::Score;
 use crate::search::Params;
-use crate::search::corr::{CorrHistory, MAX_CORR};
+pub use cont::*;
+pub use corr::*;
 pub use duck::*;
 pub use noisy::*;
 pub use quiet::*;
@@ -21,6 +23,7 @@ pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
     duck: DuckHistory,
+    cont_odd: ContHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
     minor_corr: CorrHistory<MINOR_CORR_SIZE>,
     major_corr: CorrHistory<MAJOR_CORR_SIZE>,
@@ -31,6 +34,7 @@ impl History {
     pub fn update(
         &mut self,
         board: &Board,
+        indices: ContIndices,
         depth: i32,
         best_move: Move,
         failed_quiets: &[Move],
@@ -39,11 +43,11 @@ impl History {
         if best_move.flag().is_noisy() {
             self.update_noisy::<true>(board, depth, best_move);
         } else {
-            self.update_quiet::<true>(board, depth, best_move);
+            self.update_quiet::<true>(board, indices, depth, best_move);
 
             // Only give malus to failed quiets when best move is quiet
             for &quiet in failed_quiets {
-                self.update_quiet::<false>(board, depth, quiet);
+                self.update_quiet::<false>(board, indices, depth, quiet);
             }
         }
 
@@ -72,8 +76,16 @@ impl History {
     }
 
     #[inline]
-    fn update_quiet<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
+    fn update_quiet<const BONUS: bool>(
+        &mut self,
+        board: &Board,
+        indices: ContIndices,
+        depth: i32,
+        mv: Move,
+    ) {
         self.quiet.update::<BONUS>(board, depth, mv);
+        self.cont_odd
+            .update::<1, BONUS>(board, depth, mv, indices.cont1);
     }
 
     #[inline]
@@ -99,6 +111,13 @@ impl History {
     #[inline]
     pub fn duck(&self, board: &Board, mv: Move) -> i32 {
         self.duck.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn cont(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
+        self.cont_odd
+            .entry(board, mv, indices.cont1)
+            .unwrap_or_default()
     }
 
     #[inline]

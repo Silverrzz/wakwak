@@ -85,6 +85,13 @@ params! {
     duck_malus_scale: i32 => 128;
     duck_malus_max:   i32 => 2048;
 
+    cont1_bonus_base:  i32 => 128;
+    cont1_bonus_scale: i32 => 128;
+    cont1_bonus_max:   i32 => 2048;
+    cont1_malus_base:  i32 => 128;
+    cont1_malus_scale: i32 => 128;
+    cont1_malus_max:   i32 => 2048;
+
     rfp_depth:     i32 => 8;
     rfp_base:      i32 => 0;
     rfp_scale:     i32 => 50;
@@ -144,6 +151,34 @@ impl Params {
     #[inline]
     pub fn duck_malus(depth: i32) -> i32 {
         -(Self::duck_malus_base() + Self::duck_malus_scale() * depth).min(Self::duck_malus_max())
+    }
+
+    #[inline]
+    pub fn cont_bonus<const PLY: usize>(depth: i32) -> i32 {
+        let (base, scale, max) = match PLY {
+            1 => (
+                Self::cont1_bonus_base(),
+                Self::cont1_bonus_scale(),
+                Self::cont1_bonus_max(),
+            ),
+            _ => unreachable!(),
+        };
+
+        (base + scale * depth).min(max)
+    }
+
+    #[inline]
+    pub fn cont_malus<const PLY: usize>(depth: i32) -> i32 {
+        let (base, scale, max) = match PLY {
+            1 => (
+                Self::cont1_malus_base(),
+                Self::cont1_malus_scale(),
+                Self::cont1_malus_max(),
+            ),
+            _ => unreachable!(),
+        };
+
+        -(base + scale * depth).min(max)
     }
 
     #[inline]
