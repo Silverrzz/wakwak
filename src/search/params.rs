@@ -60,6 +60,7 @@ macro_rules! params {
 
 params! {
     pawn_corr:        i32 => 64;
+    minor_corr:       i32 => 64;
     corr_bonus_scale: i64 => 128;
 
     quiet_bonus_base:  i32 => 128;
@@ -95,13 +96,17 @@ params! {
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
 
-    quiet_ldp_depth:           i32 => 8;
-    quiet_ldp_threshold_base:  i32 => 2;
-    quiet_ldp_threshold_scale: i32 => 2;
+    quiet_ldp_depth:               i32 => 8;
+    quiet_ldp_imp_threshold_base:  i32 => 2;
+    quiet_ldp_imp_threshold_scale: i32 => 2;
+    quiet_ldp_threshold_base:      i32 => 1;
+    quiet_ldp_threshold_scale:     i32 => 1;
 
-    noisy_ldp_depth:           i32 => 8;
-    noisy_ldp_threshold_base:  i32 => 4;
-    noisy_ldp_threshold_scale: i32 => 4;
+    noisy_ldp_depth:               i32 => 8;
+    noisy_ldp_imp_threshold_base:  i32 => 4;
+    noisy_ldp_imp_threshold_scale: i32 => 4;
+    noisy_ldp_threshold_base:      i32 => 4;
+    noisy_ldp_threshold_scale:     i32 => 4;
 }
 
 impl Params {
@@ -161,12 +166,27 @@ impl Params {
     }
 
     #[inline]
-    pub const fn ldp_threshold(depth: i32, is_quiet: bool) -> i32 {
-        if is_quiet {
-            Self::quiet_ldp_threshold_base() + Self::quiet_ldp_threshold_scale() * depth
-        } else {
-            Self::noisy_ldp_threshold_base() + Self::noisy_ldp_threshold_scale() * depth
-        }
+    pub const fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool) -> i32 {
+        let (base, scale) = match (is_quiet, improving) {
+            (true, true) => (
+                Self::quiet_ldp_imp_threshold_base(),
+                Self::quiet_ldp_imp_threshold_scale(),
+            ),
+            (true, false) => (
+                Self::quiet_ldp_threshold_base(),
+                Self::quiet_ldp_threshold_scale(),
+            ),
+            (false, true) => (
+                Self::noisy_ldp_imp_threshold_base(),
+                Self::noisy_ldp_imp_threshold_scale(),
+            ),
+            (false, false) => (
+                Self::noisy_ldp_threshold_base(),
+                Self::noisy_ldp_threshold_scale(),
+            ),
+        };
+
+        base + scale * depth
     }
 
     #[inline]

@@ -119,6 +119,7 @@ impl Board {
             duck: None,
             hash: 0,
             pawn_hash: 0,
+            minor_hash: 0,
             stm: Color::White,
             fmc: 1,
             hmc: 0,

@@ -14,12 +14,14 @@ pub use quiet::*;
 
 pub const MAX_HISTORY: i32 = 16384;
 pub const PAWN_CORR_SIZE: usize = 4096;
+pub const MINOR_CORR_SIZE: usize = 16384;
 
 pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
     duck: DuckHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
+    minor_corr: CorrHistory<MINOR_CORR_SIZE>,
 }
 
 impl History {
@@ -63,6 +65,7 @@ impl History {
         let diff = score.0 as i64 - static_eval.0 as i64;
 
         self.pawn_corr.update(stm, board.pawn_hash(), depth, diff);
+        self.minor_corr.update(stm, board.minor_hash(), depth, diff);
     }
 
     #[inline]
@@ -101,6 +104,7 @@ impl History {
         let mut corr = 0;
 
         corr += Params::pawn_corr() * self.pawn_corr.entry(stm, board.pawn_hash());
+        corr += Params::minor_corr() * self.minor_corr.entry(stm, board.minor_hash());
         corr / MAX_CORR
     }
 }
