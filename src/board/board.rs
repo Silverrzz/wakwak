@@ -17,6 +17,7 @@ pub struct Board {
     pub(super) hash: u64,
     pub(super) pawn_hash: u64,
     pub(super) minor_hash: u64,
+    pub(super) major_hash: u64,
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
@@ -115,6 +116,11 @@ impl Board {
     #[inline]
     pub fn minor_hash(&self) -> u64 {
         self.minor_hash
+    }
+
+    #[inline]
+    pub fn major_hash(&self) -> u64 {
+        self.major_hash
     }
 
     #[inline]
@@ -232,8 +238,12 @@ impl Board {
             Piece::Pawn => self.pawn_hash ^= value,
             Piece::Knight => self.minor_hash ^= value,
             Piece::Bishop => self.minor_hash ^= value,
-            Piece::King => self.minor_hash ^= value,
-            _ => {}
+            Piece::Rook => self.major_hash ^= value,
+            Piece::Queen => self.major_hash ^= value,
+            Piece::King => {
+                self.minor_hash ^= value;
+                self.major_hash ^= value;
+            }
         }
     }
 
