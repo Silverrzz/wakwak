@@ -1,3 +1,4 @@
+use crate::board::TerminalState;
 use crate::common::{Bitboard, Move, Square, between};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
@@ -187,13 +188,12 @@ fn search<Node: NodeType>(
         thread.nodes.inc();
     }
 
-    // King captured, gg
-    if pos.board().try_king(pos.board().stm()).is_none() {
-        return Score::mated(ply);
-    }
-
-    if pos.board().hmc() >= 100 {
-        return Score::draw();
+    if let Some(terminal_state) = pos.board().terminal_state() {
+        return match terminal_state {
+            TerminalState::Victory(_) => Score::mated(ply),
+            TerminalState::Stalemate(_) => Score::mate(ply),
+            TerminalState::Draw => Score::draw(),
+        };
     }
 
     if !Node::ROOT && pos.repetition() {
@@ -395,12 +395,6 @@ fn search<Node: NodeType>(
                 failed_quiets.push(mv);
             }
         }
-    }
-
-    // Stalemate detection
-    if legal_moves == 0 {
-        thread.move_stack.pop_ply();
-        return Score::mate(ply);
     }
 
     let best_score = best_score.unwrap();
