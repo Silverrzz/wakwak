@@ -13,7 +13,7 @@ pub use noisy::*;
 pub use quiet::*;
 
 pub const MAX_HISTORY: i32 = 16384;
-pub const PAWN_CORR_SIZE: usize = 4096;
+pub const PAWN_CORR_SIZE: usize = 16384;
 
 pub struct History {
     quiet: QuietHistory,

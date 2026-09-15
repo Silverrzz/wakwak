@@ -222,8 +222,10 @@ impl Board {
         let value = ZOBRIST.piece(sq, piece, color);
         self.hash ^= value;
 
-        if piece == Piece::Pawn {
-            self.pawn_hash ^= value;
+        match piece {
+            Piece::Pawn => self.pawn_hash ^= value,
+            Piece::King => self.pawn_hash ^= value,
+            _ => {}
         }
     }
 
