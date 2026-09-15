@@ -6,6 +6,7 @@ use crate::search::{MAX_HISTORY, Params, gravity};
 #[derive(Debug, Copy, Clone)]
 pub struct ContIndices {
     pub cont1: Option<(Piece, Move)>,
+    pub cont2: Option<(Piece, Move)>,
 }
 
 impl ContIndices {
@@ -13,6 +14,7 @@ impl ContIndices {
     pub fn new(pos: &Position) -> Self {
         Self {
             cont1: pos.prev_move(1),
+            cont2: pos.prev_move(2),
         }
     }
 }
