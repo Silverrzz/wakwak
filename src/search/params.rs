@@ -106,8 +106,8 @@ params! {
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
     noisy_ldp_imp_threshold_scale: i32 => 4;
-    noisy_ldp_threshold_base:      i32 => 4;
-    noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_threshold_base:      i32 => 2;
+    noisy_ldp_threshold_scale:     i32 => 2;
 }
 
 impl Params {
