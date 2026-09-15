@@ -211,7 +211,7 @@ fn search<Node: NodeType>(
     let tt_entry = shared.tt.probe(pos.board().hash());
     let tt_move = tt_entry.and_then(|e| e.best_move());
 
-    if !Node::ROOT
+    if !Node::PV
         && let Some(entry) = tt_entry
     {
         let score = entry.score();
