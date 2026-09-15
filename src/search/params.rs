@@ -92,6 +92,13 @@ params! {
     cont1_malus_scale: i32 => 128;
     cont1_malus_max:   i32 => 2048;
 
+    cont2_bonus_base:  i32 => 128;
+    cont2_bonus_scale: i32 => 128;
+    cont2_bonus_max:   i32 => 2048;
+    cont2_malus_base:  i32 => 128;
+    cont2_malus_scale: i32 => 128;
+    cont2_malus_max:   i32 => 2048;
+
     rfp_depth:     i32 => 8;
     rfp_base:      i32 => 0;
     rfp_scale:     i32 => 50;
@@ -161,6 +168,11 @@ impl Params {
                 Self::cont1_bonus_scale(),
                 Self::cont1_bonus_max(),
             ),
+            2 => (
+                Self::cont2_bonus_base(),
+                Self::cont2_bonus_scale(),
+                Self::cont2_bonus_max(),
+            ),
             _ => unreachable!(),
         };
 
@@ -174,6 +186,11 @@ impl Params {
                 Self::cont1_malus_base(),
                 Self::cont1_malus_scale(),
                 Self::cont1_malus_max(),
+            ),
+            2 => (
+                Self::cont2_malus_base(),
+                Self::cont2_malus_scale(),
+                Self::cont2_malus_max(),
             ),
             _ => unreachable!(),
         };
