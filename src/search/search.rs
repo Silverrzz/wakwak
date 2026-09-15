@@ -11,6 +11,8 @@ use std::sync::atomic::Ordering;
 #[derive(Debug, Clone, Default)]
 pub struct SearchStack {
     pv: PrincipalVariation,
+    raw_eval: Option<Score>,
+    static_eval: Option<Score>,
     mv: Option<Move>,
 }
 
@@ -226,12 +228,30 @@ fn search<Node: NodeType>(
         return static_eval;
     }
 
+    let improving = {
+        let prev2 = ply.wrapping_sub(2);
+        let prev4 = ply.wrapping_sub(4);
+
+        if ply >= 2 && thread.stack[prev2].static_eval.is_some() {
+            static_eval > thread.stack[prev2].static_eval
+        } else if ply >= 4 && thread.stack[prev4].static_eval.is_some() {
+            static_eval > thread.stack[prev4].static_eval
+        } else {
+            true
+        }
+    };
+
+    thread.stack[ply].raw_eval = Some(raw_eval);
+    thread.stack[ply].static_eval = Some(static_eval);
+
     /*
     Reverse Futility Pruning: If our evaluation of the position is already
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::PV && depth <= Params::rfp_depth() && static_eval - Params::rfp_margin(depth) >= beta
+    if !Node::PV
+        && depth <= Params::rfp_depth()
+        && static_eval - Params::rfp_margin(depth, improving) >= beta
     {
         return static_eval;
     }

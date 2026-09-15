@@ -83,9 +83,11 @@ params! {
     duck_malus_scale: i32 => 128;
     duck_malus_max:   i32 => 2048;
 
-    rfp_depth: i32 => 8;
-    rfp_base:  i32 => 0;
-    rfp_scale: i32 => 50;
+    rfp_depth:     i32 => 8;
+    rfp_base:      i32 => 0;
+    rfp_scale:     i32 => 50;
+    rfp_imp_base:  i32 => -50;
+    rfp_imp_scale: i32 => 50;
 
     mvvlva_pawn:   i32 => 100;
     mvvlva_knight: i32 => 320;
@@ -139,8 +141,14 @@ impl Params {
     }
 
     #[inline]
-    pub const fn rfp_margin(depth: i32) -> i32 {
-        Self::rfp_base() + Self::rfp_scale() * depth
+    pub const fn rfp_margin(depth: i32, improving: bool) -> i32 {
+        let (base, scale) = if improving {
+            (Self::rfp_imp_base(), Self::rfp_imp_scale())
+        } else {
+            (Self::rfp_base(), Self::rfp_scale())
+        };
+
+        base + scale * depth
     }
 
     #[inline]
