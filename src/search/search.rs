@@ -248,6 +248,7 @@ fn search<Node: NodeType>(
     let mut duck_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
+    let mut duck_bounds = [(None, Score::ZERO); Square::COUNT];
     let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(pos, thread) {
@@ -295,9 +296,20 @@ fn search<Node: NodeType>(
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
             Score::mated(ply + 2)
+        } else if depth == 1
+            && duck_bounds[dest].0 == piece_move
+            && duck_bounds[dest].1 <= alpha
+            && shared.tt.probe(pos.board().hash()).is_none()
+        {
+            thread.stack[ply + 1].pv.clear();
+            duck_bounds[dest].1
         } else {
             -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1)
         };
+        if depth == 1 && duck_bounds[dest].0 != piece_move && !score.is_mate() {
+            let bound = -adjust_eval(eval(pos.board()), thread.history.corr(pos.board()));
+            duck_bounds[dest] = (piece_move, bound.max(Score::draw()));
+        }
         pos.unmake_move();
 
         if Node::ROOT && move_count == 0 {
