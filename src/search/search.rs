@@ -28,7 +28,7 @@ pub fn iterative_deepening(
     let mut score: Option<Score> = None;
     let mut alpha = -Score::INFINITE;
     let mut beta = Score::INFINITE;
-    let mut delta = Score(24);
+    let mut delta = Score(Params::asp_delta());
 
     'id: loop {
         if depth >= 4
@@ -71,18 +71,18 @@ pub fn iterative_deepening(
 
             match score {
                 Some(s) if s <= alpha => {
-                    beta = (alpha + beta) / 2;
                     alpha = (s - delta).max(-Score::INFINITE);
+                    delta += delta * 2;
                 }
                 Some(s) if s >= beta => {
                     beta = (s + delta).min(Score::INFINITE);
+                    delta += delta * 2;
                 }
                 _ => break 'aspiration,
             }
-
-            delta += delta / 2;
         }
 
+        delta = Score(Params::asp_delta());
         depth += 1;
         completed_depth += 1;
 
