@@ -300,7 +300,13 @@ fn search<Node: NodeType>(
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1 + duck_counts[src][dest].ilog(3) as i32
+                    let ldr = if safe == Bitboard::FULL {
+                        duck_counts[src][dest].ilog(3) as i32
+                    } else {
+                        0
+                    };
+
+                    1 + ldr
                 } else {
                     0
                 };
