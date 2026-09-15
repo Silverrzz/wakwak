@@ -231,10 +231,7 @@ fn search<Node: NodeType>(
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::ROOT
-        && !Node::PV
-        && depth <= Params::rfp_depth()
-        && static_eval - Params::rfp_margin(depth) >= beta
+    if !Node::PV && depth <= Params::rfp_depth() && static_eval - Params::rfp_margin(depth) >= beta
     {
         return static_eval;
     }
