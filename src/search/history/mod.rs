@@ -40,19 +40,16 @@ impl History {
             // Only give malus to failed quiets when best move is quiet
             for &quiet in failed_quiets {
                 self.update_quiet::<false>(board, depth, quiet);
+                self.update_duck::<false>(board, depth, quiet);
             }
         }
+
+        // Put some respect on the duck
+        self.update_duck::<true>(board, depth, best_move);
 
         // Always give malus to failed noisies
         for &noisy in failed_noisies {
             self.update_noisy::<false>(board, depth, noisy);
-        }
-
-        self.update_duck::<true>(board, depth, best_move);
-        for &quiet in failed_quiets {
-            self.update_duck::<false>(board, depth, quiet);
-        }
-        for &noisy in failed_noisies {
             self.update_duck::<false>(board, depth, noisy);
         }
     }
