@@ -100,6 +100,10 @@ params! {
     noisy_ldp_depth:           i32 => 8;
     noisy_ldp_threshold_base:  i32 => 4;
     noisy_ldp_threshold_scale: i32 => 4;
+
+    lmp_depth: i32 => 4;
+    lmp_threshold_base: i32 => 4;
+    lmp_threshold_scale: i32 => 3;
 }
 
 impl Params {
@@ -159,6 +163,11 @@ impl Params {
         } else {
             Self::noisy_ldp_threshold_base() + Self::noisy_ldp_threshold_scale() * depth
         }
+    }
+
+    #[inline]
+    pub const fn lmp_threshold(depth: i32) -> i32 {
+        Self::lmp_threshold_base() + Self::lmp_threshold_scale() * depth * depth
     }
 
     #[inline]

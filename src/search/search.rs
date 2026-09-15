@@ -215,8 +215,7 @@ fn search<Node: NodeType>(
         }
     }
 
-    // TODO: uncomment this when it is used
-    // let in_check = pos.board().in_check();
+    let in_check = pos.board().in_check();
     let raw_eval = eval(pos.board());
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
@@ -280,6 +279,20 @@ fn search<Node: NodeType>(
         if safe == Bitboard::FULL
             && depth <= Params::ldp_depth(is_quiet)
             && duck_counts[src][dest] >= Params::ldp_threshold(depth, is_quiet) as u8
+        {
+            continue;
+        }
+
+        /*
+        Late Move Pruning (LMP): After a certain number of moves have been
+        examined, we can be reasonably confident they're not gonna get much
+        better, so we skip the rest of them.
+         */
+        if !Node::PV
+            && !in_check
+            && is_quiet
+            && depth <= Params::lmp_depth()
+            && searched_moves > Params::lmp_threshold(depth)
         {
             continue;
         }
