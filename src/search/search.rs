@@ -209,7 +209,7 @@ fn search<Node: NodeType>(
     that stored result instead of wasting time searching it again.
     */
     let tt_entry = shared.tt.probe(pos.board().hash());
-    let tt_move = tt_entry.and_then(|e| e.best_move());
+    let mut tt_move = tt_entry.and_then(|e| e.best_move());
 
     if !Node::ROOT
         && let Some(entry) = tt_entry
@@ -217,6 +217,25 @@ fn search<Node: NodeType>(
         let score = entry.score();
         if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
             return score;
+        }
+    }
+
+    if depth > 0
+        && (!Node::PV || tt_move.is_none())
+        && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
+        && entry.flag() == TTFlag::Lower
+        && !entry.score().is_mate()
+    {
+        let cutoff = !Node::PV && entry.depth() >= depth && entry.score() >= beta;
+        if (cutoff || tt_move.is_none())
+            && let Some(mv) = entry.best_move()
+            && pos.board().is_legal(mv)
+        {
+            if cutoff {
+                thread.stack[ply].mv = Some(mv);
+                return entry.score();
+            }
+            tt_move = Some(mv);
         }
     }
 
@@ -262,6 +281,7 @@ fn search<Node: NodeType>(
     thread.move_stack.push_ply();
 
     let mut best_move = None;
+    let mut best_move_depth = depth;
     let mut best_score = None;
     let mut legal_moves = 0;
     let mut searched_moves = 0;
@@ -315,6 +335,7 @@ fn search<Node: NodeType>(
         Duck or Die Pruning: Treat duck moves that let the opponent capture
         the king as instant losses, unless it is a repetition.
         */
+        let mut move_depth = depth;
         let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
@@ -328,6 +349,7 @@ fn search<Node: NodeType>(
                 } else {
                     0
                 };
+                move_depth -= reduction;
                 score = -search::<NonPV>(
                     pos,
                     thread,
@@ -339,6 +361,7 @@ fn search<Node: NodeType>(
                 )
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
+                move_depth = depth;
                 score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
             }
             score
@@ -373,6 +396,7 @@ fn search<Node: NodeType>(
         if score > alpha {
             alpha = score;
             best_move = Some(mv);
+            best_move_depth = move_depth;
             thread.stack[ply].mv = best_move;
             flag = TTFlag::Exact;
             if Node::PV {
@@ -411,9 +435,27 @@ fn search<Node: NodeType>(
 
     let best_score = best_score.unwrap();
 
-    shared
-        .tt
-        .insert(pos.board().hash(), best_move, best_score, depth, flag);
+    if pos.board().duck().is_some()
+        && best_move.is_some()
+        && matches!(flag, TTFlag::Exact | TTFlag::Lower)
+        && !best_score.is_mate()
+    {
+        shared.tt.insert(
+            pos.board().duckless_hash(),
+            best_move,
+            best_score,
+            best_move_depth,
+            TTFlag::Lower,
+        );
+    }
+
+    shared.tt.insert(
+        pos.board().hash(),
+        best_move,
+        best_score,
+        best_move_depth,
+        flag,
+    );
 
     let static_eval = adjust_eval(raw_eval, thread.history.corr(pos.board()));
     if best_move.is_none_or(|mv| mv.flag().is_quiet())

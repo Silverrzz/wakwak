@@ -1,6 +1,6 @@
 use crate::common::Move;
 use crate::score::Score;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub struct TranspositionTable {
     table: Vec<AtomicTTEntry>,
@@ -9,14 +9,12 @@ pub struct TranspositionTable {
 
 struct AtomicTTEntry {
     packed: AtomicU64,
-    best_move: AtomicU32,
 }
 
 impl Default for AtomicTTEntry {
     fn default() -> AtomicTTEntry {
         AtomicTTEntry {
             packed: AtomicU64::new(0),
-            best_move: AtomicU32::new(0),
         }
     }
 }
@@ -25,6 +23,7 @@ const KEY_SHIFT: u32 = 0;
 const SCORE_SHIFT: u32 = 16;
 const DEPTH_SHIFT: u32 = 32;
 const FLAG_SHIFT: u32 = 40;
+const MOVE_SHIFT: u32 = 42;
 
 #[derive(Clone, Copy)]
 pub struct TTEntry {
@@ -96,7 +95,6 @@ impl TranspositionTable {
     pub fn clear(&self) {
         self.table.iter().for_each(|entry| {
             entry.packed.store(0, Ordering::Relaxed);
-            entry.best_move.store(0, Ordering::Relaxed);
         });
     }
 
@@ -107,10 +105,10 @@ impl TranspositionTable {
 
         let entry = TTEntry {
             key: (packed >> KEY_SHIFT) as u16,
-            best_move: atomic_entry.best_move.load(Ordering::Relaxed),
+            best_move: (packed >> MOVE_SHIFT) as u32,
             score: (packed >> SCORE_SHIFT) as u16 as i16,
             depth: (packed >> DEPTH_SHIFT) as u8,
-            flag: (packed >> FLAG_SHIFT) as u8,
+            flag: ((packed >> FLAG_SHIFT) & 0x3) as u8,
         };
 
         if entry.validate_key(hash) {
@@ -135,11 +133,8 @@ impl TranspositionTable {
         let packed = (key as u64) << KEY_SHIFT
             | ((score.0 as u16) as u64) << SCORE_SHIFT
             | (depth as u64) << DEPTH_SHIFT
-            | (flag as u64) << FLAG_SHIFT;
-
-        entry
-            .best_move
-            .store(best_move.map_or(0, |mv| mv.raw().get()), Ordering::Relaxed);
+            | (flag as u64) << FLAG_SHIFT
+            | (best_move.map_or(0, |mv| mv.raw().get()) as u64) << MOVE_SHIFT;
         entry.packed.store(packed, Ordering::Relaxed);
     }
 
