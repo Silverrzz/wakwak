@@ -13,13 +13,13 @@ pub struct SearchStack {
     raw_eval: Option<Score>,
     static_eval: Option<Score>,
     mv: Option<Move>,
-    killer_duck: Option<Square>,
+    killer: Option<Move>,
 }
 
 impl SearchStack {
     #[inline]
-    pub fn killer_duck(&self) -> Option<Square> {
-        self.killer_duck
+    pub fn killer(&self) -> Option<Move> {
+        self.killer
     }
 }
 
@@ -281,7 +281,7 @@ fn search<Node: NodeType>(
     let mut flag = TTFlag::Upper;
 
     while let Some(mv) = move_picker.next(pos, thread) {
-        let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
+        let (src, dest) = (mv.src(), mv.dest());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
         legal_moves += 1;
@@ -387,7 +387,7 @@ fn search<Node: NodeType>(
 
             if score >= beta {
                 flag = TTFlag::Lower;
-                thread.stack[ply].killer_duck = Some(duck);
+                thread.stack[ply].killer = Some(mv);
                 thread.history.update(
                     pos.board(),
                     depth,

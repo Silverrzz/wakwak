@@ -228,9 +228,9 @@ impl MovePicker {
                 continue;
             }
             let killer_score = thread.stack[self.ply]
-                .killer_duck()
-                .filter(|duck| *duck == mv.duck())
-                .map_or(0, |_| Params::killer_duck_bonus());
+                .killer()
+                .filter(|k| *k == mv)
+                .map_or(0, |_| Params::killer_bonus());
 
             scored.1 =
                 killer_score + thread.history.quiet(board, mv) + thread.history.duck(board, mv);
