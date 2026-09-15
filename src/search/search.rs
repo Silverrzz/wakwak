@@ -192,10 +192,12 @@ fn search<Node: NodeType>(
         return Score::mated(ply);
     }
 
+    // 50-move-rule detection
     if pos.board().hmc() >= 100 {
         return Score::draw();
     }
 
+    // Three-fold repetition detection
     if !Node::ROOT && pos.repetition() {
         return Score::draw();
     }
