@@ -299,13 +299,26 @@ fn search<Node: NodeType>(
             thread.stack[ply + 1].pv.clear();
             Score::mated(ply + 2)
         } else {
+            let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                score =
-                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, depth - 1, ply + 1)
+                let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
+                    1
+                } else {
+                    0
+                };
+                score = -search::<NonPV>(
+                    pos,
+                    thread,
+                    shared,
+                    -alpha - 1,
+                    -alpha,
+                    new_depth - reduction,
+                    ply + 1,
+                )
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
-                score = -search::<PV>(pos, thread, shared, -beta, -alpha, depth - 1, ply + 1);
+                score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
             }
             score
         };
