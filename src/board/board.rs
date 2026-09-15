@@ -112,6 +112,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn slider_tag(&self) -> SliderTag {
+        self.slider_tag
+    }
+
+    #[inline]
     pub fn duckless_hash(&self) -> u64 {
         self.hash ^ self.duck.map_or(0, |sq| ZOBRIST.duck(sq))
     }
