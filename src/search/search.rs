@@ -99,6 +99,7 @@ pub fn iterative_deepening(
         }
 
         // All search threads have finished, we are ready for new commands.
+        shared.best_score.store(score.unwrap().0, Ordering::Relaxed);
         shared.num_searching.store(0, Ordering::Release);
     }
 

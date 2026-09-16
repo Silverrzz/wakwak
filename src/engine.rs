@@ -33,6 +33,14 @@ impl Engine {
         let mut buffer = String::new();
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
+        if args.first().and_then(|arg| arg.split_whitespace().next()) == Some("genfens") {
+            if let Err(error) = self.gen_fens(&args) {
+                eprintln!("info string genfens-error {error}");
+            }
+            self.quit();
+            return;
+        }
+
         if !args.is_empty() {
             if args[0] == "perft" {
                 self.handle_input(&args.join(" "));
