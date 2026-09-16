@@ -572,7 +572,7 @@ fn qsearch<Node: NodeType>(
     let tt_entry = shared.tt.probe(pos.board().hash());
 
     // Only use noisy TT moves
-    let tt_move = tt_entry
+    let mut tt_move = tt_entry
         .and_then(|e| e.best_move())
         .filter(|mv| mv.flag().is_noisy());
 
@@ -580,6 +580,24 @@ fn qsearch<Node: NodeType>(
         let score = entry.score();
         if entry.flag().bounds_match(score, alpha, beta) {
             return score;
+        }
+    }
+
+    if (!Node::PV || tt_move.is_none())
+        && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
+        && entry.flag() == TTFlag::Lower
+        && !entry.score().is_mate()
+    {
+        let cutoff = !Node::PV && entry.score() >= beta;
+        if (cutoff || tt_move.is_none())
+            && let Some(mv) = entry.best_move()
+            && pos.board().is_legal(mv)
+        {
+            if cutoff {
+                thread.stack[ply].mv = Some(mv);
+                return entry.score();
+            }
+            tt_move = Some(mv);
         }
     }
 
