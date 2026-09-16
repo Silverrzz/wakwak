@@ -4,40 +4,10 @@ use crate::position::Position;
 use crate::search::SearchInfo;
 use crate::uci::SearchLimit;
 use crate::util::Abort;
-use std::io::{self, Write};
 use std::sync::atomic::Ordering;
 
-const USAGE: &str = "genfens <count> seed <u64> book None [dfrc <bool>] [moves <n>]";
-
 impl Engine {
-    pub fn gen_fens(&mut self, args: &[String]) -> io::Result<()> {
-        let end = args.len() - usize::from(args.last().is_some_and(|arg| arg == "quit"));
-        let input = args[..end].join(" ");
-        let tokens = input.split_whitespace().collect::<Vec<_>>();
-        if matches!(tokens.as_slice(), ["genfens", "help" | "--help"]) {
-            println!("info string Usage: {USAGE}");
-            println!("info string Defaults: dfrc true, moves 8 (plus 0 or 1 random ply)");
-            return Ok(());
-        }
-        let ["genfens", count, "seed", seed, "book", book, extra @ ..] = tokens.as_slice() else {
-            return Err(io::Error::other(USAGE));
-        };
-        let count = count.parse::<usize>().map_err(io::Error::other)?;
-        let seed = seed.parse::<u64>().map_err(io::Error::other)?;
-        if !book.eq_ignore_ascii_case("none") {
-            return Err(io::Error::other(
-                "Opening books are not supported; use book None",
-            ));
-        }
-        let (mut dfrc, mut plies) = (true, 8);
-        for pair in extra.chunks(2) {
-            match pair {
-                ["dfrc", value] => dfrc = value.parse::<bool>().map_err(io::Error::other)?,
-                ["moves", value] => plies = value.parse::<u16>().map_err(io::Error::other)?,
-                _ => return Err(io::Error::other(USAGE)),
-            }
-        }
-        let mut output = io::stdout();
+    pub fn gen_fens(&mut self, count: usize, seed: u64, dfrc: bool, plies: u16) {
         let mut rng = SplitMix64::new(seed);
         let options = EngineOptions {
             soft_target: true,
@@ -67,16 +37,10 @@ impl Engine {
                 {
                     continue;
                 }
-                writeln!(
-                    output,
-                    "info string genfens {}",
-                    position.board().to_fen(dfrc)
-                )?;
-                output.flush()?;
+                println!("info string genfens {}", position.board().to_fen(dfrc));
                 break;
             }
         }
-        Ok(())
     }
 }
 

@@ -4,7 +4,7 @@ use crate::position::Position;
 #[cfg(feature = "tune")]
 use crate::search::Params;
 use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher, tt};
-use crate::uci::{SearchLimit, UciCommand, UciParseError};
+use crate::uci::{GENFENS_USAGE, SearchLimit, UciCommand, UciParseError};
 use crate::util::Abort;
 use std::io;
 use std::time::{Duration, Instant};
@@ -33,17 +33,11 @@ impl Engine {
         let mut buffer = String::new();
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
-        if args.first().and_then(|arg| arg.split_whitespace().next()) == Some("genfens") {
-            if let Err(error) = self.gen_fens(&args) {
-                eprintln!("info string genfens-error {error}");
-            }
-            self.quit();
-            return;
-        }
-
         if !args.is_empty() {
-            if args[0] == "perft" {
-                self.handle_input(&args.join(" "));
+            if matches!(args[0].as_str(), "perft" | "genfens") {
+                let end = args.len() - usize::from(args.last().is_some_and(|arg| arg == "quit"));
+                self.handle_input(&args[..end].join(" "));
+                self.quit();
                 return;
             }
 
@@ -88,6 +82,22 @@ impl Engine {
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
             UciCommand::Bench { depth } => self.bench(depth),
+            UciCommand::Genfens {
+                count,
+                seed,
+                dfrc,
+                plies,
+            } => {
+                if self.searcher.is_searching() {
+                    self.searcher.stop();
+                    self.searcher.wait();
+                }
+                self.gen_fens(count, seed, dfrc, plies);
+            }
+            UciCommand::GenfensHelp => {
+                println!("info string Usage: {GENFENS_USAGE}");
+                println!("info string Defaults: dfrc true, moves 8 (plus 0 or 1 random ply)");
+            }
             UciCommand::Search(limits) => self.search(limits),
             UciCommand::Perft { depth, bulk } => self.perft(depth, bulk),
             UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),
