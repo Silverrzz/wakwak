@@ -15,13 +15,13 @@ pub enum UciCommand {
     Bench {
         depth: u8,
     },
-    Genfens {
+    GenFens {
         count: usize,
         seed: u64,
         dfrc: bool,
         plies: u16,
     },
-    GenfensHelp,
+    GenFensHelp,
     Search(Vec<SearchLimit>),
     Perft {
         depth: u8,
@@ -114,25 +114,25 @@ fn parse_genfens_cmd(reader: SplitWhitespace) -> Result<UciCommand, UciParseErro
 
     let tokens = reader.collect::<Vec<_>>();
     if matches!(tokens.as_slice(), ["help" | "--help"]) {
-        return Ok(UciCommand::GenfensHelp);
+        return Ok(UciCommand::GenFensHelp);
     }
     let [count, "seed", seed, "book", book, extra @ ..] = tokens.as_slice() else {
-        return Err(InvalidGenfensArguments);
+        return Err(InvalidGenFensArguments);
     };
     let count = count.parse()?;
     let seed = seed.parse()?;
     if !book.eq_ignore_ascii_case("none") {
-        return Err(UnsupportedGenfensBook);
+        return Err(UnsupportedGenFensBook);
     }
     let (mut dfrc, mut plies) = (true, 8);
     for pair in extra.chunks(2) {
         match pair {
             ["dfrc", value] => dfrc = value.parse()?,
             ["moves", value] => plies = value.parse()?,
-            _ => return Err(InvalidGenfensArguments),
+            _ => return Err(InvalidGenFensArguments),
         }
     }
-    Ok(UciCommand::Genfens {
+    Ok(UciCommand::GenFens {
         count,
         seed,
         dfrc,
@@ -275,9 +275,9 @@ pub enum UciParseError {
     UnknownCommand(String),
 
     #[error("Invalid genfens arguments (usage: {GENFENS_USAGE})")]
-    InvalidGenfensArguments,
+    InvalidGenFensArguments,
     #[error("Opening books are not supported; use book None")]
-    UnsupportedGenfensBook,
+    UnsupportedGenFensBook,
 
     #[error("Missing perft depth (usage: perft <depth> <bulk: true|false>)")]
     MissingPerftDepth,

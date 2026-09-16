@@ -34,10 +34,8 @@ impl Engine {
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
         if !args.is_empty() {
-            if matches!(args[0].as_str(), "perft" | "genfens") {
-                let end = args.len() - usize::from(args.last().is_some_and(|arg| arg == "quit"));
-                self.handle_input(&args[..end].join(" "));
-                self.quit();
+            if args[0] == "perft" {
+                self.handle_input(&args.join(" "));
                 return;
             }
 
@@ -82,7 +80,7 @@ impl Engine {
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
             UciCommand::Bench { depth } => self.bench(depth),
-            UciCommand::Genfens {
+            UciCommand::GenFens {
                 count,
                 seed,
                 dfrc,
@@ -94,7 +92,7 @@ impl Engine {
                 }
                 self.gen_fens(count, seed, dfrc, plies);
             }
-            UciCommand::GenfensHelp => {
+            UciCommand::GenFensHelp => {
                 println!("info string Usage: {GENFENS_USAGE}");
                 println!("info string Defaults: dfrc true, moves 8 (plus 0 or 1 random ply)");
             }
