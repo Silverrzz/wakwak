@@ -383,12 +383,10 @@ fn search<Node: NodeType>(
             continue;
         }
 
-        ducks_by_move[src][dest] += 1;
-        duck_counts[duck] += 1;
         pos.make_move(mv);
 
         /*
-        Duck or Die Pruning: Treat duck moves that let the opponent capture
+        Duck or Die Pruning (DDP): Treat duck moves that let the opponent capture
         the king as instant losses, unless it is a repetition.
         */
         let mut move_depth = depth;
@@ -398,6 +396,10 @@ fn search<Node: NodeType>(
             thread.stack[ply + 1].mv = None;
             Score::mated(ply + 2)
         } else {
+            // Only count ducks that survive DDP
+            ducks_by_move[src][dest] += 1;
+            duck_counts[duck] += 1;
+
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
