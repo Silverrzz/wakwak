@@ -57,9 +57,9 @@ fn side_score(board: &Board, color: Color) -> (Score, Score, i32) {
         }
     }
 
-    let bishop_count = board.pieces(Piece::Bishop).popcnt() as i32;
-    mg += bishop_count * BISHOP_PAIR_BONUS_MG;
-    eg += bishop_count * BISHOP_PAIR_BONUS_EG;
+    let bishop_pair = (board.colored_pieces(color, Piece::Bishop).popcnt() >= 2) as i32;
+    mg += bishop_pair * BISHOP_PAIR_BONUS_MG;
+    eg += bishop_pair * BISHOP_PAIR_BONUS_EG;
 
     let stm = (board.stm() == color) as i32;
     mg += stm * TEMPO_BONUS_MG;
