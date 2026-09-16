@@ -320,7 +320,6 @@ fn search<Node: NodeType>(
     thread.move_stack.push_ply();
 
     let mut best_move = None;
-    let mut best_move_depth = depth;
     let mut best_score = None;
     let mut legal_moves = 0;
     let mut searched_moves = 0;
@@ -374,7 +373,6 @@ fn search<Node: NodeType>(
         Duck or Die Pruning: Treat duck moves that let the opponent capture
         the king as instant losses, unless it is a repetition.
         */
-        let mut move_depth = depth;
         let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
@@ -389,7 +387,7 @@ fn search<Node: NodeType>(
                 } else {
                     0
                 };
-                move_depth -= reduction;
+
                 score = -search::<NonPV>(
                     pos,
                     thread,
@@ -401,7 +399,6 @@ fn search<Node: NodeType>(
                 )
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
-                move_depth = depth;
                 score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
             }
             score
@@ -437,7 +434,6 @@ fn search<Node: NodeType>(
         if score > alpha {
             alpha = score;
             best_move = Some(mv);
-            best_move_depth = move_depth;
             thread.stack[ply].mv = best_move;
             flag = TTFlag::Exact;
             if Node::PV {
@@ -485,18 +481,14 @@ fn search<Node: NodeType>(
             pos.board().duckless_hash(),
             best_move,
             best_score,
-            best_move_depth,
+            depth,
             TTFlag::Lower,
         );
     }
 
-    shared.tt.insert(
-        pos.board().hash(),
-        best_move,
-        best_score,
-        best_move_depth,
-        flag,
-    );
+    shared
+        .tt
+        .insert(pos.board().hash(), best_move, best_score, depth, flag);
 
     let static_eval = adjust_eval(raw_eval, thread.history.corr(pos.board()));
     if best_move.is_none_or(|mv| mv.flag().is_quiet())
