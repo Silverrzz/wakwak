@@ -126,11 +126,17 @@ params! {
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
 
-    dcp_depth:               i32 => 8;
-    dcp_threshold_imp_base:  i32 => 2;
-    dcp_threshold_imp_scale: i32 => 1;
-    dcp_threshold_base:      i32 => 4;
-    dcp_threshold_scale:     i32 => 2;
+    quiet_dcp_depth:               i32 => 8;
+    quiet_dcp_imp_threshold_base:  i32 => 2;
+    quiet_dcp_imp_threshold_scale: i32 => 1;
+    quiet_dcp_threshold_base:      i32 => 4;
+    quiet_dcp_threshold_scale:     i32 => 2;
+
+    noisy_dcp_depth:               i32 => 8;
+    noisy_dcp_imp_threshold_base:  i32 => 3;
+    noisy_dcp_imp_threshold_scale: i32 => 2;
+    noisy_dcp_threshold_base:      i32 => 6;
+    noisy_dcp_threshold_scale:     i32 => 3;
 }
 
 impl Params {
@@ -252,12 +258,36 @@ impl Params {
     }
 
     #[inline]
-    pub const fn dcp_threshold(depth: i32, improving: bool) -> i32 {
-        if improving {
-            Self::dcp_threshold_imp_base() + Self::dcp_threshold_imp_scale() * depth
+    pub const fn dcp_depth(is_quiet: bool) -> i32 {
+        if is_quiet {
+            Self::quiet_dcp_depth()
         } else {
-            Self::dcp_threshold_base() + Self::dcp_threshold_scale() * depth
+            Self::noisy_dcp_depth()
         }
+    }
+
+    #[inline]
+    pub const fn dcp_threshold(depth: i32, is_quiet: bool, improving: bool) -> i32 {
+        let (base, scale) = match (is_quiet, improving) {
+            (true, true) => (
+                Self::quiet_dcp_imp_threshold_base(),
+                Self::quiet_dcp_imp_threshold_scale(),
+            ),
+            (true, false) => (
+                Self::quiet_dcp_threshold_base(),
+                Self::quiet_dcp_threshold_scale(),
+            ),
+            (false, true) => (
+                Self::noisy_dcp_imp_threshold_base(),
+                Self::noisy_dcp_imp_threshold_scale(),
+            ),
+            (false, false) => (
+                Self::noisy_dcp_threshold_base(),
+                Self::noisy_dcp_threshold_scale(),
+            ),
+        };
+
+        base + scale * depth
     }
 
     #[inline]

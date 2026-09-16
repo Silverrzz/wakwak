@@ -377,8 +377,8 @@ fn search<Node: NodeType>(
          */
         if !Node::PV
             && is_quiet
-            && depth <= Params::dcp_depth()
-            && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
+            && depth <= Params::dcp_depth(is_quiet)
+            && duck_counts[duck] >= Params::dcp_threshold(depth, is_quiet, improving) as u8
         {
             continue;
         }
