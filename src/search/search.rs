@@ -1,3 +1,4 @@
+use crate::board::TerminalState;
 use crate::common::{Bitboard, Move, Square, between};
 use crate::engine::EngineOptions;
 use crate::eval::eval;
@@ -25,14 +26,24 @@ pub fn iterative_deepening(
     options: EngineOptions,
     info: SearchInfo,
 ) {
+    let terminal_score = pos.board().terminal_state().map(|state| match state {
+        TerminalState::Victory(winner) | TerminalState::Stalemate(winner) => {
+            if winner == pos.board().stm() {
+                Score::mate(0)
+            } else {
+                Score::mated(0)
+            }
+        }
+        TerminalState::Draw => Score::draw(),
+    });
     let mut depth = 1;
     let mut completed_depth = 0;
     let mut pv = PrincipalVariation::default();
-    let mut score = None;
+    let mut score = terminal_score;
     let alpha = -Score::INFINITE;
     let beta = Score::INFINITE;
 
-    'id: loop {
+    'id: while terminal_score.is_none() {
         thread.sel_depth = 0;
         thread.nmr_ply = None;
         let new_score = Some(search::<Root>(
@@ -104,6 +115,7 @@ pub fn iterative_deepening(
         }
 
         // All search threads have finished, we are ready for new commands.
+        let _guard = shared.search_lock.lock().unwrap();
         shared.best_score.store(score.unwrap().0, Ordering::Relaxed);
         shared.num_searching.store(0, Ordering::Release);
     }
@@ -117,10 +129,14 @@ pub fn iterative_deepening(
             score.unwrap(),
             &pv,
         );
-        println!(
-            "bestmove {}",
-            pv[0].display(options.dumb_interface, options.frc)
-        );
+        let best_move = if terminal_score.is_some() {
+            "0000".to_string()
+        } else {
+            pv.first()
+                .expect("Non-terminal root search returned an empty PV")
+                .display(options.dumb_interface, options.frc)
+        };
+        println!("bestmove {best_move}");
     }
 
     // Wake the other threads after printing

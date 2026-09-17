@@ -86,10 +86,8 @@ impl Engine {
                 dfrc,
                 plies,
             } => {
-                if self.searcher.is_searching() {
-                    self.searcher.stop();
-                    self.searcher.wait();
-                }
+                self.searcher.stop_if_searching();
+                self.searcher.wait();
                 self.gen_fens(count, seed, dfrc, plies);
             }
             UciCommand::GenFensHelp => {
@@ -333,7 +331,7 @@ impl Engine {
 
     #[inline]
     fn stop(&mut self) {
-        self.searcher.stop();
+        self.searcher.stop_if_searching();
     }
 
     #[inline]

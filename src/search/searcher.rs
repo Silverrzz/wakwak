@@ -6,8 +6,8 @@ use crate::search::{
 };
 use crate::uci::SearchLimit;
 use crate::util::{BatchedAtomicCounter, Receiver, Sender, channel};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 pub struct Searcher {
@@ -30,7 +30,9 @@ impl Searcher {
             "Called `Searcher::search()``while searching"
         );
 
-        self.shared.num_searching.store(1, Ordering::Relaxed);
+        self.shared
+            .num_searching
+            .store(self.threads.len() as u32 + 1, Ordering::Relaxed);
         self.shared
             .time_man
             .init(position.board().stm(), &limits, options);
@@ -72,6 +74,7 @@ impl Searcher {
             time_man: TimeManager::default(),
             tt: TranspositionTable::new(size_mb),
             num_searching: AtomicU32::new(0),
+            search_lock: Mutex::new(()),
             best_score: AtomicI32::new(0),
         });
 
@@ -118,7 +121,15 @@ impl Searcher {
     }
 
     #[inline]
-    pub fn stop(&self) {
+    pub fn stop_if_searching(&self) {
+        let _guard = self.shared.search_lock.lock().unwrap();
+        if self.is_searching() {
+            self.stop();
+        }
+    }
+
+    #[inline]
+    fn stop(&self) {
         assert!(
             self.is_searching(),
             "Called `Searcher::stop()` while not searching"
@@ -178,8 +189,6 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
                 limits: _,
                 info,
             } => {
-                shared.num_searching.fetch_add(1, Ordering::Relaxed);
-
                 thread.reset();
                 iterative_deepening(position, &mut thread, &shared, options, info);
             }
@@ -197,6 +206,7 @@ pub struct SharedData {
     pub time_man: TimeManager,
     pub tt: TranspositionTable,
     pub num_searching: AtomicU32,
+    pub(super) search_lock: Mutex<()>,
     pub best_score: AtomicI32,
 }
 
@@ -208,6 +218,7 @@ impl Default for SharedData {
             tt: TranspositionTable::default(),
             time_man: TimeManager::default(),
             num_searching: AtomicU32::new(0),
+            search_lock: Mutex::new(()),
             best_score: AtomicI32::new(0),
         }
     }
