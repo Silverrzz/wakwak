@@ -1,10 +1,5 @@
-use crate::board::{
-    Board, CastlingDirection, MoveFilter, Noisy, Quiet, bishop_attacks, rook_attacks,
-};
-use crate::common::{
-    Bitboard, Move, MoveFlag, North, NorthEast, NorthWest, Piece, Rank, king_attacks,
-    knight_attacks,
-};
+use crate::board::{Board, MoveFilter, Noisy, Quiet};
+use crate::common::{Bitboard, Move, MoveFlag, Piece};
 use crate::position::Position;
 use crate::search::cont::ContIndices;
 use crate::search::{History, MAX_PLY, Params, ThreadData};
@@ -98,34 +93,6 @@ impl Default for MoveStack {
     }
 }
 
-fn neutral_ducks(board: &Board) -> Bitboard {
-    let them = !board.stm();
-    let blockers = board.colors(them);
-    let pawns = board.colored_pieces(them, Piece::Pawn);
-    let mut relevant = pawns.shift::<North>(them.signum())
-        | (pawns & Rank::Second.relative_to(them)).shift::<North>(2 * them.signum())
-        | pawns.shift::<NorthEast>(them.signum())
-        | pawns.shift::<NorthWest>(them.signum())
-        | king_attacks(board.king(them));
-
-    for square in board.colored_pieces(them, Piece::Knight) {
-        relevant |= knight_attacks(square);
-    }
-    for square in board.colored_diag_sliders(them) {
-        relevant |= bishop_attacks(blockers, square, board.slider_tag());
-    }
-    for square in board.colored_orth_sliders(them) {
-        relevant |= rook_attacks(blockers, square, board.slider_tag());
-    }
-    if CastlingDirection::ALL
-        .iter()
-        .any(|&dir| board.castling_rights(them).get(dir).is_some())
-    {
-        relevant |= Rank::First.relative_to(them);
-    }
-    !relevant
-}
-
 #[inline]
 fn mvv(board: &Board, mv: Move) -> i32 {
     let victim = if mv.flag() == MoveFlag::EnPassant {
@@ -216,7 +183,7 @@ impl MovePicker {
             } else {
                 let duck_pruning = self
                     .prune_neutral_ducks
-                    .then(|| (neutral_ducks(board), &*thread.history));
+                    .then(|| (board.neutral_ducks(), &*thread.history));
                 let start = thread.move_stack.add_moves::<Quiet>(board, duck_pruning);
                 self.score_quiets(board, thread, indices, start);
                 self.stage = Stage::YieldQuiets;

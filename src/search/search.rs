@@ -370,6 +370,7 @@ fn search<Node: NodeType>(
     let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
+    let neutral_ducks = pos.board().neutral_ducks();
     let prune_neutral_ducks =
         !Node::PV && depth <= Params::ndp_depth() && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(tt_move, prune_neutral_ducks);
@@ -385,6 +386,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let is_neutral_duck = neutral_ducks.has(duck);
         legal_moves += 1;
 
         /*
@@ -447,7 +449,7 @@ fn search<Node: NodeType>(
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1 + !improving as i32
+                    1 + !improving as i32 + is_neutral_duck as i32
                 } else {
                     0
                 };
