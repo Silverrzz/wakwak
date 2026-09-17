@@ -361,7 +361,9 @@ fn search<Node: NodeType>(
     let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
-    let mut move_picker = MovePicker::new(tt_move);
+    let prune_neutral_ducks =
+        !Node::PV && depth <= Params::neutral_duck_depth() && !alpha.is_mate() && !beta.is_mate();
+    let mut move_picker = MovePicker::new(tt_move, prune_neutral_ducks);
     let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
         [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
@@ -641,7 +643,7 @@ fn qsearch<Node: NodeType>(
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker = MovePicker::new(tt_move, false);
     move_picker.skip_quiets();
     let mut best_move = None;
     let mut flag = TTFlag::Upper;

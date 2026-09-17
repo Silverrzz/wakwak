@@ -1,8 +1,13 @@
-use crate::board::{Board, MoveFilter, Noisy, Quiet};
-use crate::common::{Move, MoveFlag, Piece};
+use crate::board::{
+    Board, CastlingDirection, MoveFilter, Noisy, Quiet, bishop_attacks, rook_attacks,
+};
+use crate::common::{
+    Bitboard, Move, MoveFlag, North, NorthEast, NorthWest, Piece, Rank, king_attacks,
+    knight_attacks,
+};
 use crate::position::Position;
 use crate::search::cont::ContIndices;
-use crate::search::{MAX_PLY, Params, ThreadData};
+use crate::search::{History, MAX_PLY, Params, ThreadData};
 use crate::util::Abort;
 use std::cmp::Reverse;
 
@@ -29,11 +34,22 @@ impl MoveStack {
     }
 
     #[inline]
-    pub fn add_moves<F: MoveFilter>(&mut self, board: &Board) -> usize {
+    pub fn add_moves<F: MoveFilter>(
+        &mut self,
+        board: &Board,
+        duck_pruning: Option<(Bitboard, &History)>,
+    ) -> usize {
         let start = self.start[self.ply - 1];
         let old_len = self.stack.len();
 
-        board.gen_moves::<F, _>(|moves| {
+        board.gen_moves::<F, _>(|mut moves| {
+            if let Some((neutral, history)) = duck_pruning
+                && let Some(duck) = (moves.duck & neutral).iter().max_by_key(|&duck| {
+                    history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
+                })
+            {
+                moves.duck &= !neutral | duck;
+            }
             self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
             Abort::No
         });
@@ -82,6 +98,34 @@ impl Default for MoveStack {
     }
 }
 
+fn neutral_ducks(board: &Board) -> Bitboard {
+    let them = !board.stm();
+    let blockers = board.colors(them);
+    let pawns = board.colored_pieces(them, Piece::Pawn);
+    let mut relevant = pawns.shift::<North>(them.signum())
+        | (pawns & Rank::Second.relative_to(them)).shift::<North>(2 * them.signum())
+        | pawns.shift::<NorthEast>(them.signum())
+        | pawns.shift::<NorthWest>(them.signum())
+        | king_attacks(board.king(them));
+
+    for square in board.colored_pieces(them, Piece::Knight) {
+        relevant |= knight_attacks(square);
+    }
+    for square in board.colored_diag_sliders(them) {
+        relevant |= bishop_attacks(blockers, square, board.slider_tag());
+    }
+    for square in board.colored_orth_sliders(them) {
+        relevant |= rook_attacks(blockers, square, board.slider_tag());
+    }
+    if CastlingDirection::ALL
+        .iter()
+        .any(|&dir| board.castling_rights(them).get(dir).is_some())
+    {
+        relevant |= Rank::First.relative_to(them);
+    }
+    !relevant
+}
+
 #[inline]
 fn mvv(board: &Board, mv: Move) -> i32 {
     let victim = if mv.flag() == MoveFlag::EnPassant {
@@ -112,16 +156,18 @@ pub struct MovePicker {
     stage: Stage,
     tt_move: Option<Move>,
     skip_quiets: bool,
+    prune_neutral_ducks: bool,
     cursor: usize,
 }
 
 impl MovePicker {
     #[inline]
-    pub fn new(tt_move: Option<Move>) -> Self {
+    pub fn new(tt_move: Option<Move>, prune_neutral_ducks: bool) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
             skip_quiets: false,
+            prune_neutral_ducks,
             cursor: 0,
         }
     }
@@ -151,7 +197,7 @@ impl MovePicker {
         }
 
         if self.stage == Stage::GenerateNoisies {
-            let start = thread.move_stack.add_moves::<Noisy>(board);
+            let start = thread.move_stack.add_moves::<Noisy>(board, None);
             self.score_noisies(board, thread, start);
             self.stage = Stage::YieldNoisies;
         }
@@ -168,7 +214,10 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = Stage::Finished;
             } else {
-                let start = thread.move_stack.add_moves::<Quiet>(board);
+                let duck_pruning = self
+                    .prune_neutral_ducks
+                    .then(|| (neutral_ducks(board), &*thread.history));
+                let start = thread.move_stack.add_moves::<Quiet>(board, duck_pruning);
                 self.score_quiets(board, thread, indices, start);
                 self.stage = Stage::YieldQuiets;
             }
