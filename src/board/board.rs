@@ -311,6 +311,11 @@ impl Board {
         self.stm = !self.stm;
         self.hash ^= ZOBRIST.stm;
     }
+
+    #[inline]
+    pub fn slider_tag(&self) -> SliderTag {
+        self.slider_tag
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
