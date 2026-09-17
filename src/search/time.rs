@@ -109,7 +109,9 @@ impl TimeManager {
         let move_stability = Params::move_stability(move_stability);
         let base_time = self.base_time.load(Ordering::Relaxed);
         let hard_time = self.hard_time.load(Ordering::Relaxed);
-        let new_target = (base_time as f64 * move_stability) as u64;
+
+        // Divide by pow(4096, num_factors) to undo the quantisation by 4096
+        let new_target = ((base_time as u128 * move_stability) / 4096u128) as u64;
 
         self.soft_time
             .store(new_target.min(hard_time), Ordering::Relaxed);

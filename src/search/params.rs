@@ -141,9 +141,9 @@ params! {
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
 
-    move_stability_base:  f64 => 1.3;
-    move_stability_scale: f64 => 0.1;
-    move_stability_min:   f64 => 0.7;
+    move_stability_base:  u128 => 5325;
+    move_stability_scale: u128 => 410;
+    move_stability_min:   u128 => 2867;
 }
 
 impl Params {
@@ -291,8 +291,8 @@ impl Params {
     }
 
     #[inline]
-    pub const fn move_stability(stability: u16) -> f64 {
-        (Self::move_stability_base() - Self::move_stability_scale() * stability as f64)
+    pub fn move_stability(stability: u16) -> u128 {
+        (Self::move_stability_base() - Self::move_stability_scale() * stability as u128)
             .max(Self::move_stability_min())
     }
 }
