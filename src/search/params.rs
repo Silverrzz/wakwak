@@ -123,14 +123,18 @@ params! {
     quiet_ldp_depth:               i32 => 8;
     quiet_ldp_imp_threshold_base:  i32 => 2;
     quiet_ldp_imp_threshold_scale: i32 => 2;
+    quiet_ldp_imp_neutral_offset:  i32 => 1;
     quiet_ldp_threshold_base:      i32 => 1;
     quiet_ldp_threshold_scale:     i32 => 1;
+    quiet_ldp_neutral_offset:      i32 => 1;
 
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
     noisy_ldp_imp_threshold_scale: i32 => 4;
+    noisy_ldp_imp_neutral_offset:  i32 => 0;
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_neutral_offset:      i32 => 0;
 
     dcp_depth:               i32 => 8;
     dcp_threshold_imp_base:  i32 => 2;
@@ -248,27 +252,36 @@ impl Params {
     }
 
     #[inline]
-    pub const fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool) -> i32 {
-        let (base, scale) = match (is_quiet, improving) {
+    pub const fn ldp_threshold(
+        depth: i32,
+        is_quiet: bool,
+        improving: bool,
+        is_neutral_duck: bool,
+    ) -> i32 {
+        let (base, scale, neutral_offset) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
                 Self::quiet_ldp_imp_threshold_scale(),
+                Self::quiet_ldp_imp_neutral_offset(),
             ),
             (true, false) => (
                 Self::quiet_ldp_threshold_base(),
                 Self::quiet_ldp_threshold_scale(),
+                Self::quiet_ldp_neutral_offset(),
             ),
             (false, true) => (
                 Self::noisy_ldp_imp_threshold_base(),
                 Self::noisy_ldp_imp_threshold_scale(),
+                Self::noisy_ldp_imp_neutral_offset(),
             ),
             (false, false) => (
                 Self::noisy_ldp_threshold_base(),
                 Self::noisy_ldp_threshold_scale(),
+                Self::noisy_ldp_neutral_offset(),
             ),
         };
 
-        base + scale * depth
+        base + scale * depth - neutral_offset * is_neutral_duck as i32
     }
 
     #[inline]
