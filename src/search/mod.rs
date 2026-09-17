@@ -1,5 +1,6 @@
 pub mod history;
 pub mod info;
+pub mod lmr;
 pub mod move_picker;
 pub mod params;
 pub mod pv;

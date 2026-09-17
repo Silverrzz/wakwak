@@ -140,6 +140,11 @@ params! {
 
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
+
+    lmr_quiet_base: i32 => 75;
+    lmr_quiet_div: i32  => 450;
+    lmr_noisy_base: i32 => 80;
+    lmr_noisy_div: i32  => 440;
 }
 
 impl Params {
