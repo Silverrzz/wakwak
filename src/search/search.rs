@@ -1,6 +1,5 @@
 use crate::common::{Bitboard, Move, Square, between};
 use crate::engine::EngineOptions;
-use crate::eval::eval;
 use crate::position::Position;
 use crate::score::Score;
 use crate::search::cont::ContIndices;
@@ -249,7 +248,7 @@ fn search<Node: NodeType>(
         }
     }
 
-    let raw_eval = eval(pos.board());
+    let raw_eval = pos.eval();
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
 
@@ -545,7 +544,7 @@ fn qsearch<Node: NodeType>(
     }
 
     if ply >= MAX_PLY {
-        return adjust_eval(eval(pos.board()), thread.history.corr(pos.board()));
+        return adjust_eval(pos.eval(), thread.history.corr(pos.board()));
     }
 
     debug_assert!(ply > 0 && ply < MAX_PLY);
@@ -583,7 +582,7 @@ fn qsearch<Node: NodeType>(
         }
     }
 
-    let raw_eval = eval(pos.board());
+    let raw_eval = pos.eval();
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
 
