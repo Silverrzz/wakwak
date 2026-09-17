@@ -28,57 +28,83 @@ pub fn iterative_deepening(
     let mut depth = 1;
     let mut completed_depth = 0;
     let mut pv = PrincipalVariation::default();
-    let mut score = None;
-    let alpha = -Score::INFINITE;
-    let beta = Score::INFINITE;
+    let mut score: Option<Score> = None;
+    let mut alpha = -Score::INFINITE;
+    let mut beta = Score::INFINITE;
+    let mut delta = Score(Params::asp_delta());
 
     'id: loop {
         thread.sel_depth = 0;
         thread.nmr_ply = None;
-        let new_score = Some(search::<Root>(
-            &mut pos,
-            thread,
-            shared,
-            alpha,
-            beta,
-            depth as i32,
-            0,
-        ));
-        thread.nodes.flush();
 
-        if depth > 1 && thread.stop {
-            break 'id;
+        if depth >= 4
+            && let Some(score) = score
+        {
+            alpha = (score - delta).max(-Score::INFINITE);
+            beta = (score + delta).min(Score::INFINITE);
         }
 
-        score = new_score;
-        pv = thread.stack[0].pv.clone();
+        'aspiration: loop {
+            thread.sel_depth = 0;
 
-        depth += 1;
-        completed_depth += 1;
-
-        if thread.id == 0 && info == SearchInfo::Full {
-            info.depth(
+            let new_score = Some(search::<Root>(
+                &mut pos,
                 thread,
                 shared,
-                options,
-                completed_depth,
-                score.unwrap(),
-                &pv,
-            );
-        }
+                alpha,
+                beta,
+                depth as i32,
+                0,
+            ));
+            thread.nodes.flush();
 
-        if thread.id == 0 {
-            if shared
-                .time_man
-                .stop_id(completed_depth, thread.nodes.global())
-            {
-                shared.time_man.set_stop(true);
-                thread.stop = true;
+            if depth > 1 && thread.stop {
                 break 'id;
             }
 
-            shared.time_man.deepen(depth);
+            score = new_score;
+            pv = thread.stack[0].pv.clone();
+
+            if thread.id == 0 {
+                if shared
+                    .time_man
+                    .stop_id(completed_depth, thread.nodes.global())
+                {
+                    shared.time_man.set_stop(true);
+                    thread.stop = true;
+                    break 'id;
+                }
+
+                shared.time_man.deepen(depth);
+            }
+
+            if thread.id == 0 && info == SearchInfo::Full {
+                info.depth(
+                    thread,
+                    shared,
+                    options,
+                    completed_depth,
+                    score.unwrap(),
+                    &pv,
+                );
+            }
+
+            match score {
+                Some(s) if s <= alpha => {
+                    alpha = (s - delta).max(-Score::INFINITE);
+                    delta += delta * 2;
+                }
+                Some(s) if s >= beta => {
+                    beta = (s + delta).min(Score::INFINITE);
+                    delta += delta * 2;
+                }
+                _ => break 'aspiration,
+            }
         }
+
+        delta = Score(Params::asp_delta());
+        depth += 1;
+        completed_depth += 1;
     }
 
     // Wait for `stop` command if search is infinite

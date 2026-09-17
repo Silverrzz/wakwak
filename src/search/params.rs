@@ -59,6 +59,8 @@ macro_rules! params {
 }
 
 params! {
+    asp_delta: i32 => 24;
+
     pawn_corr:        i32 => 64;
     minor_corr:       i32 => 64;
     major_corr:       i32 => 64;
