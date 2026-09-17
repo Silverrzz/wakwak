@@ -16,6 +16,10 @@ pub struct Board {
     pub(super) duck: Option<Square>,
     pub(super) hash: u64,
     pub(super) pawn_hash: u64,
+    pub(super) minor_hash: u64,
+    pub(super) major_hash: u64,
+    pub(super) white_hash: u64,
+    pub(super) black_hash: u64,
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
@@ -109,6 +113,26 @@ impl Board {
     #[inline]
     pub fn pawn_hash(&self) -> u64 {
         self.pawn_hash
+    }
+
+    #[inline]
+    pub fn minor_hash(&self) -> u64 {
+        self.minor_hash
+    }
+
+    #[inline]
+    pub fn major_hash(&self) -> u64 {
+        self.major_hash
+    }
+
+    #[inline]
+    pub fn white_hash(&self) -> u64 {
+        self.white_hash
+    }
+
+    #[inline]
+    pub fn black_hash(&self) -> u64 {
+        self.black_hash
     }
 
     #[inline]
@@ -222,8 +246,23 @@ impl Board {
         let value = ZOBRIST.piece(sq, piece, color);
         self.hash ^= value;
 
-        if piece == Piece::Pawn {
-            self.pawn_hash ^= value;
+        match piece {
+            Piece::Pawn => self.pawn_hash ^= value,
+            Piece::Knight => self.minor_hash ^= value,
+            Piece::Bishop => self.minor_hash ^= value,
+            Piece::Rook => self.major_hash ^= value,
+            Piece::Queen => self.major_hash ^= value,
+            Piece::King => {
+                self.minor_hash ^= value;
+                self.major_hash ^= value;
+            }
+        }
+
+        if piece != Piece::Pawn {
+            match color {
+                Color::White => self.white_hash ^= value,
+                Color::Black => self.black_hash ^= value,
+            }
         }
     }
 

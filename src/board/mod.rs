@@ -15,5 +15,6 @@ pub mod zobrist;
 pub use board::*;
 pub use castling::*;
 pub use en_passant::*;
+pub use movegen::*;
 pub use sliders::*;
 pub use zobrist::*;

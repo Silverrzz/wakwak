@@ -4,18 +4,41 @@ use crate::common::Move;
 use std::num::ParseIntError;
 use std::str::{FromStr, ParseBoolError, SplitWhitespace};
 
+pub const GENFENS_USAGE: &str = "genfens <count> seed <u64> book None [dfrc <bool>] [moves <n>]";
+
 #[derive(Clone)]
 pub enum UciCommand {
     Uci,
     NewGame,
     IsReady,
     Display,
-    Bench { depth: u8 },
+    Bench {
+        depth: u8,
+    },
+    GenFens {
+        count: usize,
+        seed: u64,
+        dfrc: bool,
+        plies: u16,
+    },
+    GenFensHelp,
     Search(Vec<SearchLimit>),
-    Perft { depth: u8, bulk: bool },
-    SplitPerft { depth: u8, bulk: bool },
-    Position { board: Board, moves: Vec<Move> },
-    SetOption { name: String, value: String },
+    Perft {
+        depth: u8,
+        bulk: bool,
+    },
+    SplitPerft {
+        depth: u8,
+        bulk: bool,
+    },
+    Position {
+        board: Board,
+        moves: Vec<Move>,
+    },
+    SetOption {
+        name: String,
+        value: String,
+    },
     Stop,
     Quit,
 }
@@ -38,6 +61,7 @@ impl UciCommand {
             "ucinewgame" => Ok(NewGame),
             "isready" => Ok(IsReady),
             "display" | "d" => Ok(Display),
+            "genfens" => parse_genfens_cmd(reader),
             "bench" => {
                 let depth = reader.next().map_or(Ok(DEFAULT_BENCH_DEPTH), str::parse)?;
 
@@ -83,6 +107,37 @@ impl UciCommand {
             _ => Err(UnknownCommand(cmd.to_string())),
         }
     }
+}
+
+fn parse_genfens_cmd(reader: SplitWhitespace) -> Result<UciCommand, UciParseError> {
+    use UciParseError::*;
+
+    let tokens = reader.collect::<Vec<_>>();
+    if matches!(tokens.as_slice(), ["help" | "--help"]) {
+        return Ok(UciCommand::GenFensHelp);
+    }
+    let [count, "seed", seed, "book", book, extra @ ..] = tokens.as_slice() else {
+        return Err(InvalidGenFensArguments);
+    };
+    let count = count.parse()?;
+    let seed = seed.parse()?;
+    if !book.eq_ignore_ascii_case("none") {
+        return Err(UnsupportedGenFensBook);
+    }
+    let (mut dfrc, mut plies) = (true, 8);
+    for pair in extra.chunks(2) {
+        match pair {
+            ["dfrc", value] => dfrc = value.parse()?,
+            ["moves", value] => plies = value.parse()?,
+            _ => return Err(InvalidGenFensArguments),
+        }
+    }
+    Ok(UciCommand::GenFens {
+        count,
+        seed,
+        dfrc,
+        plies,
+    })
 }
 
 fn parse_search_cmd(mut reader: SplitWhitespace) -> Result<UciCommand, UciParseError> {
@@ -218,6 +273,11 @@ pub enum UciParseError {
     MissingCommand,
     #[error("Unknown command: `{0}`")]
     UnknownCommand(String),
+
+    #[error("Invalid genfens arguments (usage: {GENFENS_USAGE})")]
+    InvalidGenFensArguments,
+    #[error("Opening books are not supported; use book None")]
+    UnsupportedGenFensBook,
 
     #[error("Missing perft depth (usage: perft <depth> <bulk: true|false>)")]
     MissingPerftDepth,
