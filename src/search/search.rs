@@ -417,6 +417,13 @@ fn search<Node: NodeType>(
             continue;
         }
 
+        let king_capture_blocks = pos.board().king_capture_blocks(pos.board().stm());
+        let extension = if king_capture_blocks != Bitboard::FULL && king_capture_blocks.has(duck) {
+            1
+        } else {
+            0
+        };
+
         ducks_by_move[src][dest] += 1;
         duck_counts[duck] += 1;
         pos.make_move(mv);
@@ -432,7 +439,7 @@ fn search<Node: NodeType>(
             thread.stack[ply + 1].mv = None;
             Score::mated(ply + 2)
         } else {
-            let new_depth = depth - 1;
+            let new_depth = depth - 1 + extension;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
