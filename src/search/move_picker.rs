@@ -155,6 +155,7 @@ pub enum Stage {
 pub struct MovePicker {
     stage: Stage,
     tt_move: Option<Move>,
+    threat: Option<Move>,
     skip_quiets: bool,
     prune_neutral_ducks: bool,
     cursor: usize,
@@ -162,10 +163,11 @@ pub struct MovePicker {
 
 impl MovePicker {
     #[inline]
-    pub fn new(tt_move: Option<Move>, prune_neutral_ducks: bool) -> Self {
+    pub fn new(tt_move: Option<Move>, threat: Option<Move>, prune_neutral_ducks: bool) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
+            threat,
             skip_quiets: false,
             prune_neutral_ducks,
             cursor: 0,
@@ -289,7 +291,8 @@ impl MovePicker {
 
             scored.1 = thread.history.quiet(board, mv)
                 + thread.history.duck(board, mv)
-                + thread.history.cont(board, indices, mv);
+                + thread.history.cont(board, indices, mv)
+                + (Some(mv.duck()) == self.threat.map(|t| t.dest())) as i32 * 300;
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
