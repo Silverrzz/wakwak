@@ -86,7 +86,13 @@ pub fn iterative_deepening(
                 break 'id;
             }
 
-            shared.time_man.deepen(depth, move_stability);
+            let mv = best_move.unwrap();
+            shared.time_man.deepen(
+                depth,
+                move_stability,
+                thread.root_nodes[mv.src()][mv.dest()],
+                thread.nodes.local(),
+            );
         }
     }
 
@@ -385,6 +391,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let prev_nodes = thread.nodes.local();
         legal_moves += 1;
 
         /*
@@ -477,6 +484,10 @@ fn search<Node: NodeType>(
         if thread.stop {
             thread.move_stack.pop_ply();
             return Score::ZERO;
+        }
+
+        if Node::ROOT {
+            thread.root_nodes[src][dest] += thread.nodes.local() - prev_nodes;
         }
 
         // Duck Refutations

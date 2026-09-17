@@ -1,3 +1,4 @@
+use crate::common::Square;
 use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::search::tt::TranspositionTable;
@@ -217,6 +218,7 @@ pub struct ThreadData {
     pub nodes: BatchedAtomicCounter,
     pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
+    pub root_nodes: [[u64; Square::COUNT]; Square::COUNT], // Indexing: [src][dest]
     pub history: Box<History>,
     pub nmr_ply: Option<usize>,
     pub iid_iteration: usize,
@@ -232,6 +234,7 @@ impl ThreadData {
             nodes: BatchedAtomicCounter::new(nodes),
             move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
+            root_nodes: [[0; Square::COUNT]; Square::COUNT],
             history: unsafe { Box::new_zeroed().assume_init() },
             nmr_ply: None,
             iid_iteration: 0,

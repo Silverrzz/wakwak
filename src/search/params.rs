@@ -143,6 +143,10 @@ params! {
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
 
+    node_tm_base:  u128 => 5325;
+    node_tm_scale: u128 => 410;
+    node_tm_min:   u128 => 2867;
+
     move_stability_base:  u128 => 5325;
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
@@ -290,6 +294,12 @@ impl Params {
             Piece::Queen => Self::mvvlva_queen(),
             Piece::King => 20000,
         }
+    }
+
+    #[inline]
+    pub fn node_tm(subtree_nodes: u64, total_nodes: u64) -> u128 {
+        (Self::node_tm_base() - Self::node_tm_scale() * subtree_nodes as u128 / total_nodes as u128)
+            .max(Self::node_tm_min())
     }
 
     #[inline]
