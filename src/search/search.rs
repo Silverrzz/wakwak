@@ -365,7 +365,8 @@ fn search<Node: NodeType>(
     let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
         [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
-    let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
+    let mut quiet_duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
+    let mut noisy_duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
     let mut flag = TTFlag::Upper;
 
@@ -380,7 +381,13 @@ fn search<Node: NodeType>(
         Duck Refutations: If the opponent immediately refutes a duck move,
         we can skip the rest of the duck moves that don't block the refutation(s).
         */
-        if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+        if is_quiet {
+            if quiet_duck_refutations[dest].0 == piece_move
+                && quiet_duck_refutations[dest].1.has(mv.duck())
+            {
+                continue;
+            }
+        } else if noisy_duck_refutations[dest].has(mv.duck()) {
             continue;
         }
 
@@ -472,10 +479,15 @@ fn search<Node: NodeType>(
         if let Some(reply) = thread.stack[ply + 1].mv {
             let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
 
-            if duck_refutations[dest].0 == piece_move {
-                duck_refutations[dest].1 |= refuted;
+            if is_quiet {
+                if quiet_duck_refutations[dest].0 == piece_move {
+                    quiet_duck_refutations[dest].1 |= refuted;
+                } else {
+                    quiet_duck_refutations[dest] = (piece_move, refuted);
+                }
             } else {
-                duck_refutations[dest] = (piece_move, refuted);
+                let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
+                noisy_duck_refutations[dest] |= refuted;
             }
         }
 
