@@ -29,8 +29,10 @@ pub fn iterative_deepening(
     let mut completed_depth = 0;
     let mut pv = PrincipalVariation::default();
     let mut score = None;
-    let alpha = -Score::INFINITE;
-    let beta = Score::INFINITE;
+
+    let mut move_stability = 0;
+    let mut best_move = None;
+    let mut prev_move;
 
     'id: loop {
         thread.sel_depth = 0;
@@ -39,8 +41,8 @@ pub fn iterative_deepening(
             &mut pos,
             thread,
             shared,
-            alpha,
-            beta,
+            -Score::INFINITE,
+            Score::INFINITE,
             depth as i32,
             0,
             false,
@@ -53,6 +55,13 @@ pub fn iterative_deepening(
 
         score = new_score;
         pv = thread.stack[0].pv.clone();
+        prev_move = best_move;
+        best_move = Some(pv[0]);
+
+        move_stability += 1;
+        if best_move != prev_move {
+            move_stability = 0;
+        }
 
         depth += 1;
         completed_depth += 1;
@@ -78,7 +87,7 @@ pub fn iterative_deepening(
                 break 'id;
             }
 
-            shared.time_man.deepen(depth);
+            shared.time_man.deepen(depth, move_stability);
         }
     }
 
@@ -229,6 +238,9 @@ fn search<Node: NodeType>(
     {
         let score = entry.score();
         if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
+            if tt_move.is_some() {
+                thread.stack[ply].mv = tt_move;
+            }
             return score;
         }
     }
@@ -285,6 +297,18 @@ fn search<Node: NodeType>(
     }
 
     /*
+    Razoring: If our evaluation of the position is so far below alpha
+    that it seems hopeless, we can be reasonably confident that a further
+    search won't make a difference and will cuase a fail low.
+    */
+    if static_eval + Params::razor_margin(depth) <= alpha {
+        let score = qsearch::<NonPV>(pos, thread, shared, alpha, alpha + 1, ply);
+        if score <= alpha {
+            return score;
+        }
+    }
+
+    /*
     Null Move Reductions: There is almost always a better alternative to
     doing nothing; if fail high despite giving our opponent a move, our best
     legal move will likely also fail high. However, due to the prevalance of
@@ -299,7 +323,7 @@ fn search<Node: NodeType>(
         && thread.stack[ply - 1].mv.is_some()
         && static_eval >= beta + Params::nmr_margin()
     {
-        let r = 3;
+        let r = 3 + depth / 3;
         pos.make_null_move();
         let score = -search::<NonPV>(
             pos,
@@ -331,6 +355,24 @@ fn search<Node: NodeType>(
         }
     }
 
+    // Internal Iterative Deepening
+    if !Node::ROOT && Node::PV && depth >= 5 && tt_move.is_none() && thread.id == 0 {
+        let iid_depth = (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024;
+
+        thread.iid_iteration += 1;
+        _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply, cut_node);
+        thread.iid_iteration -= 1;
+
+        let entry = shared.tt.probe(pos.board().hash());
+        if thread.iid_iteration > 0
+            && let Some(entry) = entry
+            && entry.depth() >= depth
+        {
+            return entry.score();
+        }
+        tt_move = entry.and_then(|e| e.best_move());
+    }
+
     thread.move_stack.push_ply();
 
     let mut best_move = None;
@@ -340,7 +382,9 @@ fn search<Node: NodeType>(
     let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
-    let mut move_picker = MovePicker::new(tt_move);
+    let prune_neutral_ducks =
+        !Node::PV && depth <= Params::ndp_depth() && !alpha.is_mate() && !beta.is_mate();
+    let mut move_picker = MovePicker::new(tt_move, prune_neutral_ducks);
     let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
         [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
@@ -415,7 +459,7 @@ fn search<Node: NodeType>(
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1 + cut_node as i32
+                    1 + !improving as i32 + cut_node as i32
                 } else {
                     0
                 };
@@ -601,6 +645,9 @@ fn qsearch<Node: NodeType>(
     if let Some(entry) = tt_entry {
         let score = entry.score();
         if entry.flag().bounds_match(score, alpha, beta) {
+            if tt_move.is_some() {
+                thread.stack[ply].mv = tt_move;
+            }
             return score;
         }
     }
@@ -627,8 +674,10 @@ fn qsearch<Node: NodeType>(
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
-    let mut move_picker = MovePicker::new(tt_move);
+    let mut move_picker = MovePicker::new(tt_move, false);
     move_picker.skip_quiets();
+    let mut best_move = None;
+    let mut flag = TTFlag::Upper;
 
     let indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, indices) {
@@ -691,18 +740,25 @@ fn qsearch<Node: NodeType>(
 
         if score > alpha {
             alpha = score;
+            best_move = Some(mv);
+            flag = TTFlag::Exact;
             thread.stack[ply].mv = Some(mv);
             if Node::PV {
                 update_pv(thread, mv, ply);
             }
 
             if score >= beta {
+                flag = TTFlag::Lower;
                 break;
             }
         }
     }
 
     thread.move_stack.pop_ply();
+
+    shared
+        .tt
+        .insert(pos.board().hash(), best_move, best_score, 0, flag);
 
     best_score
 }

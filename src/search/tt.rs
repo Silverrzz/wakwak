@@ -121,7 +121,7 @@ impl TranspositionTable {
     pub fn insert(
         &self,
         hash: u64,
-        best_move: Option<Move>,
+        mut best_move: Option<Move>,
         score: Score,
         depth: i32,
         flag: TTFlag,
@@ -129,8 +129,18 @@ impl TranspositionTable {
         let idx = self.idx(hash);
         let entry = &self.table[idx];
 
-        let key = hash as u16;
-        let packed = (key as u64) << KEY_SHIFT
+        let key_part = (hash & 0xFFFF) as u16;
+        let old_packed = entry.packed.load(Ordering::Relaxed);
+        let old_key = (old_packed >> KEY_SHIFT) as u16;
+        let key_match = old_key == key_part;
+
+        if best_move.is_none() && key_match {
+            let old_move_bits = (old_packed >> MOVE_SHIFT) as u32;
+            // SAFETY: the TT move is guaranteed to be a valid duckchess move.
+            best_move = unsafe { Move::from_raw(old_move_bits) };
+        }
+
+        let packed = (key_part as u64) << KEY_SHIFT
             | ((score.0 as u16) as u64) << SCORE_SHIFT
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT

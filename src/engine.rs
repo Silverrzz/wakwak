@@ -111,7 +111,9 @@ impl Engine {
     #[inline]
     fn uci() {
         println!("id name wakwak v{ENGINE_VERSION}");
-        println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
+        println!(
+            "id author 87flowers, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph and Tecci"
+        );
         println!("option name Threads type spin default 1 min 1 max 1024");
         println!(
             "option name Hash type spin default {} min 1 max {}",
@@ -144,6 +146,11 @@ impl Engine {
 
     #[inline]
     fn search(&mut self, limits: Vec<SearchLimit>) {
+        if self.searcher.is_searching() {
+            println!("info string Already Searching");
+            return;
+        }
+
         self.searcher.search(
             self.position.clone(),
             self.options,
@@ -230,6 +237,11 @@ impl Engine {
     fn set_option(&mut self, name: String, value: String) {
         match name.as_str() {
             "Threads" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Hash while searching");
+                    return;
+                }
+
                 let value = match value.parse::<u32>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -242,6 +254,11 @@ impl Engine {
                 println!("info string Set Threads to {value}");
             }
             "Hash" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Hash while searching");
+                    return;
+                }
+
                 let value = match value.parse::<u32>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -333,7 +350,12 @@ impl Engine {
 
     #[inline]
     fn stop(&mut self) {
-        self.searcher.stop();
+        if self.searcher.is_searching() {
+            self.searcher.stop();
+            self.searcher.wait();
+        } else {
+            println!("info string Not Searching");
+        }
     }
 
     #[inline]
