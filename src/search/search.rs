@@ -44,26 +44,20 @@ pub fn iterative_deepening(
             beta = (score + delta).min(Score::INFINITE);
         }
 
-        'aspiration: loop {
+        'asp: loop {
             thread.sel_depth = 0;
 
-            let new_score = Some(search::<Root>(
-                &mut pos,
-                thread,
-                shared,
-                alpha,
-                beta,
-                depth as i32,
-                0,
-            ));
+            let new_score = search::<Root>(&mut pos, thread, shared, alpha, beta, depth as i32, 0);
             thread.nodes.flush();
 
             if depth > 1 && thread.stop {
                 break 'id;
             }
 
-            score = new_score;
-            pv = thread.stack[0].pv.clone();
+            if new_score > alpha && new_score < beta {
+                score = Some(new_score);
+                pv = thread.stack[0].pv.clone();
+            }
 
             if thread.id == 0 {
                 if shared
@@ -78,33 +72,31 @@ pub fn iterative_deepening(
                 shared.time_man.deepen(depth);
             }
 
-            if thread.id == 0 && info == SearchInfo::Full {
-                info.depth(
-                    thread,
-                    shared,
-                    options,
-                    completed_depth,
-                    score.unwrap(),
-                    &pv,
-                );
-            }
-
-            match score {
-                Some(s) if s <= alpha => {
-                    alpha = (s - delta).max(-Score::INFINITE);
-                    delta += delta * 2;
-                }
-                Some(s) if s >= beta => {
-                    beta = (s + delta).min(Score::INFINITE);
-                    delta += delta * 2;
-                }
-                _ => break 'aspiration,
+            if new_score <= alpha {
+                alpha = (new_score - delta).max(-Score::INFINITE);
+                delta += delta * 2;
+            } else if new_score >= beta {
+                beta = (new_score + delta).min(Score::INFINITE);
+                delta += delta * 2;
+            } else {
+                break 'asp;
             }
         }
 
         delta = Score(Params::asp_delta());
         depth += 1;
         completed_depth += 1;
+
+        if thread.id == 0 && info == SearchInfo::Full {
+            info.depth(
+                thread,
+                shared,
+                options,
+                completed_depth,
+                score.unwrap(),
+                &pv,
+            );
+        }
     }
 
     // Wait for `stop` command if search is infinite
