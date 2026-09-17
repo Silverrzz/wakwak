@@ -29,8 +29,10 @@ pub fn iterative_deepening(
     let mut completed_depth = 0;
     let mut pv = PrincipalVariation::default();
     let mut score = None;
-    let alpha = -Score::INFINITE;
-    let beta = Score::INFINITE;
+
+    let mut move_stability = 0;
+    let mut best_move = None;
+    let mut prev_move;
 
     'id: loop {
         thread.sel_depth = 0;
@@ -39,8 +41,8 @@ pub fn iterative_deepening(
             &mut pos,
             thread,
             shared,
-            alpha,
-            beta,
+            -Score::INFINITE,
+            Score::INFINITE,
             depth as i32,
             0,
         ));
@@ -52,6 +54,13 @@ pub fn iterative_deepening(
 
         score = new_score;
         pv = thread.stack[0].pv.clone();
+        prev_move = best_move;
+        best_move = Some(pv[0]);
+
+        move_stability += 1;
+        if best_move != prev_move {
+            move_stability = 0;
+        }
 
         depth += 1;
         completed_depth += 1;
@@ -77,7 +86,7 @@ pub fn iterative_deepening(
                 break 'id;
             }
 
-            shared.time_man.deepen(depth);
+            shared.time_man.deepen(depth, move_stability);
         }
     }
 

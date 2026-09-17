@@ -1,6 +1,6 @@
 use crate::common::Color;
 use crate::engine::EngineOptions;
-use crate::search::{MAX_DEPTH, ThreadData};
+use crate::search::{MAX_DEPTH, Params, ThreadData};
 use crate::uci::SearchLimit;
 use crate::util::{AtomicInstant, EpochTag, init_epoch};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
@@ -101,13 +101,18 @@ impl TimeManager {
     }
 
     #[inline]
-    pub fn deepen(&self, depth: u8) {
+    pub fn deepen(&self, depth: u8, move_stability: u16) {
         if depth < 4 || !self.manage_time.load(Ordering::Relaxed) {
-            #[allow(clippy::needless_return)]
             return;
         }
 
-        //This is where most TM patches will be implemented.
+        let move_stability = Params::move_stability(move_stability);
+        let base_time = self.base_time.load(Ordering::Relaxed);
+        let hard_time = self.hard_time.load(Ordering::Relaxed);
+        let new_target = (base_time as f64 * move_stability) as u64;
+
+        self.soft_time
+            .store(new_target.min(hard_time), Ordering::Relaxed);
     }
 
     #[inline]
