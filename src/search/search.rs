@@ -381,13 +381,11 @@ fn search<Node: NodeType>(
         Duck Refutations: If the opponent immediately refutes a duck move,
         we can skip the rest of the duck moves that don't block the refutation(s).
         */
-        if is_quiet {
-            if quiet_duck_refutations[dest].0 == piece_move
-                && quiet_duck_refutations[dest].1.has(mv.duck())
-            {
-                continue;
-            }
-        } else if noisy_duck_refutations[dest].has(mv.duck()) {
+        if (is_quiet
+            && quiet_duck_refutations[dest].0 == piece_move
+            && quiet_duck_refutations[dest].1.has(mv.duck()))
+            || (!is_quiet && noisy_duck_refutations[dest].has(mv.duck()))
+        {
             continue;
         }
 
