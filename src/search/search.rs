@@ -374,6 +374,8 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        ducks_by_move[src][dest] += 1;
+
         legal_moves += 1;
 
         /*
@@ -417,7 +419,6 @@ fn search<Node: NodeType>(
             continue;
         }
 
-        ducks_by_move[src][dest] += 1;
         duck_counts[duck] += 1;
         pos.make_move(mv);
 
