@@ -5,7 +5,7 @@ pub mod noisy;
 pub mod quiet;
 
 use crate::board::Board;
-use crate::common::Move;
+use crate::common::{Color, Move};
 use crate::score::Score;
 use crate::search::Params;
 pub use cont::*;
@@ -117,8 +117,8 @@ impl History {
     }
 
     #[inline]
-    pub fn duck(&self, board: &Board, mv: Move) -> i32 {
-        self.duck.entry(board, mv)
+    pub fn duck(&self, side: Color, mv: Move) -> i32 {
+        self.duck.entry(side, mv)
     }
 
     #[inline]

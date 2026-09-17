@@ -13,10 +13,10 @@ pub struct DuckHistory {
 
 impl DuckHistory {
     #[inline]
-    pub fn entry(&self, board: &Board, mv: Move) -> i32 {
+    pub fn entry(&self, side: Color, mv: Move) -> i32 {
         let duck = mv.duck();
 
-        self.entries[board.stm()][duck].0 as i32
+        self.entries[side][duck].0 as i32
     }
 
     #[inline]

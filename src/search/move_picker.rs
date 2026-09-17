@@ -45,7 +45,10 @@ impl MoveStack {
         board.gen_moves::<F, _>(|mut moves| {
             if let Some((neutral, history)) = duck_pruning
                 && let Some(duck) = (moves.duck & neutral).iter().max_by_key(|&duck| {
-                    history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
+                    history.duck(
+                        board.stm(),
+                        Move::new(moves.src, moves.dest, duck, moves.flag),
+                    )
                 })
             {
                 moves.duck &= !neutral | duck;
@@ -265,7 +268,8 @@ impl MovePicker {
 
             scored.1 = mvv(board, mv) * 8
                 + thread.history.noisy(board, mv) / 8
-                + thread.history.duck(board, mv) / 8;
+                + thread.history.duck(board.stm(), mv) / 8
+                + thread.history.duck(!board.stm(), mv) / 8;
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
@@ -288,7 +292,8 @@ impl MovePicker {
             }
 
             scored.1 = thread.history.quiet(board, mv)
-                + thread.history.duck(board, mv)
+                + thread.history.duck(board.stm(), mv)
+                + thread.history.duck(!board.stm(), mv)
                 + thread.history.cont(board, indices, mv);
         }
 
