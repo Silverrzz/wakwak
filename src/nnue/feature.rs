@@ -29,7 +29,8 @@ impl PieceFeature {
     }
 }
 
-/*#[derive(Debug, Copy, Clone)]
+/*
+#[derive(Debug, Copy, Clone)]
 pub struct DuckFeature(pub Square);
 
 impl DuckFeature {
