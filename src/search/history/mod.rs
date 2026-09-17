@@ -1,5 +1,6 @@
 pub mod cont;
 pub mod corr;
+pub mod curr_duck;
 pub mod duck;
 pub mod noisy;
 pub mod quiet;
@@ -10,6 +11,7 @@ use crate::score::Score;
 use crate::search::Params;
 pub use cont::*;
 pub use corr::*;
+pub use curr_duck::*;
 pub use duck::*;
 pub use noisy::*;
 pub use quiet::*;
@@ -24,6 +26,7 @@ pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
     duck: DuckHistory,
+    curr_duck: CurrDuckHistory,
     cont_odd: ContHistory,
     cont_even: ContHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
@@ -104,6 +107,7 @@ impl History {
     #[inline]
     fn update_duck<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
         self.duck.update::<BONUS>(board, depth, mv);
+        self.curr_duck.update::<BONUS>(board, depth, mv);
     }
 
     #[inline]
@@ -118,7 +122,9 @@ impl History {
 
     #[inline]
     pub fn duck(&self, board: &Board, mv: Move) -> i32 {
-        self.duck.entry(board, mv)
+        let mut value = self.duck.entry(board, mv);
+        value += self.curr_duck.entry(board, mv);
+        value
     }
 
     #[inline]

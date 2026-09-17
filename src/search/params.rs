@@ -86,6 +86,13 @@ params! {
     duck_malus_scale: i32 => 128;
     duck_malus_max:   i32 => 2048;
 
+    curr_duck_bonus_base:  i32 => 128;
+    curr_duck_bonus_scale: i32 => 128;
+    curr_duck_bonus_max:   i32 => 2048;
+    curr_duck_malus_base:  i32 => 128;
+    curr_duck_malus_scale: i32 => 128;
+    curr_duck_malus_max:   i32 => 2048;
+
     cont1_bonus_base:  i32 => 128;
     cont1_bonus_scale: i32 => 128;
     cont1_bonus_max:   i32 => 2048;
@@ -180,6 +187,18 @@ impl Params {
     #[inline]
     pub fn duck_malus(depth: i32) -> i32 {
         -(Self::duck_malus_base() + Self::duck_malus_scale() * depth).min(Self::duck_malus_max())
+    }
+
+    #[inline]
+    pub fn curr_duck_bonus(depth: i32) -> i32 {
+        (Self::curr_duck_bonus_base() + Self::curr_duck_bonus_scale() * depth)
+            .min(Self::curr_duck_bonus_max())
+    }
+
+    #[inline]
+    pub fn curr_duck_malus(depth: i32) -> i32 {
+        -(Self::curr_duck_malus_base() + Self::curr_duck_malus_scale() * depth)
+            .min(Self::curr_duck_malus_max())
     }
 
     #[inline]
