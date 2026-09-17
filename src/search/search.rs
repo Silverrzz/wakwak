@@ -16,6 +16,7 @@ pub struct SearchStack {
     raw_eval: Option<Score>,
     static_eval: Option<Score>,
     mv: Option<Move>,
+    excluded: Option<Move>,
 }
 
 pub fn iterative_deepening(
@@ -183,6 +184,9 @@ fn search<Node: NodeType>(
         return Score::ZERO;
     }
 
+    let excluded_move = thread.stack[ply].excluded;
+    let in_singular_search = excluded_move.is_some();
+
     if Node::PV {
         thread.stack[ply].pv.clear();
     }
@@ -218,10 +222,15 @@ fn search<Node: NodeType>(
     and the stored result indicates that its value is outside the window, we can return
     that stored result instead of wasting time searching it again.
     */
-    let tt_entry = shared.tt.probe(pos.board().hash());
+    let tt_entry = if in_singular_search {
+        None
+    } else {
+        shared.tt.probe(pos.board().hash())
+    };
     let mut tt_move = tt_entry.and_then(|e| e.best_move());
 
     if !Node::ROOT
+        && !in_singular_search
         && let Some(entry) = tt_entry
     {
         let score = entry.score();
@@ -234,6 +243,7 @@ fn search<Node: NodeType>(
     }
 
     if depth > 0
+        && !in_singular_search
         && (!Node::PV || tt_move.is_none())
         && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
         && entry.flag() == TTFlag::Lower
@@ -272,84 +282,87 @@ fn search<Node: NodeType>(
     thread.stack[ply].raw_eval = Some(raw_eval);
     thread.stack[ply].static_eval = Some(static_eval);
 
-    /*
-    Reverse Futility Pruning: If our evaluation of the position is already
-    so high that even a pessimistic estimate is still above beta, we can
-    be reasonably confident that a further search will also fail high.
-    */
-    if !Node::PV
-        && depth <= Params::rfp_depth()
-        && static_eval - Params::rfp_margin(depth, improving) >= beta
-    {
-        return static_eval;
-    }
-
-    /*
-    Razoring: If our evaluation of the position is so far below alpha
-    that it seems hopeless, we can be reasonably confident that a further
-    search won't make a difference and will cuase a fail low.
-    */
-    if static_eval + Params::razor_margin(depth) <= alpha {
-        let score = qsearch::<NonPV>(pos, thread, shared, alpha, alpha + 1, ply);
-        if score <= alpha {
-            return score;
-        }
-    }
-
-    /*
-    Null Move Reductions: There is almost always a better alternative to
-    doing nothing; if fail high despite giving our opponent a move, our best
-    legal move will likely also fail high. However, due to the prevalance of
-    duckzwang, we trial a large reduction instead of doing a full prune.
-    A prune is done only after a second null move passes in an NMR subtree.
-    The duck is taken off the board for the null move to allow opponent to
-    put it wherever they want.
-    */
-    if !Node::PV
-        && depth >= 4
-        && thread.nmr_ply != Some(ply)
-        && thread.stack[ply - 1].mv.is_some()
-        && static_eval >= beta + Params::nmr_margin()
-    {
-        let r = 3 + depth / 3;
-        pos.make_null_move();
-        let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
-        pos.unmake_move();
-
-        if thread.stop {
-            return Score::ZERO;
+    if !in_singular_search {
+        /*
+        Reverse Futility Pruning: If our evaluation of the position is already
+        so high that even a pessimistic estimate is still above beta, we can
+        be reasonably confident that a further search will also fail high.
+        */
+        if !Node::PV
+            && depth <= Params::rfp_depth()
+            && static_eval - Params::rfp_margin(depth, improving) >= beta
+        {
+            return static_eval;
         }
 
-        if score >= beta {
-            if thread.nmr_ply.is_some() {
+        /*
+        Razoring: If our evaluation of the position is so far below alpha
+        that it seems hopeless, we can be reasonably confident that a further
+        search won't make a difference and will cuase a fail low.
+        */
+        if static_eval + Params::razor_margin(depth) <= alpha {
+            let score = qsearch::<NonPV>(pos, thread, shared, alpha, alpha + 1, ply);
+            if score <= alpha {
                 return score;
-            } else {
-                thread.nmr_ply = Some(ply);
-                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
-                thread.nmr_ply = None;
-                if score >= beta {
+            }
+        }
+
+        /*
+        Null Move Reductions: There is almost always a better alternative to
+        doing nothing; if fail high despite giving our opponent a move, our best
+        legal move will likely also fail high. However, due to the prevalance of
+        duckzwang, we trial a large reduction instead of doing a full prune.
+        A prune is done only after a second null move passes in an NMR subtree.
+        The duck is taken off the board for the null move to allow opponent to
+        put it wherever they want.
+        */
+        if !Node::PV
+            && depth >= 4
+            && thread.nmr_ply != Some(ply)
+            && thread.stack[ply - 1].mv.is_some()
+            && static_eval >= beta + Params::nmr_margin()
+        {
+            let r = 3 + depth / 3;
+            pos.make_null_move();
+            let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
+            pos.unmake_move();
+
+            if thread.stop {
+                return Score::ZERO;
+            }
+
+            if score >= beta {
+                if thread.nmr_ply.is_some() {
                     return score;
+                } else {
+                    thread.nmr_ply = Some(ply);
+                    let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
+                    thread.nmr_ply = None;
+                    if score >= beta {
+                        return score;
+                    }
                 }
             }
         }
-    }
 
-    // Internal Iterative Deepening
-    if !Node::ROOT && Node::PV && depth >= 5 && tt_move.is_none() && thread.id == 0 {
-        let iid_depth = (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024;
+        // Internal Iterative Deepening
+        if !Node::ROOT && Node::PV && depth >= 5 && tt_move.is_none() && thread.id == 0 {
+            let iid_depth =
+                (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024;
 
-        thread.iid_iteration += 1;
-        _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
-        thread.iid_iteration -= 1;
+            thread.iid_iteration += 1;
+            _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
+            thread.iid_iteration -= 1;
 
-        let entry = shared.tt.probe(pos.board().hash());
-        if thread.iid_iteration > 0
-            && let Some(entry) = entry
-            && entry.depth() >= depth
-        {
-            return entry.score();
+            let entry = shared.tt.probe(pos.board().hash());
+            if thread.iid_iteration > 0
+                && let Some(entry) = entry
+                && entry.depth() >= depth
+            {
+                return entry.score();
+            }
+            tt_move = entry.and_then(|e| e.best_move());
         }
-        tt_move = entry.and_then(|e| e.best_move());
     }
 
     thread.move_stack.push_ply();
@@ -371,6 +384,11 @@ fn search<Node: NodeType>(
 
     let indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, indices) {
+        if excluded_move.is_some_and(|excl| excl.src() == mv.src() && excl.dest() == mv.dest()) {
+            // Skip regardless of duck position
+            continue;
+        }
+
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
@@ -419,6 +437,27 @@ fn search<Node: NodeType>(
 
         ducks_by_move[src][dest] += 1;
         duck_counts[duck] += 1;
+
+        let extension = if !Node::ROOT
+            && !in_singular_search
+            && depth >= 7
+            && let Some(tt_entry) = tt_entry
+            && tt_entry.best_move() == Some(mv)
+            && tt_entry.flag() != TTFlag::Upper
+            && tt_entry.depth() >= depth - 3
+        {
+            let s_beta = (tt_entry.score() - 2 * depth).max(-Score::MIN_MATE + 1);
+            let s_depth = (depth - 1) / 2;
+
+            thread.stack[ply].excluded = Some(mv);
+            let score = search::<NonPV>(pos, thread, shared, s_beta - 1, s_beta, s_depth, ply);
+            thread.stack[ply].excluded = None;
+
+            if score < s_beta { 1 } else { 0 }
+        } else {
+            0
+        };
+
         pos.make_move(mv);
 
         /*
@@ -432,7 +471,7 @@ fn search<Node: NodeType>(
             thread.stack[ply + 1].mv = None;
             Score::mated(ply + 2)
         } else {
-            let new_depth = depth - 1;
+            let new_depth = depth + extension - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
