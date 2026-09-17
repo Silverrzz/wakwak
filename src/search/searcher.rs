@@ -1,5 +1,6 @@
 use crate::engine::EngineOptions;
 use crate::position::Position;
+use crate::search::duck_duck_goose::DuckDuckGooseTable;
 use crate::search::tt::TranspositionTable;
 use crate::search::{
     History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager, iterative_deepening,
@@ -218,6 +219,7 @@ pub struct ThreadData {
     pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
     pub history: Box<History>,
+    pub duck_duck_goose: DuckDuckGooseTable,
     pub nmr_ply: Option<usize>,
     pub iid_iteration: usize,
     pub sel_depth: usize,
@@ -233,6 +235,7 @@ impl ThreadData {
             move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
             history: unsafe { Box::new_zeroed().assume_init() },
+            duck_duck_goose: DuckDuckGooseTable::default(),
             nmr_ply: None,
             iid_iteration: 0,
             sel_depth: 0,
@@ -246,6 +249,7 @@ impl ThreadData {
         self.nodes.reset();
         self.stack = vec![SearchStack::default(); MAX_PLY + 1];
         self.move_stack.reset();
+        self.duck_duck_goose.clear();
         self.sel_depth = 0;
         self.stop = false;
     }

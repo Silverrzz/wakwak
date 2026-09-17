@@ -261,6 +261,20 @@ fn search<Node: NodeType>(
         }
     }
 
+    /*
+    Duck Duck Goose Pruning (DDGP): Three upper bounds for the same position,
+    with ducks sharing no rank, file or diagonal, cover every complete move.
+    At most one duck can block the piece move and one other can forbid the
+    duck placement, leaving the move available in at least one search.
+    If the highest bound is <= alpha, we can skip the search unless the side
+    to move wins by stalemate.
+    */
+    if !Node::PV
+        && let Some(score) = thread.duck_duck_goose.probe(pos.board(), depth, ply, alpha)
+    {
+        return score;
+    }
+
     let raw_eval = eval(pos.board());
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
@@ -537,6 +551,13 @@ fn search<Node: NodeType>(
     }
 
     let best_score = best_score.unwrap();
+
+    // Duck Duck Goose Pruning
+    if !Node::ROOT && matches!(flag, TTFlag::Exact | TTFlag::Upper) {
+        thread
+            .duck_duck_goose
+            .insert(pos.board(), best_score, depth, ply);
+    }
 
     if pos.board().duck().is_some()
         && best_move.is_some()

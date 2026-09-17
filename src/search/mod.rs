@@ -1,3 +1,4 @@
+pub mod duck_duck_goose;
 pub mod history;
 pub mod info;
 pub mod move_picker;
