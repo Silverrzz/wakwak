@@ -43,12 +43,18 @@ impl MoveStack {
         let old_len = self.stack.len();
 
         board.gen_moves::<F, _>(|mut moves| {
-            if let Some((neutral, history)) = duck_pruning
-                && let Some(duck) = (moves.duck & neutral).iter().max_by_key(|&duck| {
-                    history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
-                })
-            {
-                moves.duck &= !neutral | duck;
+            if let Some((neutral, history)) = duck_pruning {
+                // If neutral duck pruning is enabled, mask off the neutral ducks,
+                // except those with a good history score.
+                let keep = (moves.duck & neutral)
+                    .iter()
+                    .filter(|&duck| {
+                        let mv = Move::new(moves.src, moves.dest, duck, moves.flag);
+                        history.duck(board, mv) > Params::ndp_hist_threshold_base()
+                    })
+                    .fold(Bitboard::EMPTY, |acc, duck| acc | duck);
+
+                moves.duck = (moves.duck & !neutral) | keep;
             }
             self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
             Abort::No
