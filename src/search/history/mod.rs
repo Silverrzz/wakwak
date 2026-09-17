@@ -1,4 +1,5 @@
 pub mod cont;
+pub mod cont_duck;
 pub mod corr;
 pub mod duck;
 pub mod noisy;
@@ -9,6 +10,7 @@ use crate::common::Move;
 use crate::score::Score;
 use crate::search::Params;
 pub use cont::*;
+pub use cont_duck::*;
 pub use corr::*;
 pub use duck::*;
 pub use noisy::*;
@@ -26,6 +28,7 @@ pub struct History {
     duck: DuckHistory,
     cont_odd: ContHistory,
     cont_even: ContHistory,
+    cont_duck: ContDuckHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
     minor_corr: CorrHistory<MINOR_CORR_SIZE>,
     major_corr: CorrHistory<MAJOR_CORR_SIZE>,
@@ -94,6 +97,8 @@ impl History {
             .update::<1, BONUS>(board, depth, mv, indices.cont1);
         self.cont_even
             .update::<2, BONUS>(board, depth, mv, indices.cont2);
+        self.cont_duck
+            .update::<1, BONUS>(board, depth, mv, indices.cont1);
     }
 
     #[inline]
@@ -130,6 +135,10 @@ impl History {
         value += self
             .cont_even
             .entry(board, mv, indices.cont2)
+            .unwrap_or_default();
+        value += self
+            .cont_duck
+            .entry(board, mv, indices.cont1)
             .unwrap_or_default();
         value
     }
