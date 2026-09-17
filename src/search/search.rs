@@ -43,6 +43,7 @@ pub fn iterative_deepening(
             beta,
             depth as i32,
             0,
+            false,
         ));
         thread.nodes.flush();
 
@@ -167,6 +168,7 @@ fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
     parent.pv.extend(child.pv.iter().copied());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn search<Node: NodeType>(
     pos: &mut Position,
     thread: &mut ThreadData,
@@ -175,6 +177,7 @@ fn search<Node: NodeType>(
     beta: Score,
     depth: i32,
     ply: usize,
+    cut_node: bool,
 ) -> Score {
     if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
         shared.time_man.set_stop(true);
@@ -298,7 +301,16 @@ fn search<Node: NodeType>(
     {
         let r = 3;
         pos.make_null_move();
-        let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
+        let score = -search::<NonPV>(
+            pos,
+            thread,
+            shared,
+            -beta,
+            -beta + 1,
+            depth - r,
+            ply + 1,
+            !cut_node,
+        );
         pos.unmake_move();
 
         if thread.stop {
@@ -310,7 +322,7 @@ fn search<Node: NodeType>(
                 return score;
             } else {
                 thread.nmr_ply = Some(ply);
-                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
+                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply, true);
                 thread.nmr_ply = None;
                 if score >= beta {
                     return score;
@@ -403,7 +415,7 @@ fn search<Node: NodeType>(
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1
+                    1 + cut_node as i32
                 } else {
                     0
                 };
@@ -416,11 +428,21 @@ fn search<Node: NodeType>(
                     -alpha,
                     new_depth - reduction,
                     ply + 1,
+                    true,
                 )
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
                 move_depth = depth;
-                score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
+                score = -search::<PV>(
+                    pos,
+                    thread,
+                    shared,
+                    -beta,
+                    -alpha,
+                    new_depth,
+                    ply + 1,
+                    false,
+                );
             }
             score
         };
