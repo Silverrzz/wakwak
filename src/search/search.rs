@@ -645,10 +645,16 @@ fn qsearch<Node: NodeType>(
     move_picker.skip_quiets();
     let mut best_move = None;
     let mut flag = TTFlag::Upper;
+    let mut searched_moves = 0;
 
     let indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, indices) {
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
+
+        // Late Move Pruning
+        if !Node::PV && searched_moves > 5 {
+            break;
+        }
 
         // Duck Refutations
         if duck_refutations[dest].has(mv.duck()) {
@@ -675,6 +681,7 @@ fn qsearch<Node: NodeType>(
 
         ducks_by_move[src][dest] += 1;
         duck_counts[duck] += 1;
+        searched_moves += 1;
 
         pos.make_move(mv);
 
