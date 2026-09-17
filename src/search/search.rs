@@ -418,7 +418,11 @@ fn search<Node: NodeType>(
         }
 
         let king_capture_blocks = pos.board().king_capture_blocks(pos.board().stm());
-        let extension = if king_capture_blocks != Bitboard::FULL && king_capture_blocks.has(duck) {
+        let extension = if !Node::ROOT
+            && Node::PV
+            && king_capture_blocks != Bitboard::FULL
+            && king_capture_blocks.has(duck)
+        {
             1
         } else {
             0
