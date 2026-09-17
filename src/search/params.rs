@@ -141,9 +141,9 @@ params! {
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
 
-    move_stability_base:  f64 => 1.8;
+    move_stability_base:  f64 => 1.3;
     move_stability_scale: f64 => 0.1;
-    move_stability_min:   f64 => 0.85;
+    move_stability_min:   f64 => 0.7;
 }
 
 impl Params {
