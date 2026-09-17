@@ -385,6 +385,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let duck_history = thread.history.duck(pos.board(), mv);
         legal_moves += 1;
 
         /*
@@ -410,7 +411,8 @@ fn search<Node: NodeType>(
         */
         if safe == Bitboard::FULL
             && depth <= Params::ldp_depth(is_quiet)
-            && ducks_by_move[src][dest] >= Params::ldp_threshold(depth, is_quiet, improving) as u8
+            && ducks_by_move[src][dest]
+                >= Params::ldp_threshold(depth, is_quiet, improving, duck_history) as u8
         {
             continue;
         }

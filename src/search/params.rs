@@ -125,6 +125,8 @@ params! {
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
     quiet_ldp_threshold_scale:     i32 => 1;
+    quiet_ldp_imp_history_div:     i32 => 4000;
+    quiet_ldp_history_div:         i32 => 4000;
 
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
@@ -248,27 +250,40 @@ impl Params {
     }
 
     #[inline]
-    pub const fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool) -> i32 {
-        let (base, scale) = match (is_quiet, improving) {
+    pub const fn ldp_threshold(
+        depth: i32,
+        is_quiet: bool,
+        improving: bool,
+        duck_history: i32,
+    ) -> i32 {
+        let (base, scale, history_div) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
                 Self::quiet_ldp_imp_threshold_scale(),
+                Some(Self::quiet_ldp_imp_history_div()),
             ),
             (true, false) => (
                 Self::quiet_ldp_threshold_base(),
                 Self::quiet_ldp_threshold_scale(),
+                Some(Self::quiet_ldp_history_div()),
             ),
             (false, true) => (
                 Self::noisy_ldp_imp_threshold_base(),
                 Self::noisy_ldp_imp_threshold_scale(),
+                None,
             ),
             (false, false) => (
                 Self::noisy_ldp_threshold_base(),
                 Self::noisy_ldp_threshold_scale(),
+                None,
             ),
         };
 
-        base + scale * depth
+        let mut threshold = base + scale * depth;
+        if let Some(history_div) = history_div {
+            threshold += duck_history / history_div;
+        }
+        threshold
     }
 
     #[inline]
