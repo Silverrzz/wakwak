@@ -125,12 +125,16 @@ params! {
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
     quiet_ldp_threshold_scale:     i32 => 1;
+    quiet_ldp_imp_move_count_div:  i32 => 8;
+    quiet_ldp_move_count_div:      i32 => 8;
 
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
     noisy_ldp_imp_threshold_scale: i32 => 4;
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_imp_move_count_div:  i32 => 12;
+    noisy_ldp_move_count_div:      i32 => 12;
 
     dcp_depth:               i32 => 8;
     dcp_threshold_imp_base:  i32 => 2;
@@ -242,27 +246,36 @@ impl Params {
     }
 
     #[inline]
-    pub const fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool) -> i32 {
-        let (base, scale) = match (is_quiet, improving) {
+    pub const fn ldp_threshold(
+        depth: i32,
+        is_quiet: bool,
+        improving: bool,
+        searched_moves: i32,
+    ) -> i32 {
+        let (base, scale, move_count_div) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
                 Self::quiet_ldp_imp_threshold_scale(),
+                Self::quiet_ldp_imp_move_count_div(),
             ),
             (true, false) => (
                 Self::quiet_ldp_threshold_base(),
                 Self::quiet_ldp_threshold_scale(),
+                Self::quiet_ldp_move_count_div(),
             ),
             (false, true) => (
                 Self::noisy_ldp_imp_threshold_base(),
                 Self::noisy_ldp_imp_threshold_scale(),
+                Self::noisy_ldp_imp_move_count_div(),
             ),
             (false, false) => (
                 Self::noisy_ldp_threshold_base(),
                 Self::noisy_ldp_threshold_scale(),
+                Self::noisy_ldp_move_count_div(),
             ),
         };
 
-        base + scale * depth
+        base + scale * depth - searched_moves / move_count_div
     }
 
     #[inline]

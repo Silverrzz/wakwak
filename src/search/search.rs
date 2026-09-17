@@ -399,7 +399,8 @@ fn search<Node: NodeType>(
         */
         if safe == Bitboard::FULL
             && depth <= Params::ldp_depth(is_quiet)
-            && ducks_by_move[src][dest] >= Params::ldp_threshold(depth, is_quiet, improving) as u8
+            && ducks_by_move[src][dest]
+                >= Params::ldp_threshold(depth, is_quiet, improving, searched_moves) as u8
         {
             continue;
         }
