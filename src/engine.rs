@@ -146,6 +146,11 @@ impl Engine {
 
     #[inline]
     fn search(&mut self, limits: Vec<SearchLimit>) {
+        if self.searcher.is_searching() {
+            println!("info string Already Searching");
+            return;
+        }
+
         self.searcher.search(
             self.position.clone(),
             self.options,
@@ -232,6 +237,11 @@ impl Engine {
     fn set_option(&mut self, name: String, value: String) {
         match name.as_str() {
             "Threads" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Hash while searching");
+                    return;
+                }
+
                 let value = match value.parse::<u32>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -244,6 +254,11 @@ impl Engine {
                 println!("info string Set Threads to {value}");
             }
             "Hash" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Hash while searching");
+                    return;
+                }
+
                 let value = match value.parse::<u32>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -335,7 +350,12 @@ impl Engine {
 
     #[inline]
     fn stop(&mut self) {
-        self.searcher.stop();
+        if self.searcher.is_searching() {
+            self.searcher.stop();
+            self.searcher.wait();
+        } else {
+            println!("info string Not Searching");
+        }
     }
 
     #[inline]
