@@ -132,8 +132,8 @@ params! {
     dcp_threshold_base:      i32 => 4;
     dcp_threshold_scale:     i32 => 2;
 
-    qsldp_threshold: i32 => 5;
-    qsdcp_threshold: i32 => 5;
+    qsldp_threshold: i32 => 2;
+    qsdcp_threshold: i32 => 2;
 }
 
 impl Params {
