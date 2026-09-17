@@ -417,6 +417,15 @@ fn search<Node: NodeType>(
             continue;
         }
 
+        if !Node::PV
+            && searched_moves > 2
+            && is_quiet
+            && depth < 6
+            && static_eval + 100 * depth + 150 <= alpha
+        {
+            continue;
+        }
+
         ducks_by_move[src][dest] += 1;
         duck_counts[duck] += 1;
         pos.make_move(mv);
