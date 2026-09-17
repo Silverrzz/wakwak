@@ -1,6 +1,6 @@
 use crate::def_enum;
 use enum_map::Enum;
-use std::ops::Not;
+use std::ops::{BitXor, Not};
 
 def_enum! {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Enum)]
@@ -28,6 +28,18 @@ impl Not for Color {
         match self {
             Color::White => Color::Black,
             Color::Black => Color::White,
+        }
+    }
+}
+
+impl BitXor for Color {
+    type Output = Self;
+
+    #[inline]
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        match self {
+            Color::White => rhs,
+            Color::Black => !rhs,
         }
     }
 }

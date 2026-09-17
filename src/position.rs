@@ -1,12 +1,15 @@
 use crate::board::Board;
 use crate::common::{Move, Piece};
+use crate::nnue::Nnue;
+use crate::score::Score;
 use crate::search::MAX_PLY;
 
 #[derive(Clone)]
 pub struct Position {
     current: Board,
     previous_boards: Vec<Board>,
-    previous_moves: Vec<Option<(Piece, Move)>>, // idk maybe we'll have null moves in the future
+    previous_moves: Vec<Option<(Piece, Move)>>,
+    nnue: Nnue,
 }
 
 impl Position {
@@ -16,6 +19,7 @@ impl Position {
             current: board,
             previous_boards: Vec::with_capacity(MAX_PLY),
             previous_moves: Vec::with_capacity(MAX_PLY),
+            nnue: Nnue::new(&board),
         }
     }
 
@@ -32,25 +36,34 @@ impl Position {
 
         self.previous_boards.push(self.current);
         self.previous_moves.push(Some((piece, mv)));
+        self.nnue.make_move(&self.current, mv);
         self.current.make_move(mv);
-    }
-
-    #[inline]
-    pub fn unmake_move(&mut self) {
-        self.current = self.previous_boards.pop().unwrap();
-        self.previous_moves.pop().unwrap();
     }
 
     #[inline]
     pub fn make_null_move(&mut self) {
         self.previous_boards.push(self.current);
         self.previous_moves.push(None);
+        self.nnue.make_null_move(&self.current, None);
         self.current.make_null_move(None);
+    }
+
+    #[inline]
+    pub fn unmake_move(&mut self) {
+        self.current = self.previous_boards.pop().unwrap();
+        self.previous_moves.pop().unwrap();
+        self.nnue.unmake_move();
     }
 
     #[inline]
     pub fn board(&self) -> &Board {
         &self.current
+    }
+
+    #[inline]
+    pub fn eval(&mut self) -> Score {
+        self.nnue.update(&self.current);
+        self.nnue.eval(self.current.stm())
     }
 
     #[inline]
