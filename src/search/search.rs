@@ -460,7 +460,19 @@ fn search<Node: NodeType>(
                     -alpha,
                     new_depth - reduction,
                     ply + 1,
-                )
+                );
+
+                if score > alpha && reduction > 0 {
+                    score = -search::<NonPV>(
+                        pos,
+                        thread,
+                        shared,
+                        -alpha - 1,
+                        -alpha,
+                        new_depth,
+                        ply + 1,
+                    );
+                }
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
                 move_depth = depth;
