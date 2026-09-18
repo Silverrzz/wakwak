@@ -1,6 +1,6 @@
 use crate::board::{Board, bishop_attacks, rook_attacks};
 use crate::common::{
-    Color, Move, MoveFlag, Piece, Square, king_attacks, knight_attacks, pawn_attacks,
+    Bitboard, Color, Move, MoveFlag, Piece, Square, king_attacks, knight_attacks, pawn_attacks,
 };
 use crate::search::Params;
 
@@ -42,8 +42,8 @@ impl Board {
             return true;
         }
 
-        // Note that the duck can still block sliders because it is included in `self.occupied()`.
-        let mut occupied = self.occupied() ^ src | dest;
+        let mut occupied =
+            self.occupied() ^ self.duck.map_or(Bitboard::EMPTY, Square::bitboard) ^ src | dest;
         if flag == MoveFlag::EnPassant {
             occupied ^= Square::new(dest.file(), src.rank());
         }
