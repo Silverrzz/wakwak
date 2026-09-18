@@ -156,18 +156,24 @@ pub struct MovePicker {
     stage: Stage,
     tt_move: Option<Move>,
     skip_quiets: bool,
-    prune_neutral_ducks: bool,
+    prune_quiet_neutrals: bool,
+    prune_noisy_neutrals: bool,
     cursor: usize,
 }
 
 impl MovePicker {
     #[inline]
-    pub fn new(tt_move: Option<Move>, prune_neutral_ducks: bool) -> Self {
+    pub fn new(
+        tt_move: Option<Move>,
+        prune_quiet_neutrals: bool,
+        prune_noisy_neutrals: bool,
+    ) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
             skip_quiets: false,
-            prune_neutral_ducks,
+            prune_quiet_neutrals,
+            prune_noisy_neutrals,
             cursor: 0,
         }
     }
@@ -197,7 +203,10 @@ impl MovePicker {
         }
 
         if self.stage == Stage::GenerateNoisies {
-            let start = thread.move_stack.add_moves::<Noisy>(board, None);
+            let duck_pruning = self
+                .prune_noisy_neutrals
+                .then(|| (neutral_ducks(board), &*thread.history));
+            let start = thread.move_stack.add_moves::<Noisy>(board, duck_pruning);
             self.score_noisies(board, thread, start);
             self.stage = Stage::YieldNoisies;
         }
@@ -215,7 +224,7 @@ impl MovePicker {
                 self.stage = Stage::Finished;
             } else {
                 let duck_pruning = self
-                    .prune_neutral_ducks
+                    .prune_quiet_neutrals
                     .then(|| (neutral_ducks(board), &*thread.history));
                 let start = thread.move_stack.add_moves::<Quiet>(board, duck_pruning);
                 self.score_quiets(board, thread, indices, start);
