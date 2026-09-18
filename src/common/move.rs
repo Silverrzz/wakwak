@@ -348,7 +348,7 @@ impl MoveFlag {
 
     #[inline]
     pub const fn is_capture_promotion(self) -> bool {
-        (self as u8 & 0xC) != 0
+        (self as u8 & 0xC) == 0xC
     }
 
     #[inline]
@@ -358,7 +358,7 @@ impl MoveFlag {
 
     #[inline]
     pub const fn is_noisy(self) -> bool {
-        self.is_capture() || self.is_promotion()
+        (self as u8 & 0xC) != 0
     }
 
     #[inline]

@@ -8,6 +8,7 @@ pub mod is_legal;
 pub mod make_move;
 pub mod movegen;
 pub mod perft;
+pub mod see;
 pub mod sliders;
 pub mod startpos;
 pub mod zobrist;
