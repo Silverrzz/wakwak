@@ -383,16 +383,21 @@ fn search<Node: NodeType>(
 
     let indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, indices) {
+        let is_nonmated = best_score.is_some_and(|s: Score| !s.is_loss());
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+
         legal_moves += 1;
 
         /*
         Duck Refutations: If the opponent immediately refutes a duck move,
         we can skip the rest of the duck moves that don't block the refutation(s).
         */
-        if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+        if is_nonmated
+            && duck_refutations[dest].0 == piece_move
+            && duck_refutations[dest].1.has(mv.duck())
+        {
             continue;
         }
 
@@ -409,7 +414,8 @@ fn search<Node: NodeType>(
         a certain move, we can be reasonably confident they're not gonna get
         much better, so we can skip the rest of them.
         */
-        if safe == Bitboard::FULL
+        if is_nonmated
+            && safe == Bitboard::FULL
             && depth <= Params::ldp_depth(is_quiet)
             && ducks_by_move[src][dest] >= Params::ldp_threshold(depth, is_quiet, improving) as u8
         {
@@ -422,6 +428,7 @@ fn search<Node: NodeType>(
         that duck won't be much better, so we can skip the rest of them
          */
         if !Node::PV
+            && is_nonmated
             && is_quiet
             && depth <= Params::dcp_depth()
             && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
@@ -438,7 +445,11 @@ fn search<Node: NodeType>(
         the king as instant losses, unless it is a repetition.
         */
         let mut move_depth = depth;
-        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+        let score = if is_nonmated
+            && !safe.has(mv.duck())
+            && pos.board().hmc() < 100
+            && !pos.repetition()
+        {
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
             thread.stack[ply + 1].mv = None;
