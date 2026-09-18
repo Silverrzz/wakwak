@@ -197,7 +197,10 @@ impl MovePicker {
         }
 
         if self.stage == Stage::GenerateNoisies {
-            let start = thread.move_stack.add_moves::<Noisy>(board, None);
+            let duck_pruning = self
+                .prune_neutral_ducks
+                .then(|| (neutral_ducks(board), &*thread.history));
+            let start = thread.move_stack.add_moves::<Noisy>(board, duck_pruning);
             self.score_noisies(board, thread, start);
             self.stage = Stage::YieldNoisies;
         }
