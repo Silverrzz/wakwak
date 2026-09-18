@@ -170,7 +170,7 @@ impl MovePicker {
         if self.stage == Stage::GenerateNoisies {
             let start = thread.move_stack.add_moves::<Noisy>(
                 board,
-                self.prune_neutral_ducks,
+                false,
                 self.neutral_ducks,
                 &thread.history,
             );
@@ -264,10 +264,12 @@ impl MovePicker {
             if self.tt_move == Some(mv) {
                 continue;
             }
+            let is_neutral = self.neutral_ducks.has(mv.duck());
 
             scored.1 = thread.history.quiet(board, mv)
                 + thread.history.duck(board, mv)
-                + thread.history.cont(board, indices, mv);
+                + thread.history.cont(board, indices, mv)
+                - 5000 * is_neutral as i32;
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
