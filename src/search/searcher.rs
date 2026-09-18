@@ -218,7 +218,7 @@ pub struct ThreadData {
     pub nodes: BatchedAtomicCounter,
     pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
-    pub root_nodes: [[u64; Square::COUNT]; Square::COUNT], // Indexing: [src][dest]
+    pub root_nodes: Box<[[[u64; Square::COUNT]; Square::COUNT]; Square::COUNT]>, // Indexing: [src][dest][duck]
     pub history: Box<History>,
     pub nmr_ply: Option<usize>,
     pub iid_iteration: usize,
@@ -234,7 +234,7 @@ impl ThreadData {
             nodes: BatchedAtomicCounter::new(nodes),
             move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
-            root_nodes: [[0; Square::COUNT]; Square::COUNT],
+            root_nodes: unsafe { Box::new_zeroed().assume_init() },
             history: unsafe { Box::new_zeroed().assume_init() },
             nmr_ply: None,
             iid_iteration: 0,

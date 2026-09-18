@@ -90,7 +90,7 @@ pub fn iterative_deepening(
             shared.time_man.deepen(
                 depth,
                 move_stability,
-                thread.root_nodes[mv.src()][mv.dest()],
+                thread.root_nodes[mv.src()][mv.dest()][mv.duck()],
                 thread.nodes.local(),
             );
         }
@@ -487,7 +487,7 @@ fn search<Node: NodeType>(
         }
 
         if Node::ROOT {
-            thread.root_nodes[src][dest] += thread.nodes.local() - prev_nodes;
+            thread.root_nodes[src][dest][duck] += thread.nodes.local() - prev_nodes;
         }
 
         // Duck Refutations
