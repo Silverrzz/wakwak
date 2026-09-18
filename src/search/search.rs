@@ -447,23 +447,20 @@ fn search<Node: NodeType>(
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
+                let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     1 + !improving as i32 + !Node::PV as i32
                 } else {
                     0
                 };
-                move_depth -= reduction;
-                score = -search::<NonPV>(
-                    pos,
-                    thread,
-                    shared,
-                    -alpha - 1,
-                    -alpha,
-                    new_depth - reduction,
-                    ply + 1,
-                );
 
-                if score > alpha && reduction > 0 {
+                let lmr_depth = (new_depth - lmr).max(1).min(new_depth);
+                move_depth = (depth - lmr).max(0);
+
+                score =
+                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, lmr_depth, ply + 1);
+
+                if score > alpha && lmr > 0 {
+                    move_depth = depth;
                     score = -search::<NonPV>(
                         pos,
                         thread,
