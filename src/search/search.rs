@@ -234,7 +234,7 @@ fn search<Node: NodeType>(
         && let Some(entry) = tt_entry
     {
         let score = entry.score();
-        if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
+        if !Node::PV && entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
