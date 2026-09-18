@@ -298,7 +298,7 @@ fn search<Node: NodeType>(
     that it seems hopeless, we can be reasonably confident that a further
     search won't make a difference and will cuase a fail low.
     */
-    if static_eval + Params::razor_margin(depth) <= alpha {
+    if !Node::PV && static_eval + Params::razor_margin(depth) <= alpha {
         let score = qsearch::<NonPV>(pos, thread, shared, alpha, alpha + 1, ply);
         if score <= alpha {
             return score;
