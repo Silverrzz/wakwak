@@ -385,6 +385,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let duck_history_score = thread.history.duck(pos.board(), mv);
         legal_moves += 1;
 
         /*
@@ -424,6 +425,11 @@ fn search<Node: NodeType>(
             && is_quiet
             && depth <= Params::dcp_depth()
             && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
+        {
+            continue;
+        }
+
+        if !Node::PV && is_quiet && depth <= 5 && searched_moves > 6 && duck_history_score < -11000
         {
             continue;
         }
