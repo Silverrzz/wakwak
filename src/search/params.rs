@@ -294,7 +294,8 @@ impl Params {
 
     #[inline]
     pub fn move_stability(stability: u16) -> u128 {
-        (Self::move_stability_base() - Self::move_stability_scale() * stability as u128)
+        Self::move_stability_base()
+            .saturating_sub(Self::move_stability_scale() * stability as u128)
             .max(Self::move_stability_min())
     }
 }
