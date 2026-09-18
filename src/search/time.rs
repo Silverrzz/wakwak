@@ -101,17 +101,19 @@ impl TimeManager {
     }
 
     #[inline]
-    pub fn deepen(&self, depth: u8, move_stability: u16) {
+    pub fn deepen(&self, depth: u8, duck_stability: u16, move_stability: u16) {
         if depth < 4 || !self.manage_time.load(Ordering::Relaxed) {
             return;
         }
 
+        let duck_stability = Params::duck_stability(duck_stability);
         let move_stability = Params::move_stability(move_stability);
         let base_time = self.base_time.load(Ordering::Relaxed);
         let hard_time = self.hard_time.load(Ordering::Relaxed);
 
         // Divide by pow(4096, num_factors) to undo the quantisation by 4096
-        let new_target = ((base_time as u128 * move_stability) / 4096u128) as u64;
+        let new_target =
+            ((base_time as u128 * duck_stability * move_stability) / 4096u128.pow(2)) as u64;
 
         self.soft_time
             .store(new_target.min(hard_time), Ordering::Relaxed);
