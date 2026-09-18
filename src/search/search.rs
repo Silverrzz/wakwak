@@ -404,28 +404,16 @@ fn search<Node: NodeType>(
         }
         let safe = duck_safety[dest].1;
 
-        /*
-        Late Duck Pruning (LDP): After a certain number of duck moves for
-        a certain move, we can be reasonably confident they're not gonna get
-        much better, so we can skip the rest of them.
-        */
-        if safe == Bitboard::FULL
-            && depth <= Params::ldp_depth(is_quiet)
-            && ducks_by_move[src][dest] >= Params::ldp_threshold(depth, is_quiet, improving) as u8
-        {
-            continue;
-        }
-
-        /*
-        Duck Count Pruning (DCP): After a certain number of moves containing a
-        given duck move, we can be reasonably confident that any move containing
-        that duck won't be much better, so we can skip the rest of them
-         */
-        if !Node::PV
-            && is_quiet
-            && depth <= Params::dcp_depth()
-            && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
-        {
+        // Late Duck Pruning + Duck Count Pruning (see `Params::lmp`)
+        if Params::lmp(
+            depth,
+            ducks_by_move[src][dest],
+            duck_counts[duck],
+            is_quiet,
+            improving,
+            Node::PV,
+            safe == Bitboard::FULL,
+        ) {
             continue;
         }
 
