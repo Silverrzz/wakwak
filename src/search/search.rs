@@ -289,8 +289,10 @@ fn search<Node: NodeType>(
     if !Node::PV
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth, improving) >= beta
+        && !static_eval.is_win()
+        && !beta.is_loss()
     {
-        return static_eval;
+        return (static_eval + beta) / 2;
     }
 
     /*
