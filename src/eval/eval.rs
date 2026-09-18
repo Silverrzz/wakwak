@@ -1,3 +1,4 @@
+use super::duck_shield::duck_shield_features;
 use super::psqt::{EG_PSQT, MG_PSQT};
 use crate::board::Board;
 use crate::common::{Color, North, NorthEast, NorthWest, Piece, Rank, South, Square};
@@ -17,6 +18,8 @@ const PAWN_DEFENCE_BONUS_MG: i32 = 8;
 const PAWN_DEFENCE_BONUS_EG: i32 = 6;
 const KNIGHT_OUTPOST_BONUS_MG: i32 = 12;
 const KNIGHT_OUTPOST_BONUS_EG: i32 = 8;
+const DUCK_SHIELD_DANGER_MG: i32 = 45;
+const DUCK_SHIELD_DANGER_EG: i32 = 30;
 
 #[inline]
 const fn combine_scores(
@@ -42,7 +45,14 @@ pub fn eval(board: &Board) -> Score {
     let (us_mg, us_eg, us_phase) = side_score(board, us);
     let (them_mg, them_eg, them_phase) = side_score(board, them);
     let phase = (us_phase + them_phase).min(MAX_PHASE);
-    ((us_mg - them_mg) * phase + (us_eg - them_eg) * (MAX_PHASE - phase)) / MAX_PHASE
+    // Calculate duck shield danger factor. This is an asymmetric feature,
+    // hence why it's done here and not in "side_score".
+    let danger = duck_shield_features(board, us).danger();
+    let danger_mg = danger * danger * DUCK_SHIELD_DANGER_MG;
+    let danger_eg = danger * danger * DUCK_SHIELD_DANGER_EG;
+
+    ((us_mg - them_mg - danger_mg) * phase + (us_eg - them_eg - danger_eg) * (MAX_PHASE - phase))
+        / MAX_PHASE
 }
 
 #[inline]
