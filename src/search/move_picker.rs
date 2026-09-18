@@ -286,10 +286,12 @@ impl MovePicker {
             if self.tt_move == Some(mv) {
                 continue;
             }
+            let is_tt_duck = self.tt_move.is_some_and(|ttm| ttm.duck() == mv.duck());
 
             scored.1 = thread.history.quiet(board, mv)
                 + thread.history.duck(board, mv)
-                + thread.history.cont(board, indices, mv);
+                + thread.history.cont(board, indices, mv)
+                + is_tt_duck as i32 * Params::movepick_quiet_tt_duck_bonus();
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
