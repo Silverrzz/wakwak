@@ -612,6 +612,8 @@ fn qsearch<Node: NodeType>(
         return Score::draw();
     }
 
+    let in_check = pos.board().in_check();
+
     // Transposition Table Cutoffs
     let tt_entry = shared.tt.probe(pos.board().hash());
 
@@ -636,7 +638,7 @@ fn qsearch<Node: NodeType>(
 
     // Stand-pat
     let mut best_score = static_eval;
-    if best_score >= beta {
+    if !in_check && best_score >= beta {
         return best_score;
     }
     if best_score > alpha {
