@@ -145,6 +145,10 @@ params! {
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
 
+    soft_time_div: u64 => 98304;
+    soft_time_inc: u64 => 2048;
+    hard_time_div: u64 => 12288;
+    hard_time_inc: u64 => 4096;
     move_stability_base:  u128 => 5325;
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
