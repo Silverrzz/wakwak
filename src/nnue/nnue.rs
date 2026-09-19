@@ -134,7 +134,8 @@ impl Nnue {
         }
     }
 
-    pub fn make_null_move(&mut self, board: &Board, new_duck: Option<Square>) {
+    #[inline]
+    pub fn make_null_move(&mut self, _board: &Board, _new_duck: Option<Square>) {
         /*let updates = FeatureUpdates {
             duck_add: new_duck.map(DuckFeature),
             duck_sub: board.duck().map(DuckFeature),
