@@ -35,6 +35,7 @@ impl MoveStack {
         neutral_ducks: Bitboard,
         prune_neutral_ducks: bool,
         history: &History,
+        score: impl Fn(Move) -> i32,
     ) -> usize {
         let start = self.start[self.ply - 1];
         let old_len = self.stack.len();
@@ -47,12 +48,18 @@ impl MoveStack {
             {
                 moves.duck &= !neutral_ducks | duck;
             }
-            self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
+            self.stack
+                .extend(moves.iter().map(|mv| ScoredMove(mv, score(mv))));
             Abort::No
         });
 
         self.start[self.ply] = self.stack.len();
         old_len - start
+    }
+
+    #[inline]
+    pub fn sort_from(&mut self, start: usize) {
+        self.get_mut()[start..].sort_unstable_by_key(|m| Reverse(m.1));
     }
 
     #[inline]
@@ -175,13 +182,15 @@ impl MovePicker {
         }
 
         if self.stage == Stage::GenerateNoisies {
+            let history: &History = &thread.history;
             let start = thread.move_stack.add_moves::<Noisy>(
                 board,
                 self.neutral_ducks,
                 self.prune_noisy_neutrals,
-                &thread.history,
+                history,
+                |mv| self.score_noisy(board, history, mv),
             );
-            self.score_noisies(board, thread, start);
+            thread.move_stack.sort_from(start);
             self.stage = Stage::YieldNoisies;
         }
 
@@ -197,13 +206,15 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = Stage::Finished;
             } else {
+                let history: &History = &thread.history;
                 let start = thread.move_stack.add_moves::<Quiet>(
                     board,
                     self.neutral_ducks,
                     self.prune_quiet_neutrals,
-                    &thread.history,
+                    history,
+                    |mv| self.score_quiet(board, history, indices, mv),
                 );
-                self.score_quiets(board, thread, indices, start);
+                thread.move_stack.sort_from(start);
                 self.stage = Stage::YieldQuiets;
             }
         }
@@ -239,46 +250,22 @@ impl MovePicker {
     }
 
     #[inline]
-    fn score_noisies(&self, board: &Board, thread: &mut ThreadData, start: usize) {
-        let moves = thread.move_stack.get_mut();
-
-        for scored in moves[start..].iter_mut() {
-            let mv = scored.0;
-            if self.tt_move == Some(mv) {
-                continue;
-            }
-
-            scored.1 = mvv(board, mv) * 8
-                + thread.history.noisy(board, mv) / 8
-                + thread.history.duck(board, mv) / 8;
+    fn score_noisy(&self, board: &Board, history: &History, mv: Move) -> i32 {
+        if self.tt_move == Some(mv) {
+            return 0;
         }
 
-        moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
+        mvv(board, mv) * 8 + history.noisy(board, mv) / 8 + history.duck(board, mv) / 8
     }
 
     #[inline]
-    fn score_quiets(
-        &self,
-        board: &Board,
-        thread: &mut ThreadData,
-        indices: ContIndices,
-        start: usize,
-    ) {
-        let moves = thread.move_stack.get_mut();
-
-        for scored in moves[start..].iter_mut() {
-            let mv = scored.0;
-            if self.tt_move == Some(mv) {
-                continue;
-            }
-            let is_neutral = self.neutral_ducks.has(mv.duck());
-
-            scored.1 = thread.history.quiet(board, mv)
-                + thread.history.duck(board, mv)
-                + thread.history.cont(board, indices, mv)
-                - Params::mp_quiet_neutral_malus() * is_neutral as i32;
+    fn score_quiet(&self, board: &Board, history: &History, indices: ContIndices, mv: Move) -> i32 {
+        if self.tt_move == Some(mv) {
+            return 0;
         }
+        let is_neutral = self.neutral_ducks.has(mv.duck());
 
-        moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
+        history.quiet(board, mv) + history.duck(board, mv) + history.cont(board, indices, mv)
+            - Params::mp_quiet_neutral_malus() * is_neutral as i32
     }
 }
