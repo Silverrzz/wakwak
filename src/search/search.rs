@@ -395,11 +395,10 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
-        let safe = duck_safety[dest].1;
 
         legal_moves += 1;
 
-        if best_score.is_none() {
+        if best_score.is_some() {
             /*
             Duck Refutations: If the opponent immediately refutes a duck move,
             we can skip the rest of the duck moves that don't block the refutation(s).
@@ -407,14 +406,17 @@ fn search<Node: NodeType>(
             if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
                 continue;
             }
+        }
 
-            if duck_safety[dest].0 != Some(src) {
-                let mut board = *pos.board();
-                // TODO: Calculate king capture blocks without making the full move.
-                board.make_move(mv);
-                duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
-            }
+        if duck_safety[dest].0 != Some(src) {
+            let mut board = *pos.board();
+            // TODO: Calculate king capture blocks without making the full move.
+            board.make_move(mv);
+            duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
+        }
+        let safe = duck_safety[dest].1;
 
+        if best_score.is_some() {
             /*
             Late Duck Pruning (LDP): After a certain number of duck moves for
             a certain move, we can be reasonably confident they're not gonna get
