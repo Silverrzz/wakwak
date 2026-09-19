@@ -29,7 +29,7 @@ impl PieceFeature {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+/*#[derive(Debug, Copy, Clone)]
 pub struct DuckFeature(pub Square);
 
 impl DuckFeature {
@@ -43,7 +43,7 @@ impl DuckFeature {
 
         768 + sq as usize
     }
-}
+}*/
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct FeatureUpdates {
@@ -51,8 +51,8 @@ pub struct FeatureUpdates {
     pub add2: Option<PieceFeature>,
     pub sub: Option<PieceFeature>,
     pub sub2: Option<PieceFeature>,
-    pub duck_add: Option<DuckFeature>,
-    pub duck_sub: Option<DuckFeature>,
+    //pub duck_add: Option<DuckFeature>,
+    //pub duck_sub: Option<DuckFeature>,
 }
 
 impl FeatureUpdates {
@@ -77,13 +77,14 @@ impl FeatureUpdates {
             subs.push(feature.to_index(king, perspective));
         }
 
+        /*
         if let Some(feature) = self.duck_add {
             adds.push(feature.to_index(king, perspective));
         }
 
         if let Some(feature) = self.duck_sub {
             subs.push(feature.to_index(king, perspective));
-        }
+        }*/
 
         (adds, subs)
     }

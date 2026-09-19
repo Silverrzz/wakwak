@@ -18,7 +18,7 @@ pub const EVAL_SCALE: i32 = 400;
 pub const QA: i16 = 255;
 pub const QB: i16 = 64;
 
-pub const INPUT: usize = 832;
+pub const INPUT: usize = 768;
 pub const L1: usize = 16;
 pub const HM: bool = true;
 

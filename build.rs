@@ -27,7 +27,7 @@ impl SplitMix64 {
 fn main() {
     //let net_src = env::var("EVALFILE").unwrap_or("nets/wakwak.nnue".to_string());
     let net_dest = env::var("OUT_DIR").unwrap() + "/wakwak.nnue";
-    fs::write(&net_dest, [1; 26752]).unwrap();
+    fs::write(&net_dest, [1; 24704]).unwrap();
 
     /*if !fs::exists(&net_src).unwrap() {
         panic!(

@@ -331,7 +331,7 @@ fn search<Node: NodeType>(
         let r = 5 + depth / 3;
         pos.make_null_move();
         let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
-        pos.unmake_move();
+        pos.unmake_null_move();
 
         if thread.stop {
             return Score::ZERO;
