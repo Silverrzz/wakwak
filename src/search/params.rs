@@ -145,6 +145,10 @@ params! {
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
 
+    duck_stability_base:  u128 => 5325;
+    duck_stability_scale: u128 => 410;
+    duck_stability_min:   u128 => 2867;
+
     move_stability_base:  u128 => 5325;
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
@@ -292,6 +296,13 @@ impl Params {
             Piece::Queen => Self::mvvlva_queen(),
             Piece::King => 20000,
         }
+    }
+
+    #[inline]
+    pub fn duck_stability(stability: u16) -> u128 {
+        Self::duck_stability_base()
+            .saturating_sub(Self::duck_stability_scale() * stability as u128)
+            .max(Self::duck_stability_min())
     }
 
     #[inline]
