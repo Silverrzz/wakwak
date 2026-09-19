@@ -406,6 +406,17 @@ fn search<Node: NodeType>(
             if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
                 continue;
             }
+
+            /*
+            Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
+            quiet moves.
+            */
+            if static_eval + Params::fp_base() + Params::fp_scale() * depth <= alpha
+                && is_quiet
+                && depth <= Params::fp_depth()
+            {
+                continue;
+            }
         }
 
         if duck_safety[dest].0 != Some(src) {
