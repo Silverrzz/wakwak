@@ -405,14 +405,17 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+
         legal_moves += 1;
 
-        /*
-        Duck Refutations: If the opponent immediately refutes a duck move,
-        we can skip the rest of the duck moves that don't block the refutation(s).
-        */
-        if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
-            continue;
+        if best_score.is_some() {
+            /*
+            Duck Refutations: If the opponent immediately refutes a duck move,
+            we can skip the rest of the duck moves that don't block the refutation(s).
+            */
+            if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+                continue;
+            }
         }
 
         if duck_safety[dest].0 != Some(src) {
@@ -423,29 +426,32 @@ fn search<Node: NodeType>(
         }
         let safe = duck_safety[dest].1;
 
-        /*
-        Late Duck Pruning (LDP): After a certain number of duck moves for
-        a certain move, we can be reasonably confident they're not gonna get
-        much better, so we can skip the rest of them.
-        */
-        if safe == Bitboard::FULL
-            && depth <= Params::ldp_depth(is_quiet)
-            && ducks_by_move[src][dest] >= Params::ldp_threshold(depth, is_quiet, improving) as u8
-        {
-            continue;
-        }
+        if best_score.is_some() {
+            /*
+            Late Duck Pruning (LDP): After a certain number of duck moves for
+            a certain move, we can be reasonably confident they're not gonna get
+            much better, so we can skip the rest of them.
+            */
+            if safe == Bitboard::FULL
+                && depth <= Params::ldp_depth(is_quiet)
+                && ducks_by_move[src][dest]
+                    >= Params::ldp_threshold(depth, is_quiet, improving) as u8
+            {
+                continue;
+            }
 
-        /*
-        Duck Count Pruning (DCP): After a certain number of moves containing a
-        given duck move, we can be reasonably confident that any move containing
-        that duck won't be much better, so we can skip the rest of them
-         */
-        if !Node::PV
-            && is_quiet
-            && depth <= Params::dcp_depth()
-            && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
-        {
-            continue;
+            /*
+            Duck Count Pruning (DCP): After a certain number of moves containing a
+            given duck move, we can be reasonably confident that any move containing
+            that duck won't be much better, so we can skip the rest of them
+             */
+            if !Node::PV
+                && is_quiet
+                && depth <= Params::dcp_depth()
+                && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
+            {
+                continue;
+            }
         }
 
         ducks_by_move[src][dest] += 1;
