@@ -45,6 +45,7 @@ impl History {
         failed_noisies: &[Move],
     ) {
         let best_duck = best_move.duck();
+        let (best_src, best_dest) = (best_move.src(), best_move.dest());
         if best_move.flag().is_noisy() {
             self.update_noisy::<true>(board, depth, best_move);
         } else {
@@ -52,13 +53,17 @@ impl History {
 
             // Only give malus to failed quiets when best move is quiet
             for &quiet in failed_quiets {
-                self.update_quiet::<false>(board, indices, depth, quiet);
+                if (quiet.src(), quiet.dest()) != (best_src, best_dest) {
+                    self.update_quiet::<false>(board, indices, depth, quiet);
+                }
             }
         }
 
         // Always give malus to failed noisies
         for &noisy in failed_noisies {
-            self.update_noisy::<false>(board, depth, noisy);
+            if (noisy.src(), noisy.dest()) != (best_src, best_dest) {
+                self.update_noisy::<false>(board, depth, noisy);
+            }
         }
 
         self.update_duck::<true>(board, depth, best_move);
