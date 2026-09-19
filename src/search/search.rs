@@ -405,6 +405,17 @@ fn search<Node: NodeType>(
         let safe = duck_safety[dest].1;
 
         /*
+        Duck or Die Pruning: Treat duck moves that let the opponent capture
+        the king as instant losses, unless it is a repetition.
+        */
+        if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+            // Clear the previous child's continuation because this move skips recursive search.
+            thread.stack[ply + 1].pv.clear();
+            thread.stack[ply + 1].mv = None;
+            continue;
+        }
+
+        /*
         Late Duck Pruning (LDP): After a certain number of duck moves for
         a certain move, we can be reasonably confident they're not gonna get
         much better, so we can skip the rest of them.
@@ -433,54 +444,36 @@ fn search<Node: NodeType>(
         duck_counts[duck] += 1;
         pos.make_move(mv);
 
-        /*
-        Duck or Die Pruning: Treat duck moves that let the opponent capture
-        the king as instant losses, unless it is a repetition.
-        */
         let mut move_depth = depth;
-        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
-            // Clear the previous child's continuation because this move skips recursive search.
-            thread.stack[ply + 1].pv.clear();
-            thread.stack[ply + 1].mv = None;
-            Score::mated(ply + 2)
-        } else {
-            let new_depth = depth - 1;
-            let mut score = -Score::INFINITE;
-            if !Node::PV || legal_moves > 1 {
-                let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1 + !improving as i32 + !Node::PV as i32
-                } else {
-                    0
-                };
-                move_depth -= reduction;
-                score = -search::<NonPV>(
-                    pos,
-                    thread,
-                    shared,
-                    -alpha - 1,
-                    -alpha,
-                    new_depth - reduction,
-                    ply + 1,
-                );
+        let new_depth = depth - 1;
+        let mut score = -Score::INFINITE;
+        if !Node::PV || legal_moves > 1 {
+            let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
+                1 + !improving as i32 + !Node::PV as i32
+            } else {
+                0
+            };
+            move_depth -= reduction;
+            score = -search::<NonPV>(
+                pos,
+                thread,
+                shared,
+                -alpha - 1,
+                -alpha,
+                new_depth - reduction,
+                ply + 1,
+            );
 
-                if score > alpha && reduction > 0 {
-                    score = -search::<NonPV>(
-                        pos,
-                        thread,
-                        shared,
-                        -alpha - 1,
-                        -alpha,
-                        new_depth,
-                        ply + 1,
-                    );
-                }
+            if score > alpha && reduction > 0 {
+                score =
+                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, new_depth, ply + 1);
             }
-            if Node::PV && (legal_moves == 1 || score > alpha) {
-                move_depth = depth;
-                score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
-            }
-            score
-        };
+        }
+        if Node::PV && (legal_moves == 1 || score > alpha) {
+            move_depth = depth;
+            score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
+        }
+
         pos.unmake_move();
 
         if Node::ROOT && searched_moves == 0 {
