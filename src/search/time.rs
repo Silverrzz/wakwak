@@ -87,9 +87,18 @@ impl TimeManager {
                 self.hard_time.store(time, Ordering::Relaxed);
             }
         } else {
-            let (time, inc) = (time[stm].saturating_sub(options.overhead), inc[stm]);
-            let hard_time = (time / 3 + inc).min(time);
-            let soft_time = (time / 20 + inc / 2).min(hard_time);
+            let soft_time_div = Params::soft_time_div() as f64 / 4096.0;
+            let soft_time_inc = Params::soft_time_inc() as f64 / 4096.0;
+            let hard_time_div = Params::hard_time_div() as f64 / 4096.0;
+            let hard_time_inc = Params::hard_time_inc() as f64 / 4096.0;
+
+            let (time, inc) = (
+                time[stm].saturating_sub(options.overhead) as f64,
+                inc[stm] as f64,
+            );
+            let hard_time = (time / hard_time_div + inc * hard_time_inc).min(time) as u64;
+            let soft_time =
+                (time / soft_time_div + inc * soft_time_inc).min(hard_time as f64) as u64;
 
             self.base_time.store(soft_time, Ordering::Relaxed);
             self.soft_time.store(soft_time, Ordering::Relaxed);
