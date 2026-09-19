@@ -456,7 +456,7 @@ fn search<Node: NodeType>(
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
+                let lmr = if is_quiet {
                     let mut r = Params::lmr(depth);
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
