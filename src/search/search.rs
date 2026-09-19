@@ -665,6 +665,9 @@ fn qsearch<Node: NodeType>(
     // Stand-pat
     let mut best_score = static_eval;
     if best_score >= beta {
+        if tt_move.is_some() {
+            thread.stack[ply].mv = tt_move;
+        }
         return best_score;
     }
     if best_score > alpha {
