@@ -463,7 +463,7 @@ fn search<Node: NodeType>(
 
                     r += !Params::lmr_pv() * !improving as i32;
 
-                    r
+                    r / 1024
                 } else {
                     0
                 };
