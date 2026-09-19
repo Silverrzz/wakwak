@@ -138,7 +138,7 @@ params! {
     dcp_threshold_base:      i32 => 4;
     dcp_threshold_scale:     i32 => 2;
 
-    ndp_depth: i32 => 8;
+    ndp_depth: i32 => 16;
 
     mp_quiet_neutral_malus: i32 => 5000;
 
