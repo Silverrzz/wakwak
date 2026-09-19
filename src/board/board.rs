@@ -3,7 +3,7 @@ use crate::board::{
 };
 use crate::common::{
     Bitboard, Color, File, North, NorthEast, NorthWest, Piece, Rank, Square, between, king_attacks,
-    knight_attacks, pawn_attacks,
+    knight_attacks, pawn_attacks, setwise_pawn_attacks,
 };
 use enum_map::EnumMap;
 
@@ -219,6 +219,23 @@ impl Board {
             relevant |= Rank::First.relative_to(them);
         }
         !relevant
+    }
+
+    #[inline]
+    pub fn threats(&self, color: Color) -> Bitboard {
+        let occ = self.occupied();
+        let mut threats = setwise_pawn_attacks(self.colored_pieces(color, Piece::Pawn), color);
+        for knight in self.colored_pieces(color, Piece::Knight) {
+            threats |= knight_attacks(knight);
+        }
+        for diag in self.colored_diag_sliders(color) {
+            threats |= bishop_attacks(occ, diag, self.slider_tag);
+        }
+        for orth in self.colored_orth_sliders(color) {
+            threats |= rook_attacks(occ, orth, self.slider_tag);
+        }
+        threats |= self.try_king(color).map_or(Bitboard::EMPTY, king_attacks);
+        threats
     }
 
     #[inline]

@@ -33,11 +33,37 @@ pub struct History {
     black_corr: CorrHistory<NONPAWN_CORR_SIZE>,
 }
 
+type ThreatBucket<T> = [[T; 2]; 2];
+
+pub struct ThreatIndex {
+    pub src_attacked: bool,
+    pub dest_attacked: bool,
+}
+
+impl ThreatIndex {
+    pub fn new(mv: Move, threats: Bitboard) -> Self {
+        ThreatIndex {
+            src_attacked: threats.has(mv.src()),
+            dest_attacked: threats.has(mv.dest()),
+        }
+    }
+
+    pub fn src(&self) -> usize {
+        self.src_attacked as usize
+    }
+
+    pub fn dest(&self) -> usize {
+        self.dest_attacked as usize
+    }
+}
+
 impl History {
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         board: &Board,
+        threats: Bitboard,
         indices: ContIndices,
         depth: i32,
         best_move: Move,
@@ -51,13 +77,13 @@ impl History {
         } else {
             let mut quiets = [Bitboard::EMPTY; Square::COUNT];
             quiets[best_move.src()] |= best_move.dest();
-            self.update_quiet::<true>(board, indices, depth, best_move);
+            self.update_quiet::<true>(board, threats, indices, depth, best_move);
 
             // Only give malus to failed quiets when best move is quiet
             for &quiet in failed_quiets {
                 if !quiets[quiet.src()].has(quiet.dest()) {
                     quiets[quiet.src()] |= quiet.dest();
-                    self.update_quiet::<false>(board, indices, depth, quiet);
+                    self.update_quiet::<false>(board, threats, indices, depth, quiet);
                 }
             }
         }
@@ -97,11 +123,12 @@ impl History {
     fn update_quiet<const BONUS: bool>(
         &mut self,
         board: &Board,
+        threats: Bitboard,
         indices: ContIndices,
         depth: i32,
         mv: Move,
     ) {
-        self.quiet.update::<BONUS>(board, depth, mv);
+        self.quiet.update::<BONUS>(board, threats, depth, mv);
         self.cont_odd
             .update::<1, BONUS>(board, depth, mv, indices.cont1);
         self.cont_even
@@ -119,8 +146,8 @@ impl History {
     }
 
     #[inline]
-    pub fn quiet(&self, board: &Board, mv: Move) -> i32 {
-        self.quiet.entry(board, mv)
+    pub fn quiet(&self, board: &Board, threats: Bitboard, mv: Move) -> i32 {
+        self.quiet.entry(board, threats, mv)
     }
 
     #[inline]

@@ -34,6 +34,18 @@ pub const fn pawn_attacks(sq: Square, color: Color) -> Bitboard {
 }
 
 #[inline]
+pub fn setwise_pawn_attacks(pawns: Bitboard, color: Color) -> Bitboard {
+    match color {
+        Color::White => {
+            pawns.shift::<NorthEast>(color.signum()) | pawns.shift::<NorthWest>(color.signum())
+        }
+        Color::Black => {
+            pawns.shift::<SouthEast>(color.signum()) | pawns.shift::<SouthWest>(color.signum())
+        }
+    }
+}
+
+#[inline]
 pub const fn knight_attacks(sq: Square) -> Bitboard {
     const fn calc_attacks(sq: Square) -> Bitboard {
         const DELTAS: [(isize, isize); 8] = [

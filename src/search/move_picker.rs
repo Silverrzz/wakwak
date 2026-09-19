@@ -125,6 +125,7 @@ pub struct MovePicker {
     stage: Stage,
     tt_move: Option<Move>,
     skip_quiets: bool,
+    threats: Bitboard,
     neutral_ducks: Bitboard,
     prune_quiet_neutrals: bool,
     prune_noisy_neutrals: bool,
@@ -135,6 +136,7 @@ impl MovePicker {
     #[inline]
     pub fn new(
         tt_move: Option<Move>,
+        threats: Bitboard,
         neutral_ducks: Bitboard,
         prune_quiet_neutrals: bool,
         prune_noisy_neutrals: bool,
@@ -143,6 +145,7 @@ impl MovePicker {
             stage: Stage::TTMove,
             tt_move,
             skip_quiets: false,
+            threats,
             neutral_ducks,
             prune_quiet_neutrals,
             prune_noisy_neutrals,
@@ -203,7 +206,7 @@ impl MovePicker {
                     self.prune_quiet_neutrals,
                     &thread.history,
                 );
-                self.score_quiets(board, thread, indices, start);
+                self.score_quiets(board, self.threats, thread, indices, start);
                 self.stage = Stage::YieldQuiets;
             }
         }
@@ -260,6 +263,7 @@ impl MovePicker {
     fn score_quiets(
         &self,
         board: &Board,
+        threats: Bitboard,
         thread: &mut ThreadData,
         indices: ContIndices,
         start: usize,
@@ -273,7 +277,7 @@ impl MovePicker {
             }
             let is_neutral = self.neutral_ducks.has(mv.duck());
 
-            scored.1 = thread.history.quiet(board, mv)
+            scored.1 = thread.history.quiet(board, threats, mv)
                 + thread.history.duck(board, mv)
                 + thread.history.cont(board, indices, mv)
                 - Params::mp_quiet_neutral_malus() * is_neutral as i32;
