@@ -157,6 +157,11 @@ params! {
     move_stability_base:  u128 => 5325;
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
+
+    lmr_c:         i32 => 1024;
+    lmr_m:         i32 => 448;
+    lmr_improving: i32 => 1024;
+    lmr_pv:        i32 => 1024;
 }
 
 impl Params {
@@ -315,5 +320,12 @@ impl Params {
         Self::move_stability_base()
             .saturating_sub(Self::move_stability_scale() * stability as u128)
             .max(Self::move_stability_min())
+    }
+
+    #[inline]
+    pub fn lmr_base(depth: i32) -> i32 {
+        let log_depth = depth.ilog2() as i32;
+
+        Self::lmr_c() + log_depth * Self::lmr_m()
     }
 }
