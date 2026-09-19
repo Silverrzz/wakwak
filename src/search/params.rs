@@ -282,6 +282,39 @@ impl Params {
         base + scale * depth
     }
 
+    /// Combined late move pruning
+    #[inline]
+    pub const fn lmp(
+        depth: i32,
+        ducks_by_move: u8,
+        duck_count: u8,
+        is_quiet: bool,
+        improving: bool,
+        is_pv: bool,
+        safe: bool,
+    ) -> bool {
+        /*
+        Late Duck Pruning (LDP): After a certain number of duck moves for
+        a certain move, we can be reasonably confident they're not gonna get
+        much better, so we can skip the rest of them.
+        */
+        let ldp = safe
+            && depth <= Self::ldp_depth(is_quiet)
+            && ducks_by_move >= Self::ldp_threshold(depth, is_quiet, improving) as u8;
+
+        /*
+        Duck Count Pruning (DCP): After a certain number of moves containing a
+        given duck move, we can be reasonably confident that any move containing
+        that duck won't be much better, so we can skip the rest of them
+         */
+        let dcp = !is_pv
+            && is_quiet
+            && depth <= Self::dcp_depth()
+            && duck_count >= Self::dcp_threshold(depth, improving) as u8;
+
+        ldp || dcp
+    }
+
     #[inline]
     pub const fn dcp_threshold(depth: i32, improving: bool) -> i32 {
         if improving {
