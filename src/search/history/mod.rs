@@ -44,6 +44,7 @@ impl History {
         failed_quiets: &[Move],
         failed_noisies: &[Move],
     ) {
+        let best_duck = best_move.duck();
         if best_move.flag().is_noisy() {
             self.update_noisy::<true>(board, depth, best_move);
         } else {
@@ -62,10 +63,14 @@ impl History {
 
         self.update_duck::<true>(board, depth, best_move);
         for &quiet in failed_quiets {
-            self.update_duck::<false>(board, depth, quiet);
+            if quiet.duck() != best_duck {
+                self.update_duck::<false>(board, depth, quiet);
+            }
         }
         for &noisy in failed_noisies {
-            self.update_duck::<false>(board, depth, noisy);
+            if noisy.duck() != best_duck {
+                self.update_duck::<false>(board, depth, noisy);
+            }
         }
     }
 
