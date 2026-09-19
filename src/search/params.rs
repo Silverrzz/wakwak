@@ -1,4 +1,5 @@
 use crate::common::Piece;
+use crate::score::Score;
 #[cfg(feature = "tune")]
 use crate::uci::UciParseError;
 use std::cell::UnsafeCell;
@@ -109,7 +110,11 @@ params! {
     razor_base:  i32 => 320;
     razor_scale: i32 => 250;
 
-    nmr_margin: i32 => 20;
+    nmr_margin:          i32 => 20;
+    nmr_r_base:          i32 => 3072;
+    nmr_r_depth_scale:   i32 => 341;
+    nmp_r_eval_div:      i32 => 210;
+    nmp_r_eval_max:      i32 => 4096;
 
     iid_depth_scale:     i32 => 768;
     iid_depth_reduction: i32 => 1536;
@@ -252,6 +257,11 @@ impl Params {
     #[inline]
     pub const fn razor_margin(depth: i32) -> i32 {
         Self::razor_base() + Self::razor_scale() * depth
+    }
+
+    #[inline]
+    pub fn nmr_eval_reduction(static_eval: Score, beta: Score) -> i32 {
+        ((static_eval.0 - beta.0) * 1024 / Self::nmp_r_eval_div()).min(Self::nmp_r_eval_max())
     }
 
     #[inline]
