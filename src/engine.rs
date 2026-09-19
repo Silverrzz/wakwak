@@ -4,7 +4,7 @@ use crate::position::Position;
 #[cfg(feature = "tune")]
 use crate::search::Params;
 use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher, tt};
-use crate::uci::{SearchLimit, UciCommand, UciParseError};
+use crate::uci::{GENFENS_USAGE, SearchLimit, UciCommand, UciParseError};
 use crate::util::Abort;
 use std::io;
 use std::time::{Duration, Instant};
@@ -80,6 +80,22 @@ impl Engine {
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
             UciCommand::Bench { depth } => self.bench(depth),
+            UciCommand::GenFens {
+                count,
+                seed,
+                dfrc,
+                plies,
+            } => {
+                if self.searcher.is_searching() {
+                    self.searcher.stop();
+                    self.searcher.wait();
+                }
+                self.gen_fens(count, seed, dfrc, plies);
+            }
+            UciCommand::GenFensHelp => {
+                println!("info string Usage: {GENFENS_USAGE}");
+                println!("info string Defaults: dfrc true, moves 8 (plus 0 or 1 random ply)");
+            }
             UciCommand::Search(limits) => self.search(limits),
             UciCommand::Perft { depth, bulk } => self.perft(depth, bulk),
             UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),
@@ -95,7 +111,9 @@ impl Engine {
     #[inline]
     fn uci() {
         println!("id name wakwak v{ENGINE_VERSION}");
-        println!("id author Drexell, Kelseyde, ptsouchlos, Silverrzz, Sp00ph and Tecci");
+        println!(
+            "id author 87flowers, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph and Tecci"
+        );
         println!("option name Threads type spin default 1 min 1 max 1024");
         println!(
             "option name Hash type spin default {} min 1 max {}",
@@ -128,6 +146,11 @@ impl Engine {
 
     #[inline]
     fn search(&mut self, limits: Vec<SearchLimit>) {
+        if self.searcher.is_searching() {
+            println!("info string Already Searching");
+            return;
+        }
+
         self.searcher.search(
             self.position.clone(),
             self.options,
@@ -167,7 +190,7 @@ impl Engine {
         let mut total_time = Duration::ZERO;
         let mut total_nodes = 0;
 
-        self.position.board().gen_moves(|moves| {
+        self.position.board().gen_all_moves(|moves| {
             for mv in moves {
                 let mut board = *self.position.board();
                 board.make_move(mv);
@@ -214,6 +237,11 @@ impl Engine {
     fn set_option(&mut self, name: String, value: String) {
         match name.as_str() {
             "Threads" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Hash while searching");
+                    return;
+                }
+
                 let value = match value.parse::<u32>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -226,6 +254,11 @@ impl Engine {
                 println!("info string Set Threads to {value}");
             }
             "Hash" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Hash while searching");
+                    return;
+                }
+
                 let value = match value.parse::<u32>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -317,7 +350,12 @@ impl Engine {
 
     #[inline]
     fn stop(&mut self) {
-        self.searcher.stop();
+        if self.searcher.is_searching() {
+            self.searcher.stop();
+            self.searcher.wait();
+        } else {
+            println!("info string Not Searching");
+        }
     }
 
     #[inline]

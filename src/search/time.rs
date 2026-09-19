@@ -1,6 +1,6 @@
 use crate::common::Color;
 use crate::engine::EngineOptions;
-use crate::search::{MAX_DEPTH, ThreadData};
+use crate::search::{MAX_DEPTH, Params, ThreadData};
 use crate::uci::SearchLimit;
 use crate::util::{AtomicInstant, EpochTag, init_epoch};
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
@@ -87,9 +87,18 @@ impl TimeManager {
                 self.hard_time.store(time, Ordering::Relaxed);
             }
         } else {
-            let (time, inc) = (time[stm].saturating_sub(options.overhead), inc[stm]);
-            let hard_time = (time / 3 + inc).min(time);
-            let soft_time = (time / 20 + inc / 2).min(hard_time);
+            let soft_time_div = Params::soft_time_div() as f64 / 4096.0;
+            let soft_time_inc = Params::soft_time_inc() as f64 / 4096.0;
+            let hard_time_div = Params::hard_time_div() as f64 / 4096.0;
+            let hard_time_inc = Params::hard_time_inc() as f64 / 4096.0;
+
+            let (time, inc) = (
+                time[stm].saturating_sub(options.overhead) as f64,
+                inc[stm] as f64,
+            );
+            let hard_time = (time / hard_time_div + inc * hard_time_inc).min(time) as u64;
+            let soft_time =
+                (time / soft_time_div + inc * soft_time_inc).min(hard_time as f64) as u64;
 
             self.base_time.store(soft_time, Ordering::Relaxed);
             self.soft_time.store(soft_time, Ordering::Relaxed);
@@ -101,13 +110,22 @@ impl TimeManager {
     }
 
     #[inline]
-    pub fn deepen(&self, depth: u8) {
+    pub fn deepen(&self, depth: u8, duck_stability: u16, move_stability: u16) {
         if depth < 4 || !self.manage_time.load(Ordering::Relaxed) {
-            #[allow(clippy::needless_return)]
             return;
         }
 
-        //This is where most TM patches will be implemented.
+        let duck_stability = Params::duck_stability(duck_stability);
+        let move_stability = Params::move_stability(move_stability);
+        let base_time = self.base_time.load(Ordering::Relaxed);
+        let hard_time = self.hard_time.load(Ordering::Relaxed);
+
+        // Divide by pow(4096, num_factors) to undo the quantisation by 4096
+        let new_target =
+            ((base_time as u128 * duck_stability * move_stability) / 4096u128.pow(2)) as u64;
+
+        self.soft_time
+            .store(new_target.min(hard_time), Ordering::Relaxed);
     }
 
     #[inline]

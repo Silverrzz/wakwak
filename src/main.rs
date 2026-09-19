@@ -5,6 +5,7 @@ pub mod board;
 pub mod common;
 pub mod engine;
 pub mod eval;
+pub mod genfens;
 pub mod position;
 pub mod score;
 pub mod search;

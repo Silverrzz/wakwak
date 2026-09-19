@@ -7,7 +7,7 @@ use crate::search::{
 use crate::uci::SearchLimit;
 use crate::util::{BatchedAtomicCounter, Receiver, Sender, channel};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, Ordering};
 use std::thread::JoinHandle;
 
 pub struct Searcher {
@@ -72,6 +72,7 @@ impl Searcher {
             time_man: TimeManager::default(),
             tt: TranspositionTable::new(size_mb),
             num_searching: AtomicU32::new(0),
+            best_score: AtomicI32::new(0),
         });
 
         self.respawn_threads(threads);
@@ -127,10 +128,10 @@ impl Searcher {
 
     #[inline]
     pub fn wait(&self) {
-        let mut num_searching = self.shared.num_searching.load(Ordering::Relaxed);
+        let mut num_searching = self.shared.num_searching.load(Ordering::Acquire);
         while num_searching != 0 {
             atomic_wait::wait(&self.shared.num_searching, num_searching);
-            num_searching = self.shared.num_searching.load(Ordering::Relaxed);
+            num_searching = self.shared.num_searching.load(Ordering::Acquire);
         }
     }
 
@@ -196,6 +197,7 @@ pub struct SharedData {
     pub time_man: TimeManager,
     pub tt: TranspositionTable,
     pub num_searching: AtomicU32,
+    pub best_score: AtomicI32,
 }
 
 impl Default for SharedData {
@@ -206,6 +208,7 @@ impl Default for SharedData {
             tt: TranspositionTable::default(),
             time_man: TimeManager::default(),
             num_searching: AtomicU32::new(0),
+            best_score: AtomicI32::new(0),
         }
     }
 }
@@ -215,6 +218,8 @@ pub struct ThreadData {
     pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
     pub history: Box<History>,
+    pub nmr_ply: Option<usize>,
+    pub iid_iteration: usize,
     pub sel_depth: usize,
     pub stop: bool,
     pub id: usize,
@@ -228,6 +233,8 @@ impl ThreadData {
             move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
             history: unsafe { Box::new_zeroed().assume_init() },
+            nmr_ply: None,
+            iid_iteration: 0,
             sel_depth: 0,
             stop: false,
             id,

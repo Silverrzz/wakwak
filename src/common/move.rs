@@ -250,7 +250,8 @@ impl Move {
                     let blockers = board.occupied() ^ src ^ rook_src ^ *dest ^ rook_dest;
 
                     return if !blockers.has(duck) {
-                        Some(MoveFlag::ShortCastling)
+                        *dest = rook_src;
+                        Some(MoveFlag::new_castling(dir))
                     } else {
                         None
                     };

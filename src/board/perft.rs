@@ -10,7 +10,7 @@ impl Board {
 
         if BULK && depth == 1 {
             let mut len = 0;
-            self.gen_moves(|moves| {
+            self.gen_all_moves(|moves| {
                 len += moves.len() as u64;
                 Abort::No
             });
@@ -18,7 +18,7 @@ impl Board {
         }
 
         let mut nodes = 0u64;
-        self.gen_moves(|moves| {
+        self.gen_all_moves(|moves| {
             for mv in moves {
                 let mut child = *self;
                 child.make_move(mv);
