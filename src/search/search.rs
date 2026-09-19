@@ -33,8 +33,10 @@ pub fn iterative_deepening(
     // Time management stuff
     let mut duck_stability = 0;
     let mut move_stability = 0;
+    let mut score_stability = 0;
     let mut best_move = None;
     let mut prev_move;
+    let mut prev_score;
 
     'id: loop {
         thread.sel_depth = 0;
@@ -54,10 +56,11 @@ pub fn iterative_deepening(
             break 'id;
         }
 
-        score = new_score;
         pv = thread.stack[0].pv.clone();
         prev_move = best_move;
         best_move = Some(pv[0]);
+        prev_score = score;
+        score = new_score;
 
         duck_stability += 1;
         if best_move.map(|mv| mv.duck()) != prev_move.map(|mv| mv.duck()) {
@@ -67,6 +70,13 @@ pub fn iterative_deepening(
         move_stability += 1;
         if best_move != prev_move {
             move_stability = 0;
+        }
+
+        score_stability += 1;
+        if let (Some(prev), Some(curr)) = (prev_score, score)
+            && curr.0.abs_diff(prev.0) > Params::score_stability_threshold()
+        {
+            score_stability = 0;
         }
 
         depth += 1;
@@ -95,7 +105,7 @@ pub fn iterative_deepening(
 
             shared
                 .time_man
-                .deepen(depth, duck_stability, move_stability);
+                .deepen(depth, duck_stability, move_stability, score_stability);
         }
     }
 

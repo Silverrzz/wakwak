@@ -158,6 +158,11 @@ params! {
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
 
+    score_stability_threshold: u32 => 12;
+    score_stability_base:      u128 => 5325;
+    score_stability_scale:     u128 => 410;
+    score_stability_min:       u128 => 2867;
+
     quiet_lmr_base:  i32 => 1024;
     quiet_lmr_scale: i32 => 448;
     lmr_imp:         i32 => 1024;
@@ -320,6 +325,13 @@ impl Params {
         Self::move_stability_base()
             .saturating_sub(Self::move_stability_scale() * stability as u128)
             .max(Self::move_stability_min())
+    }
+
+    #[inline]
+    pub fn score_stability(stability: u16) -> u128 {
+        Self::score_stability_base()
+            .saturating_sub(Self::score_stability_scale() * stability as u128)
+            .max(Self::score_stability_min())
     }
 
     #[inline]
