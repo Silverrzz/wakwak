@@ -8,7 +8,9 @@ impl Board {
     pub fn is_legal(&self, mv: Move) -> bool {
         let (src, dest, duck, flag) = (mv.src(), mv.dest(), mv.duck(), mv.flag());
 
-        if self.color_on(src) != Some(self.stm) {
+        if self.color_on(src) != Some(self.stm)
+            || self.duck().is_some_and(|sq| sq == dest || sq == duck)
+        {
             return false;
         }
 
@@ -108,7 +110,6 @@ impl Board {
                 if !legal_piece_moves.has(dest)
                     || self.colors(self.stm).has(dest)
                     || self.colors(!self.stm).has(dest) != flag.is_capture()
-                    || self.duck().is_some_and(|sq| sq == dest)
                 {
                     return false;
                 }

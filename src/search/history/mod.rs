@@ -1,13 +1,15 @@
+pub mod cont;
 pub mod corr;
 pub mod duck;
 pub mod noisy;
 pub mod quiet;
 
 use crate::board::Board;
-use crate::common::Move;
+use crate::common::{Bitboard, Move, Square};
 use crate::score::Score;
 use crate::search::Params;
-use crate::search::corr::{CorrHistory, MAX_CORR};
+pub use cont::*;
+pub use corr::*;
 pub use duck::*;
 pub use noisy::*;
 pub use quiet::*;
@@ -16,14 +18,19 @@ pub const MAX_HISTORY: i32 = 16384;
 pub const PAWN_CORR_SIZE: usize = 4096;
 pub const MINOR_CORR_SIZE: usize = 16384;
 pub const MAJOR_CORR_SIZE: usize = 16384;
+pub const NONPAWN_CORR_SIZE: usize = 16384;
 
 pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
     duck: DuckHistory,
+    cont_odd: ContHistory,
+    cont_even: ContHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
     minor_corr: CorrHistory<MINOR_CORR_SIZE>,
     major_corr: CorrHistory<MAJOR_CORR_SIZE>,
+    white_corr: CorrHistory<NONPAWN_CORR_SIZE>,
+    black_corr: CorrHistory<NONPAWN_CORR_SIZE>,
 }
 
 impl History {
@@ -31,33 +38,46 @@ impl History {
     pub fn update(
         &mut self,
         board: &Board,
+        indices: ContIndices,
         depth: i32,
         best_move: Move,
         failed_quiets: &[Move],
         failed_noisies: &[Move],
     ) {
+        let mut noisies = [Bitboard::EMPTY; Square::COUNT];
         if best_move.flag().is_noisy() {
+            noisies[best_move.src()] |= best_move.dest();
             self.update_noisy::<true>(board, depth, best_move);
         } else {
-            self.update_quiet::<true>(board, depth, best_move);
+            let mut quiets = [Bitboard::EMPTY; Square::COUNT];
+            quiets[best_move.src()] |= best_move.dest();
+            self.update_quiet::<true>(board, indices, depth, best_move);
 
             // Only give malus to failed quiets when best move is quiet
             for &quiet in failed_quiets {
-                self.update_quiet::<false>(board, depth, quiet);
+                if !quiets[quiet.src()].has(quiet.dest()) {
+                    quiets[quiet.src()] |= quiet.dest();
+                    self.update_quiet::<false>(board, indices, depth, quiet);
+                }
             }
         }
 
         // Always give malus to failed noisies
         for &noisy in failed_noisies {
-            self.update_noisy::<false>(board, depth, noisy);
+            if !noisies[noisy.src()].has(noisy.dest()) {
+                noisies[noisy.src()] |= noisy.dest();
+                self.update_noisy::<false>(board, depth, noisy);
+            }
         }
 
+        let mut ducks = Bitboard::EMPTY;
+        ducks |= best_move.duck();
         self.update_duck::<true>(board, depth, best_move);
-        for &quiet in failed_quiets {
-            self.update_duck::<false>(board, depth, quiet);
-        }
-        for &noisy in failed_noisies {
-            self.update_duck::<false>(board, depth, noisy);
+        for &mv in failed_quiets.iter().chain(failed_noisies) {
+            if !ducks.has(mv.duck()) {
+                ducks |= mv.duck();
+                self.update_duck::<false>(board, depth, mv);
+            }
         }
     }
 
@@ -69,11 +89,23 @@ impl History {
         self.pawn_corr.update(stm, board.pawn_hash(), depth, diff);
         self.minor_corr.update(stm, board.minor_hash(), depth, diff);
         self.major_corr.update(stm, board.major_hash(), depth, diff);
+        self.white_corr.update(stm, board.white_hash(), depth, diff);
+        self.black_corr.update(stm, board.black_hash(), depth, diff);
     }
 
     #[inline]
-    fn update_quiet<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
+    fn update_quiet<const BONUS: bool>(
+        &mut self,
+        board: &Board,
+        indices: ContIndices,
+        depth: i32,
+        mv: Move,
+    ) {
         self.quiet.update::<BONUS>(board, depth, mv);
+        self.cont_odd
+            .update::<1, BONUS>(board, depth, mv, indices.cont1);
+        self.cont_even
+            .update::<2, BONUS>(board, depth, mv, indices.cont2);
     }
 
     #[inline]
@@ -102,6 +134,19 @@ impl History {
     }
 
     #[inline]
+    pub fn cont(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
+        let mut value = self
+            .cont_odd
+            .entry(board, mv, indices.cont1)
+            .unwrap_or_default();
+        value += self
+            .cont_even
+            .entry(board, mv, indices.cont2)
+            .unwrap_or_default();
+        value
+    }
+
+    #[inline]
     pub fn corr(&self, board: &Board) -> i32 {
         let stm = board.stm();
         let mut corr = 0;
@@ -109,6 +154,8 @@ impl History {
         corr += Params::pawn_corr() * self.pawn_corr.entry(stm, board.pawn_hash());
         corr += Params::minor_corr() * self.minor_corr.entry(stm, board.minor_hash());
         corr += Params::major_corr() * self.major_corr.entry(stm, board.major_hash());
+        corr += Params::nonpawn_corr() * self.white_corr.entry(stm, board.white_hash());
+        corr += Params::nonpawn_corr() * self.black_corr.entry(stm, board.black_hash());
         corr / MAX_CORR
     }
 }

@@ -1,7 +1,8 @@
 use crate::board::{Board, MoveFilter, Noisy, Quiet};
-use crate::common::{Move, MoveFlag, Piece};
+use crate::common::{Bitboard, Move, MoveFlag, Piece};
 use crate::position::Position;
-use crate::search::{MAX_PLY, Params, ThreadData};
+use crate::search::cont::ContIndices;
+use crate::search::{History, MAX_PLY, Params, ThreadData};
 use crate::util::Abort;
 use std::cmp::Reverse;
 
@@ -28,11 +29,24 @@ impl MoveStack {
     }
 
     #[inline]
-    pub fn add_moves<F: MoveFilter>(&mut self, board: &Board) -> usize {
+    pub fn add_moves<F: MoveFilter>(
+        &mut self,
+        board: &Board,
+        neutral_ducks: Bitboard,
+        prune_neutral_ducks: bool,
+        history: &History,
+    ) -> usize {
         let start = self.start[self.ply - 1];
         let old_len = self.stack.len();
 
-        board.gen_moves::<F, _>(|moves| {
+        board.gen_moves::<F, _>(|mut moves| {
+            if prune_neutral_ducks
+                && let Some(duck) = (moves.duck & neutral_ducks).iter().max_by_key(|&duck| {
+                    history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
+                })
+            {
+                moves.duck &= !neutral_ducks | duck;
+            }
             self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
             Abort::No
         });
@@ -111,16 +125,27 @@ pub struct MovePicker {
     stage: Stage,
     tt_move: Option<Move>,
     skip_quiets: bool,
+    neutral_ducks: Bitboard,
+    prune_quiet_neutrals: bool,
+    prune_noisy_neutrals: bool,
     cursor: usize,
 }
 
 impl MovePicker {
     #[inline]
-    pub fn new(tt_move: Option<Move>) -> Self {
+    pub fn new(
+        tt_move: Option<Move>,
+        neutral_ducks: Bitboard,
+        prune_quiet_neutrals: bool,
+        prune_noisy_neutrals: bool,
+    ) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
             skip_quiets: false,
+            neutral_ducks,
+            prune_quiet_neutrals,
+            prune_noisy_neutrals,
             cursor: 0,
         }
     }
@@ -133,7 +158,12 @@ impl MovePicker {
         }
     }
 
-    pub fn next(&mut self, pos: &Position, thread: &mut ThreadData) -> Option<Move> {
+    pub fn next(
+        &mut self,
+        pos: &Position,
+        thread: &mut ThreadData,
+        indices: ContIndices,
+    ) -> Option<Move> {
         let board = pos.board();
         if self.stage == Stage::TTMove {
             self.stage = Stage::GenerateNoisies;
@@ -145,7 +175,12 @@ impl MovePicker {
         }
 
         if self.stage == Stage::GenerateNoisies {
-            let start = thread.move_stack.add_moves::<Noisy>(board);
+            let start = thread.move_stack.add_moves::<Noisy>(
+                board,
+                self.neutral_ducks,
+                self.prune_noisy_neutrals,
+                &thread.history,
+            );
             self.score_noisies(board, thread, start);
             self.stage = Stage::YieldNoisies;
         }
@@ -162,8 +197,13 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = Stage::Finished;
             } else {
-                let start = thread.move_stack.add_moves::<Quiet>(board);
-                self.score_quiets(board, thread, start);
+                let start = thread.move_stack.add_moves::<Quiet>(
+                    board,
+                    self.neutral_ducks,
+                    self.prune_quiet_neutrals,
+                    &thread.history,
+                );
+                self.score_quiets(board, thread, indices, start);
                 self.stage = Stage::YieldQuiets;
             }
         }
@@ -217,7 +257,13 @@ impl MovePicker {
     }
 
     #[inline]
-    fn score_quiets(&self, board: &Board, thread: &mut ThreadData, start: usize) {
+    fn score_quiets(
+        &self,
+        board: &Board,
+        thread: &mut ThreadData,
+        indices: ContIndices,
+        start: usize,
+    ) {
         let moves = thread.move_stack.get_mut();
 
         for scored in moves[start..].iter_mut() {
@@ -225,8 +271,12 @@ impl MovePicker {
             if self.tt_move == Some(mv) {
                 continue;
             }
+            let is_neutral = self.neutral_ducks.has(mv.duck());
 
-            scored.1 = thread.history.quiet(board, mv) + thread.history.duck(board, mv);
+            scored.1 = thread.history.quiet(board, mv)
+                + thread.history.duck(board, mv)
+                + thread.history.cont(board, indices, mv)
+                - Params::mp_quiet_neutral_malus() * is_neutral as i32;
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));

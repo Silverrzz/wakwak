@@ -2,7 +2,8 @@ use crate::board::{
     CastlingDirection, CastlingRights, EnPassant, SliderTag, ZOBRIST, bishop_attacks, rook_attacks,
 };
 use crate::common::{
-    Bitboard, Color, File, Piece, Rank, Square, between, king_attacks, knight_attacks, pawn_attacks,
+    Bitboard, Color, File, North, NorthEast, NorthWest, Piece, Rank, Square, between, king_attacks,
+    knight_attacks, pawn_attacks,
 };
 use enum_map::EnumMap;
 
@@ -18,6 +19,8 @@ pub struct Board {
     pub(super) pawn_hash: u64,
     pub(super) minor_hash: u64,
     pub(super) major_hash: u64,
+    pub(super) white_hash: u64,
+    pub(super) black_hash: u64,
     pub(super) stm: Color,
     pub(super) fmc: u16,
     pub(super) hmc: u8,
@@ -124,6 +127,16 @@ impl Board {
     }
 
     #[inline]
+    pub fn white_hash(&self) -> u64 {
+        self.white_hash
+    }
+
+    #[inline]
+    pub fn black_hash(&self) -> u64 {
+        self.black_hash
+    }
+
+    #[inline]
     pub fn duckless_hash(&self) -> u64 {
         self.hash ^ self.duck.map_or(0, |sq| ZOBRIST.duck(sq))
     }
@@ -177,6 +190,35 @@ impl Board {
             safe &= between(king, attacker);
         }
         safe
+    }
+
+    #[inline]
+    pub fn neutral_ducks(&self) -> Bitboard {
+        let them = !self.stm;
+        let blockers = self.colors(them);
+        let pawns = self.colored_pieces(them, Piece::Pawn);
+        let mut relevant = pawns.shift::<North>(them.signum())
+            | (pawns & Rank::Second.relative_to(them)).shift::<North>(2 * them.signum())
+            | pawns.shift::<NorthEast>(them.signum())
+            | pawns.shift::<NorthWest>(them.signum())
+            | king_attacks(self.king(them));
+
+        for square in self.colored_pieces(them, Piece::Knight) {
+            relevant |= knight_attacks(square);
+        }
+        for square in self.colored_diag_sliders(them) {
+            relevant |= bishop_attacks(blockers, square, self.slider_tag);
+        }
+        for square in self.colored_orth_sliders(them) {
+            relevant |= rook_attacks(blockers, square, self.slider_tag);
+        }
+        if CastlingDirection::ALL
+            .iter()
+            .any(|&dir| self.castling_rights(them).get(dir).is_some())
+        {
+            relevant |= Rank::First.relative_to(them);
+        }
+        !relevant
     }
 
     #[inline]
@@ -245,6 +287,13 @@ impl Board {
                 self.major_hash ^= value;
             }
         }
+
+        if piece != Piece::Pawn {
+            match color {
+                Color::White => self.white_hash ^= value,
+                Color::Black => self.black_hash ^= value,
+            }
+        }
     }
 
     #[inline]
@@ -291,6 +340,11 @@ impl Board {
     pub fn toggle_stm(&mut self) {
         self.stm = !self.stm;
         self.hash ^= ZOBRIST.stm;
+    }
+
+    #[inline]
+    pub fn slider_tag(&self) -> SliderTag {
+        self.slider_tag
     }
 }
 
