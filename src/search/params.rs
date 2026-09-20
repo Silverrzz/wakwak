@@ -165,7 +165,7 @@ params! {
 
     fp_base:  i32 => 256;
     fp_scale: i32 => 128;
-    fp_depth: i32 => 5;
+    fp_depth: i32 => 8;
 }
 
 impl Params {
