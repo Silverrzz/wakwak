@@ -30,6 +30,8 @@ pub fn iterative_deepening(
     let mut pv = PrincipalVariation::default();
     let mut score = None;
 
+    // Time management stuff
+    let mut duck_stability = 0;
     let mut move_stability = 0;
     let mut best_move = None;
     let mut prev_move;
@@ -56,6 +58,11 @@ pub fn iterative_deepening(
         pv = thread.stack[0].pv.clone();
         prev_move = best_move;
         best_move = Some(pv[0]);
+
+        duck_stability += 1;
+        if best_move.map(|mv| mv.duck()) != prev_move.map(|mv| mv.duck()) {
+            duck_stability = 0;
+        }
 
         move_stability += 1;
         if best_move != prev_move {
@@ -86,7 +93,9 @@ pub fn iterative_deepening(
                 break 'id;
             }
 
-            shared.time_man.deepen(depth, move_stability);
+            shared
+                .time_man
+                .deepen(depth, duck_stability, move_stability);
         }
     }
 
@@ -370,9 +379,10 @@ fn search<Node: NodeType>(
     let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
-    let prune_neutral_ducks =
+    let neutral_ducks = pos.board().neutral_ducks();
+    let prune_quiet_neutrals =
         !Node::PV && depth <= Params::ndp_depth() && !alpha.is_mate() && !beta.is_mate();
-    let mut move_picker = MovePicker::new(tt_move, prune_neutral_ducks);
+    let mut move_picker = MovePicker::new(tt_move, neutral_ducks, prune_quiet_neutrals, false);
     let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
         [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
@@ -388,12 +398,14 @@ fn search<Node: NodeType>(
         let duck_history = thread.history.duck(pos.board(), mv);
         legal_moves += 1;
 
-        /*
-        Duck Refutations: If the opponent immediately refutes a duck move,
-        we can skip the rest of the duck moves that don't block the refutation(s).
-        */
-        if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
-            continue;
+        if best_score.is_some() {
+            /*
+            Duck Refutations: If the opponent immediately refutes a duck move,
+            we can skip the rest of the duck moves that don't block the refutation(s).
+            */
+            if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+                continue;
+            }
         }
 
         if duck_safety[dest].0 != Some(src) {
@@ -404,31 +416,32 @@ fn search<Node: NodeType>(
         }
         let safe = duck_safety[dest].1;
 
-        /*
-        Late Duck Pruning (LDP): After a certain number of duck moves for
-        a certain move, we can be reasonably confident they're not gonna get
-        much better, so we can skip the rest of them.
-        */
-        if safe == Bitboard::FULL
-            && depth <= Params::ldp_depth(is_quiet)
-            && searched_moves > 1
-            && ducks_by_move[src][dest]
-                >= Params::ldp_threshold(depth, is_quiet, improving, duck_history) as u8
-        {
-            continue;
-        }
+        if best_score.is_some() {
+            /*
+            Late Duck Pruning (LDP): After a certain number of duck moves for
+            a certain move, we can be reasonably confident they're not gonna get
+            much better, so we can skip the rest of them.
+            */
+            if safe == Bitboard::FULL
+                && depth <= Params::ldp_depth(is_quiet)
+                && ducks_by_move[src][dest]
+                    >= Params::ldp_threshold(depth, is_quiet, improving, duck_history) as u8
+            {
+                continue;
+            }
 
-        /*
-        Duck Count Pruning (DCP): After a certain number of moves containing a
-        given duck move, we can be reasonably confident that any move containing
-        that duck won't be much better, so we can skip the rest of them
-         */
-        if !Node::PV
-            && is_quiet
-            && depth <= Params::dcp_depth()
-            && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
-        {
-            continue;
+            /*
+            Duck Count Pruning (DCP): After a certain number of moves containing a
+            given duck move, we can be reasonably confident that any move containing
+            that duck won't be much better, so we can skip the rest of them
+             */
+            if !Node::PV
+                && is_quiet
+                && depth <= Params::dcp_depth()
+                && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
+            {
+                continue;
+            }
         }
 
         ducks_by_move[src][dest] += 1;
@@ -449,21 +462,33 @@ fn search<Node: NodeType>(
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                let reduction = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    1 + !improving as i32
+                let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
+                    let mut r = Params::lmr(depth);
+                    r += Params::lmr_imp() * !improving as i32;
+                    r += Params::lmr_pv() * !Node::PV as i32;
+                    r / 1024
                 } else {
                     0
                 };
-                move_depth -= reduction;
-                score = -search::<NonPV>(
-                    pos,
-                    thread,
-                    shared,
-                    -alpha - 1,
-                    -alpha,
-                    new_depth - reduction,
-                    ply + 1,
-                )
+
+                let lmr_depth = (new_depth - lmr).max(1).min(new_depth);
+                move_depth = (depth - lmr).max(0);
+
+                score =
+                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, lmr_depth, ply + 1);
+
+                if score > alpha && lmr > 0 {
+                    move_depth = depth;
+                    score = -search::<NonPV>(
+                        pos,
+                        thread,
+                        shared,
+                        -alpha - 1,
+                        -alpha,
+                        new_depth,
+                        ply + 1,
+                    );
+                }
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
                 move_depth = depth;
@@ -655,7 +680,9 @@ fn qsearch<Node: NodeType>(
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
-    let mut move_picker = MovePicker::new(tt_move, false);
+    let neutral_ducks = pos.board().neutral_ducks();
+    let prune_noisy_neutrals = !Node::PV && !alpha.is_mate() && !beta.is_mate();
+    let mut move_picker = MovePicker::new(tt_move, neutral_ducks, false, prune_noisy_neutrals);
     move_picker.skip_quiets();
     let mut best_move = None;
     let mut flag = TTFlag::Upper;

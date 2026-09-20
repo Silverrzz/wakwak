@@ -125,8 +125,14 @@ params! {
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
     quiet_ldp_threshold_scale:     i32 => 1;
+    quiet_ldp_imp_hist_offset:     i32 => -4000;
     quiet_ldp_imp_history_div:     i32 => 4000;
+    quiet_ldp_imp_history_min:     i32 => -2;
+    quiet_ldp_imp_history_max:     i32 => 2;
+    quiet_ldp_hist_offset:     i32 => -4000;
     quiet_ldp_history_div:         i32 => 4000;
+    quiet_ldp_history_min:         i32 => -2;
+    quiet_ldp_history_max:         i32 => 2;
 
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
@@ -142,12 +148,28 @@ params! {
 
     ndp_depth: i32 => 8;
 
+    mp_quiet_neutral_malus: i32 => 5000;
+
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
+
+    soft_time_div: u64 => 98304;
+    soft_time_inc: u64 => 2048;
+    hard_time_div: u64 => 12288;
+    hard_time_inc: u64 => 4096;
+
+    duck_stability_base:  u128 => 5325;
+    duck_stability_scale: u128 => 410;
+    duck_stability_min:   u128 => 2867;
 
     move_stability_base:  u128 => 5325;
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
+
+    quiet_lmr_base:  i32 => 1024;
+    quiet_lmr_scale: i32 => 448;
+    lmr_imp:         i32 => 1024;
+    lmr_pv:          i32 => 1024;
 }
 
 impl Params {
@@ -250,38 +272,47 @@ impl Params {
     }
 
     #[inline]
-    pub const fn ldp_threshold(
-        depth: i32,
-        is_quiet: bool,
-        improving: bool,
-        duck_history: i32,
-    ) -> i32 {
-        let (base, scale, history_div) = match (is_quiet, improving) {
+    pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
+        let (base, scale, hist_offset, hist_div, hist_min, hist_max) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
                 Self::quiet_ldp_imp_threshold_scale(),
+                Some(Self::quiet_ldp_imp_hist_offset()),
                 Some(Self::quiet_ldp_imp_history_div()),
+                Some(Self::quiet_ldp_imp_history_min()),
+                Some(Self::quiet_ldp_imp_history_max()),
             ),
             (true, false) => (
                 Self::quiet_ldp_threshold_base(),
                 Self::quiet_ldp_threshold_scale(),
+                Some(Self::quiet_ldp_hist_offset()),
                 Some(Self::quiet_ldp_history_div()),
+                Some(Self::quiet_ldp_history_min()),
+                Some(Self::quiet_ldp_history_max()),
             ),
             (false, true) => (
                 Self::noisy_ldp_imp_threshold_base(),
                 Self::noisy_ldp_imp_threshold_scale(),
+                None,
+                None,
+                None,
                 None,
             ),
             (false, false) => (
                 Self::noisy_ldp_threshold_base(),
                 Self::noisy_ldp_threshold_scale(),
                 None,
+                None,
+                None,
+                None,
             ),
         };
 
         let mut threshold = base + scale * depth;
-        if let Some(history_div) = history_div {
-            threshold += duck_history / history_div;
+        if let (Some(off), Some(div), Some(min), Some(max)) =
+            (hist_offset, hist_div, hist_min, hist_max)
+        {
+            threshold += ((duck_history + off) / div).clamp(min, max);
         }
         threshold
     }
@@ -308,8 +339,23 @@ impl Params {
     }
 
     #[inline]
+    pub fn duck_stability(stability: u16) -> u128 {
+        Self::duck_stability_base()
+            .saturating_sub(Self::duck_stability_scale() * stability as u128)
+            .max(Self::duck_stability_min())
+    }
+
+    #[inline]
     pub fn move_stability(stability: u16) -> u128 {
-        (Self::move_stability_base() - Self::move_stability_scale() * stability as u128)
+        Self::move_stability_base()
+            .saturating_sub(Self::move_stability_scale() * stability as u128)
             .max(Self::move_stability_min())
+    }
+
+    #[inline]
+    pub fn lmr(depth: i32) -> i32 {
+        let log_depth = depth.ilog2() as i32;
+
+        Self::quiet_lmr_base() + Self::quiet_lmr_scale() * log_depth
     }
 }

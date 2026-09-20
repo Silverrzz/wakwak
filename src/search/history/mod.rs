@@ -5,7 +5,7 @@ pub mod noisy;
 pub mod quiet;
 
 use crate::board::Board;
-use crate::common::Move;
+use crate::common::{Bitboard, Move, Square};
 use crate::score::Score;
 use crate::search::Params;
 pub use cont::*;
@@ -44,28 +44,40 @@ impl History {
         failed_quiets: &[Move],
         failed_noisies: &[Move],
     ) {
+        let mut noisies = [Bitboard::EMPTY; Square::COUNT];
         if best_move.flag().is_noisy() {
+            noisies[best_move.src()] |= best_move.dest();
             self.update_noisy::<true>(board, depth, best_move);
         } else {
+            let mut quiets = [Bitboard::EMPTY; Square::COUNT];
+            quiets[best_move.src()] |= best_move.dest();
             self.update_quiet::<true>(board, indices, depth, best_move);
 
             // Only give malus to failed quiets when best move is quiet
             for &quiet in failed_quiets {
-                self.update_quiet::<false>(board, indices, depth, quiet);
+                if !quiets[quiet.src()].has(quiet.dest()) {
+                    quiets[quiet.src()] |= quiet.dest();
+                    self.update_quiet::<false>(board, indices, depth, quiet);
+                }
             }
         }
 
         // Always give malus to failed noisies
         for &noisy in failed_noisies {
-            self.update_noisy::<false>(board, depth, noisy);
+            if !noisies[noisy.src()].has(noisy.dest()) {
+                noisies[noisy.src()] |= noisy.dest();
+                self.update_noisy::<false>(board, depth, noisy);
+            }
         }
 
+        let mut ducks = Bitboard::EMPTY;
+        ducks |= best_move.duck();
         self.update_duck::<true>(board, depth, best_move);
-        for &quiet in failed_quiets {
-            self.update_duck::<false>(board, depth, quiet);
-        }
-        for &noisy in failed_noisies {
-            self.update_duck::<false>(board, depth, noisy);
+        for &mv in failed_quiets.iter().chain(failed_noisies) {
+            if !ducks.has(mv.duck()) {
+                ducks |= mv.duck();
+                self.update_duck::<false>(board, depth, mv);
+            }
         }
     }
 
