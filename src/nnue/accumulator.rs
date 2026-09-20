@@ -27,6 +27,8 @@ impl Accumulator {
         for i in subs {
             acc_sub(values, weights, i);
         }
+
+        self.dirty[perspective] = false;
     }
 
     #[inline]
