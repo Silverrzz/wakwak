@@ -61,13 +61,6 @@ impl Position {
         self.nnue.unmake_move();
     }
 
-    // TODO: When going from 768 to 832 inputs, remove this and replace the calls with `unmake_move` calls
-    #[inline]
-    pub fn unmake_null_move(&mut self) {
-        self.current = self.previous_boards.pop().unwrap();
-        self.previous_moves.pop().unwrap();
-    }
-
     #[inline]
     pub fn board(&self) -> &Board {
         &self.current

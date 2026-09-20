@@ -1,6 +1,6 @@
 use crate::board::Board;
 use crate::common::{Bitboard, Color, Square};
-use crate::nnue::{FeatureUpdates, INPUT, L1, NET, PieceFeature};
+use crate::nnue::{DuckFeature, FeatureUpdates, INPUT, L1, NET, PieceFeature};
 use arrayvec::ArrayVec;
 use enum_map::{EnumMap, enum_map};
 
@@ -42,9 +42,9 @@ impl Accumulator {
             adds.push(PieceFeature::new(piece, color, sq).to_index(king, perspective));
         }
 
-        /*if let Some(sq) = board.duck() {
+        if let Some(sq) = board.duck() {
             adds.push(DuckFeature(sq).to_index(king, perspective));
-        }*/
+        }
 
         let weights = &NET.ft_weights;
         let (chunks, rem) = adds.as_chunks();

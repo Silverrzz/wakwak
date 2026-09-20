@@ -1,6 +1,8 @@
 use crate::board::Board;
 use crate::common::{Color, Move, MoveFlag, Piece, Rank, Square};
-use crate::nnue::{Accumulator, FeatureUpdates, HM, PieceFeature, feed_forward, should_mirror};
+use crate::nnue::{
+    Accumulator, DuckFeature, FeatureUpdates, HM, PieceFeature, feed_forward, should_mirror,
+};
 use crate::score::Score;
 use crate::search::MAX_PLY;
 use enum_map::enum_map;
@@ -93,8 +95,8 @@ impl Nnue {
         let piece = board.piece_on(mv.src()).unwrap();
         let stm = board.stm();
 
-        //updates.duck_add = Some(DuckFeature(mv.duck()));
-        //updates.duck_sub = board.duck().map(DuckFeature);
+        updates.duck_add = Some(DuckFeature(mv.duck()));
+        updates.duck_sub = board.duck().map(DuckFeature);
 
         if let Some(dir) = flag.castling_dir() {
             let rank = Rank::First.relative_to(board.stm());
@@ -135,8 +137,8 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn make_null_move(&mut self, _board: &Board, _new_duck: Option<Square>) {
-        /*let updates = FeatureUpdates {
+    pub fn make_null_move(&mut self, board: &Board, new_duck: Option<Square>) {
+        let updates = FeatureUpdates {
             duck_add: new_duck.map(DuckFeature),
             duck_sub: board.duck().map(DuckFeature),
             ..Default::default()
@@ -145,7 +147,7 @@ impl Nnue {
         self.stack[self.cursor].updates = updates;
         self.cursor += 1;
         self.stack[self.cursor].dirty = enum_map! { _ => true };
-        self.stack[self.cursor].needs_refresh = self.stack[self.cursor - 1].needs_refresh;*/
+        self.stack[self.cursor].needs_refresh = self.stack[self.cursor - 1].needs_refresh;
     }
 
     #[inline]
