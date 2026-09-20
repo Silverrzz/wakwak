@@ -120,13 +120,13 @@ params! {
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
 
-    quiet_ldp_depth:               i32 => 8;
+    quiet_ldp_depth:               i32 => 12;
     quiet_ldp_imp_threshold_base:  i32 => 2;
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
     quiet_ldp_threshold_scale:     i32 => 1;
 
-    noisy_ldp_depth:               i32 => 8;
+    noisy_ldp_depth:               i32 => 10;
     noisy_ldp_imp_threshold_base:  i32 => 4;
     noisy_ldp_imp_threshold_scale: i32 => 4;
     noisy_ldp_threshold_base:      i32 => 4;
