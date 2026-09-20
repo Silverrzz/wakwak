@@ -10,5 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Download network
+        run: python3 download_net.py
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features
