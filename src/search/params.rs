@@ -100,7 +100,7 @@ params! {
     cont2_malus_scale: i32 => 128;
     cont2_malus_max:   i32 => 2048;
 
-    rfp_depth:     i32 => 8;
+    rfp_depth:     i32 => 12;
     rfp_base:      i32 => 0;
     rfp_scale:     i32 => 50;
     rfp_imp_base:  i32 => -50;
