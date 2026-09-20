@@ -397,6 +397,11 @@ fn search<Node: NodeType>(
         let base_reduction = Params::lmr(depth);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
+        let move_history = if is_quiet {
+            thread.history.quiet(pos.board(), mv) + thread.history.cont(pos.board(), indices, mv)
+        } else {
+            thread.history.noisy(pos.board(), mv)
+        };
         let duck_history = thread.history.duck(pos.board(), mv);
         legal_moves += 1;
 
@@ -452,7 +457,8 @@ fn search<Node: NodeType>(
             && safe == Bitboard::FULL
             && lmr_depth <= Params::ldp_depth(is_quiet)
             && ducks_by_move[src][dest]
-                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, move_history, duck_history)
+                    as u8
         {
             continue;
         }
