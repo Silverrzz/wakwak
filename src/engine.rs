@@ -80,6 +80,7 @@ impl Engine {
             UciCommand::NewGame => self.newgame(),
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
+            UciCommand::Eval => self.eval(),
             UciCommand::Bench { depth } => self.bench(depth),
             UciCommand::GenFens {
                 count,
@@ -143,6 +144,11 @@ impl Engine {
     #[inline]
     fn display(&self) {
         self.position.board().display(self.options.frc);
+    }
+
+    #[inline]
+    fn eval(&mut self) {
+        println!("Raw Eval: {:#}", self.position.eval());
     }
 
     #[inline]

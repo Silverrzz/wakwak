@@ -21,10 +21,10 @@ impl Accumulator {
         let weights = unsafe { &(*net).ft_weights };
         let (adds, subs) = prev.updates.to_indices(king, perspective);
 
+        *values = prev.values[perspective];
         for i in adds {
             acc_add(values, weights, i);
         }
-
         for i in subs {
             acc_sub(values, weights, i);
         }
