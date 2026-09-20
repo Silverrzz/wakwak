@@ -455,6 +455,7 @@ fn search<Node: NodeType>(
              */
             if !Node::ROOT
                 && is_quiet
+                && safe == Bitboard::FULL
                 && depth <= Params::hp_depth()
                 && history_score < Params::hp_threshold(depth)
             {
