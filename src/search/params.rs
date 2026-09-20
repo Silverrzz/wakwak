@@ -141,6 +141,7 @@ params! {
     ndp_depth: i32 => 8;
 
     mp_quiet_neutral_malus: i32 => 5000;
+    mp_noisy_neutral_malus: i32 => 5000;
 
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;

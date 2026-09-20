@@ -247,10 +247,12 @@ impl MovePicker {
             if self.tt_move == Some(mv) {
                 continue;
             }
+            let is_neutral = self.neutral_ducks.has(mv.duck());
 
             scored.1 = mvv(board, mv) * 8
                 + thread.history.noisy(board, mv) / 8
-                + thread.history.duck(board, mv) / 8;
+                + thread.history.duck(board, mv) / 8
+                - Params::mp_quiet_neutral_malus() * is_neutral as i32;
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
