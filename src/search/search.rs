@@ -400,7 +400,7 @@ fn search<Node: NodeType>(
 
         legal_moves += 1;
 
-        if best_score.is_some() {
+        if best_score.is_some_and(|s: Score| !s.is_loss()) {
             /*
             Duck Refutations: If the opponent immediately refutes a duck move,
             we can skip the rest of the duck moves that don't block the refutation(s).
@@ -448,7 +448,7 @@ fn search<Node: NodeType>(
         a certain move, we can be reasonably confident they're not gonna get
         much better, so we can skip the rest of them.
         */
-        if best_score.is_some()
+        if best_score.is_some_and(|s: Score| !s.is_loss())
             && safe == Bitboard::FULL
             && lmr_depth <= Params::ldp_depth(is_quiet)
             && ducks_by_move[src][dest]
