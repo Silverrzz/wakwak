@@ -395,6 +395,13 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let history_score = if is_quiet {
+            thread.history.noisy(pos.board(), mv) + thread.history.duck(pos.board(), mv)
+        } else {
+            thread.history.quiet(pos.board(), mv)
+                + thread.history.cont(pos.board(), indices, mv)
+                + thread.history.duck(pos.board(), mv)
+        };
 
         legal_moves += 1;
 
@@ -440,6 +447,18 @@ fn search<Node: NodeType>(
                 && depth <= Params::dcp_depth()
                 && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
             {
+                continue;
+            }
+
+            /*
+            History Pruning (HP): Skip moves that have historically been bad.
+             */
+            if !Node::ROOT
+                && is_quiet
+                && depth <= Params::hp_depth()
+                && history_score < Params::hp_threshold(depth)
+            {
+                move_picker.skip_quiets();
                 continue;
             }
         }

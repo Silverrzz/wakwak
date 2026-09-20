@@ -140,6 +140,11 @@ params! {
 
     ndp_depth: i32 => 8;
 
+    hp_depth: i32 => 8;
+    hp_threshold_base: i32 => -2000;
+    hp_threshold_lin: i32 => -1500;
+    hp_threshold_quad: i32 => -100;
+
     mp_quiet_neutral_malus: i32 => 5000;
 
     qsldp_threshold: i32 => 2;
@@ -294,6 +299,13 @@ impl Params {
         } else {
             Self::dcp_threshold_base() + Self::dcp_threshold_scale() * depth
         }
+    }
+
+    #[inline]
+    pub const fn hp_threshold(depth: i32) -> i32 {
+        Self::hp_threshold_base()
+            + Self::hp_threshold_lin() * depth
+            + Self::hp_threshold_quad() * depth * depth
     }
 
     #[inline]
