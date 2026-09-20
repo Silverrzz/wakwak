@@ -458,7 +458,6 @@ fn search<Node: NodeType>(
                 && depth <= Params::hp_depth()
                 && history_score < Params::hp_threshold(depth)
             {
-                move_picker.skip_quiets();
                 continue;
             }
         }
