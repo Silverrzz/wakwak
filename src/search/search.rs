@@ -431,6 +431,7 @@ fn search<Node: NodeType>(
                 && depth <= Params::dcp_depth()
                 && duck_counts[duck] >= Params::dcp_threshold(depth, improving, duck_history) as u8
             {
+                move_picker.skip_quiets();
                 continue;
             }
         }
