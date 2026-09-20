@@ -7,7 +7,7 @@ use enum_map::enum_map;
 
 #[derive(Clone)]
 pub struct Nnue {
-    pub stack: Box<[Accumulator; MAX_PLY]>,
+    pub stack: Box<[Accumulator; MAX_PLY + 1]>,
     pub cursor: usize,
 }
 
@@ -15,7 +15,7 @@ impl Nnue {
     #[inline]
     pub fn new(board: &Board) -> Self {
         let mut nnue = Self {
-            stack: vec![Accumulator::default(); MAX_PLY]
+            stack: vec![Accumulator::default(); MAX_PLY + 1]
                 .into_boxed_slice()
                 .try_into()
                 .unwrap(),
