@@ -329,7 +329,7 @@ fn search<Node: NodeType>(
         && thread.stack[ply - 1].mv.is_some()
         && static_eval >= beta + Params::nmr_margin()
     {
-        let r = 3 + depth / 3;
+        let r = 5 + depth / 3;
         pos.make_null_move();
         let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
         pos.unmake_move();
