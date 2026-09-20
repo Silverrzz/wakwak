@@ -60,6 +60,11 @@ impl Score {
         self <= -Self::MAX_MATE
     }
 
+    #[inline]
+    pub const fn lerp(self, other: Score, factor: i32) -> Score {
+        Score((self.0 * (100 - factor) + other.0 * factor) / 100)
+    }
+
     pub const MIN_MATE: Self = Self(i16::MAX as i32 - MAX_PLY as i32); //Mate in 0
     pub const MAX_MATE: Self = Self(i16::MAX as i32 - (2 * MAX_PLY) as i32); //Mate in MAX_PLY
     pub const INFINITE: Self = Self(i16::MAX as i32);

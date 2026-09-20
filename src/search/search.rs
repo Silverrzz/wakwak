@@ -299,7 +299,7 @@ fn search<Node: NodeType>(
         && depth <= Params::rfp_depth()
         && static_eval - Params::rfp_margin(depth, improving) >= beta
     {
-        return static_eval;
+        return static_eval.lerp(beta, Params::rfp_lerp_factor());
     }
 
     /*
