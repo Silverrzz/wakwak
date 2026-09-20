@@ -136,10 +136,6 @@ params! {
     quiet_ldp_duckhist_div:        i32 => 4000;
     quiet_ldp_duckhist_min:        i32 => -2;
     quiet_ldp_duckhist_max:        i32 => 2;
-    quiet_ldp_movehist_offset:     i32 => -4000;
-    quiet_ldp_movehist_div:        i32 => 4000;
-    quiet_ldp_movehist_min:        i32 => -2;
-    quiet_ldp_movehist_max:        i32 => 2;
 
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
@@ -152,10 +148,14 @@ params! {
     dcp_threshold_imp_scale: i32 => 1;
     dcp_threshold_base:      i32 => 4;
     dcp_threshold_scale:     i32 => 2;
-    dcp_history_offset:      i32 => -4000;
-    dcp_history_div:         i32 => 4000;
-    dcp_history_min:         i32 => -2;
-    dcp_history_max:         i32 => 2;
+    dcp_duckhist_offset:     i32 => -4000;
+    dcp_duckhist_div:        i32 => 4000;
+    dcp_duckhist_min:        i32 => -2;
+    dcp_duckhist_max:        i32 => 2;
+    dcp_movehist_offset:     i32 => -4000;
+    dcp_movehist_div:        i32 => 4000;
+    dcp_movehist_min:        i32 => -2;
+    dcp_movehist_max:        i32 => 2;
 
     ndp_depth: i32 => 8;
 
@@ -298,13 +298,7 @@ impl Params {
     }
 
     #[inline]
-    pub fn ldp_threshold(
-        depth: i32,
-        is_quiet: bool,
-        improving: bool,
-        move_history: i32,
-        duck_history: i32,
-    ) -> i32 {
+    pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
         let (base, scale) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
@@ -327,13 +321,6 @@ impl Params {
         let mut threshold = base + scale * depth;
         if is_quiet {
             threshold += Self::history_adjustment(
-                move_history,
-                Params::quiet_ldp_movehist_offset(),
-                Params::quiet_ldp_movehist_div(),
-                Params::quiet_ldp_movehist_min(),
-                Params::quiet_ldp_movehist_max(),
-            );
-            threshold += Self::history_adjustment(
                 duck_history,
                 Params::quiet_ldp_duckhist_offset(),
                 Params::quiet_ldp_duckhist_div(),
@@ -345,7 +332,7 @@ impl Params {
     }
 
     #[inline]
-    pub fn dcp_threshold(depth: i32, improving: bool, duck_history: i32) -> i32 {
+    pub fn dcp_threshold(depth: i32, improving: bool, move_history: i32, duck_history: i32) -> i32 {
         let (base, scale) = if improving {
             (
                 Self::dcp_threshold_imp_base(),
@@ -358,10 +345,18 @@ impl Params {
 
         threshold += Self::history_adjustment(
             duck_history,
-            Params::dcp_history_offset(),
-            Params::dcp_history_div(),
-            Params::dcp_history_min(),
-            Params::dcp_history_max(),
+            Params::dcp_duckhist_offset(),
+            Params::dcp_duckhist_div(),
+            Params::dcp_duckhist_min(),
+            Params::dcp_duckhist_max(),
+        );
+
+        threshold += Self::history_adjustment(
+            move_history,
+            Params::dcp_movehist_offset(),
+            Params::dcp_movehist_div(),
+            Params::dcp_movehist_min(),
+            Params::dcp_movehist_max(),
         );
 
         threshold
