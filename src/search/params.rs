@@ -129,7 +129,7 @@ params! {
     quiet_ldp_imp_history_div:     i32 => 4000;
     quiet_ldp_imp_history_min:     i32 => -2;
     quiet_ldp_imp_history_max:     i32 => 2;
-    quiet_ldp_hist_offset:     i32 => -4000;
+    quiet_ldp_hist_offset:         i32 => -4000;
     quiet_ldp_history_div:         i32 => 4000;
     quiet_ldp_history_min:         i32 => -2;
     quiet_ldp_history_max:         i32 => 2;
