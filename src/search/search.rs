@@ -6,7 +6,8 @@ use crate::score::Score;
 use crate::search::cont::ContIndices;
 use crate::search::tt::TTFlag;
 use crate::search::{
-    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData,
+    MAX_HISTORY, MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData,
+    ThreadData,
 };
 use std::sync::atomic::Ordering;
 
@@ -468,6 +469,8 @@ fn search<Node: NodeType>(
                     let mut r = base_reduction;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
+                    r -= Params::duck_hist_lmr() * thread.history.duck(pos.board(), mv)
+                        / MAX_HISTORY;
                     r / 1024
                 } else {
                     0
