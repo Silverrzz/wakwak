@@ -5,7 +5,7 @@ use crate::uci::SearchLimit;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-pub const DEFAULT_BENCH_DEPTH: u8 = 4;
+pub const DEFAULT_BENCH_DEPTH: u8 = 5;
 
 const BENCH_FENS: &[&str] = &[
     "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P1*P3/P2N1PPP/R2QK2R w KQkq a6 0 14",

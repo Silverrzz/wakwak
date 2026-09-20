@@ -395,6 +395,8 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let base_reduction = Params::lmr(depth);
+        let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
         legal_moves += 1;
 
@@ -423,7 +425,7 @@ fn search<Node: NodeType>(
             much better, so we can skip the rest of them.
             */
             if safe == Bitboard::FULL
-                && depth <= Params::ldp_depth(is_quiet)
+                && lmr_depth <= Params::ldp_depth(is_quiet)
                 && ducks_by_move[src][dest]
                     >= Params::ldp_threshold(depth, is_quiet, improving) as u8
             {
@@ -463,7 +465,7 @@ fn search<Node: NodeType>(
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    let mut r = Params::lmr(depth);
+                    let mut r = base_reduction;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
                     r / 1024
