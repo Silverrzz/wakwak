@@ -414,8 +414,8 @@ fn search<Node: NodeType>(
             quiet moves.
             */
             if is_quiet
-                && depth <= Params::fp_depth()
-                && static_eval + Params::fp_base() + Params::fp_scale() * depth <= alpha
+                && lmr_depth <= Params::fp_depth()
+                && static_eval + Params::fp_base() + Params::fp_scale() * lmr_depth <= alpha
             {
                 move_picker.skip_quiets();
                 continue;
