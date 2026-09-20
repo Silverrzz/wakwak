@@ -191,7 +191,7 @@ fn search<Node: NodeType>(
     shared: &SharedData,
     mut alpha: Score,
     beta: Score,
-    depth: i32,
+    mut depth: i32,
     ply: usize,
 ) -> Score {
     if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
@@ -554,6 +554,11 @@ fn search<Node: NodeType>(
             } else {
                 failed_quiets.push(mv);
             }
+        }
+
+        // Alpha-raise reduction
+        if depth > 2 && depth < 12 && !best_score.is_some_and(|s| s.is_mate()) {
+            depth -= 1;
         }
     }
 
