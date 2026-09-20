@@ -20,7 +20,7 @@ pub const QB: i16 = 64;
 
 pub const INPUT: usize = 768;
 pub const L1: usize = 64;
-pub const HM: bool = false;
+pub const HM: bool = true;
 
 #[inline]
 pub fn should_mirror(sq: Square) -> bool {
