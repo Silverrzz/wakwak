@@ -425,7 +425,7 @@ fn search<Node: NodeType>(
             much better, so we can skip the rest of them.
             */
             if safe == Bitboard::FULL
-                && lmr_depth <= Params::ldp_depth(is_quiet)
+                && depth <= Params::ldp_depth(is_quiet)
                 && ducks_by_move[src][dest]
                     >= Params::ldp_threshold(depth, is_quiet, improving) as u8
             {
@@ -439,8 +439,8 @@ fn search<Node: NodeType>(
              */
             if !Node::PV
                 && is_quiet
-                && depth <= Params::dcp_depth()
-                && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
+                && lmr_depth <= Params::dcp_depth()
+                && duck_counts[duck] >= Params::dcp_threshold(lmr_depth, improving) as u8
             {
                 continue;
             }
