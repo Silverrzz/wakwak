@@ -686,6 +686,7 @@ fn qsearch<Node: NodeType>(
     move_picker.skip_quiets();
     let mut best_move = None;
     let mut flag = TTFlag::Upper;
+    let futility_margin = static_eval + 135;
 
     let indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, indices) {
@@ -711,6 +712,14 @@ fn qsearch<Node: NodeType>(
 
         // Duck Count Pruning (DCP)
         if !Node::PV && duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
+            continue;
+        }
+
+        // Futility Pruning
+        if !Node::PV && futility_margin <= alpha {
+            if best_score < futility_margin {
+                best_score = futility_margin;
+            }
             continue;
         }
 
