@@ -478,6 +478,7 @@ fn search<Node: NodeType>(
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     let mut r = base_reduction;
+                    r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
                     r / 1024
