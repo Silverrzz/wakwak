@@ -155,6 +155,10 @@ params! {
 
     ndp_depth: i32 => 8;
 
+    sde_depth:    i32 => 6;
+    sde_tt_depth: i32 => 3;
+    sde_beta:     i32 => 128;
+
     mp_quiet_neutral_malus: i32 => 5000;
 
     qsldp_threshold: i32 => 2;
