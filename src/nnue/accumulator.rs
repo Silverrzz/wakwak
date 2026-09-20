@@ -16,19 +16,17 @@ impl Accumulator {
     #[inline]
     pub fn update(&mut self, prev: &Accumulator, king: Square, perspective: Color) {
         let values = &mut self.values[perspective];
-        *values = prev.values[perspective];
-        let net = &raw const NET;
-        let weights = unsafe { &(*net).ft_weights };
+        let weights = &NET.ft_weights;
         let (adds, subs) = prev.updates.to_indices(king, perspective);
 
         *values = prev.values[perspective];
         for i in adds {
             acc_add(values, weights, i);
         }
+
         for i in subs {
             acc_sub(values, weights, i);
         }
-        self.dirty[perspective] = false;
     }
 
     #[inline]
@@ -46,11 +44,10 @@ impl Accumulator {
             adds.push(DuckFeature(sq).to_index(king, perspective));
         }*/
 
-        let net = &raw const NET;
-        let weights = unsafe { &(*net).ft_weights };
+        let weights = &NET.ft_weights;
         let (chunks, rem) = adds.as_chunks();
         let values = &mut self.values[perspective];
-        *values = unsafe { NET.ft_bias };
+        *values = NET.ft_bias;
 
         for &[add1, add2, add3, add4] in chunks {
             acc_add4(values, weights, add1, add2, add3, add4);
@@ -69,7 +66,7 @@ impl Default for Accumulator {
     #[inline]
     fn default() -> Self {
         Self {
-            values: enum_map! { _ => unsafe { NET.ft_bias } },
+            values: enum_map! { _ => NET.ft_bias },
             dirty: enum_map! { _ => false },
             needs_refresh: enum_map! { _ => false },
             updates: FeatureUpdates::default(),
