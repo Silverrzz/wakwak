@@ -106,6 +106,8 @@ impl History {
             .update::<1, BONUS>(board, depth, mv, indices.cont1);
         self.cont_even
             .update::<2, BONUS>(board, depth, mv, indices.cont2);
+        self.cont_even
+            .update::<4, BONUS>(board, depth, mv, indices.cont4);
     }
 
     #[inline]
@@ -142,6 +144,10 @@ impl History {
         value += self
             .cont_even
             .entry(board, mv, indices.cont2)
+            .unwrap_or_default();
+        value += self
+            .cont_even
+            .entry(board, mv, indices.cont4)
             .unwrap_or_default();
         value
     }

@@ -100,6 +100,13 @@ params! {
     cont2_malus_scale: i32 => 128;
     cont2_malus_max:   i32 => 2048;
 
+    cont4_bonus_base:  i32 => 128;
+    cont4_bonus_scale: i32 => 128;
+    cont4_bonus_max:   i32 => 2048;
+    cont4_malus_base:  i32 => 128;
+    cont4_malus_scale: i32 => 128;
+    cont4_malus_max:   i32 => 2048;
+
     rfp_depth:     i32 => 8;
     rfp_base:      i32 => 0;
     rfp_scale:     i32 => 50;
@@ -141,6 +148,10 @@ params! {
     dcp_threshold_imp_scale: i32 => 1;
     dcp_threshold_base:      i32 => 4;
     dcp_threshold_scale:     i32 => 2;
+    dcp_history_offset:      i32 => -4000;
+    dcp_history_div:         i32 => 4000;
+    dcp_history_min:         i32 => -2;
+    dcp_history_max:         i32 => 2;
 
     ndp_depth: i32 => 8;
 
@@ -222,6 +233,11 @@ impl Params {
                 Self::cont2_bonus_scale(),
                 Self::cont2_bonus_max(),
             ),
+            4 => (
+                Self::cont4_bonus_base(),
+                Self::cont4_bonus_scale(),
+                Self::cont4_bonus_max(),
+            ),
             _ => unreachable!(),
         };
 
@@ -240,6 +256,11 @@ impl Params {
                 Self::cont2_malus_base(),
                 Self::cont2_malus_scale(),
                 Self::cont2_malus_max(),
+            ),
+            4 => (
+                Self::cont4_malus_base(),
+                Self::cont4_malus_scale(),
+                Self::cont4_malus_max(),
             ),
             _ => unreachable!(),
         };
@@ -305,12 +326,24 @@ impl Params {
     }
 
     #[inline]
-    pub const fn dcp_threshold(depth: i32, improving: bool) -> i32 {
-        if improving {
-            Self::dcp_threshold_imp_base() + Self::dcp_threshold_imp_scale() * depth
+    pub fn dcp_threshold(depth: i32, improving: bool, duck_history: i32) -> i32 {
+        let (base, scale) = if improving {
+            (
+                Self::dcp_threshold_imp_base(),
+                Self::dcp_threshold_imp_scale(),
+            )
         } else {
-            Self::dcp_threshold_base() + Self::dcp_threshold_scale() * depth
-        }
+            (Self::dcp_threshold_base(), Self::dcp_threshold_scale())
+        };
+        let mut threshold = base + scale * depth;
+
+        let offset = Params::dcp_history_offset();
+        let divisor = Params::dcp_history_div();
+        let min = Params::dcp_history_min();
+        let max = Params::dcp_history_max();
+        threshold += ((duck_history + offset) / divisor).clamp(min, max);
+
+        threshold
     }
 
     #[inline]
