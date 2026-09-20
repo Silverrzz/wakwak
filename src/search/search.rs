@@ -291,15 +291,14 @@ fn search<Node: NodeType>(
     thread.stack[ply].raw_eval = Some(raw_eval);
     thread.stack[ply].static_eval = Some(static_eval);
 
-    // Hindsight reduction
+    // Hindsight extension
     if !Node::ROOT
-        && depth >= Params::hindsight_red_depth()
-        && thread.stack[ply - 1].reduction >= Params::hindsight_red_min_r()
+        && thread.stack[ply - 1].reduction >= Params::hindsight_ext_min_r()
         && thread.stack[ply - 1]
             .static_eval
-            .is_some_and(|prev_eval| static_eval + prev_eval > Params::hindsight_red_margin())
+            .is_some_and(|prev_eval| static_eval + prev_eval < 0)
     {
-        depth -= 1;
+        depth += 1;
     }
 
     /*
