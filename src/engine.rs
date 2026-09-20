@@ -116,7 +116,6 @@ impl Engine {
             "id author 87flowers, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph and Tecci"
         );
         println!("option name Threads type spin default 1 min 1 max 1024");
-        println!("option name EvalFile type string default <empty>");
         println!(
             "option name Hash type spin default {} min 1 max {}",
             TranspositionTable::DEFAULT_SIZE_MB,
@@ -233,6 +232,7 @@ impl Engine {
         for mv in moves {
             self.position.make_move(mv);
         }
+        self.position.reset_nnue();
     }
 
     #[inline]
