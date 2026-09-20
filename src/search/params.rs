@@ -125,10 +125,6 @@ params! {
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
     quiet_ldp_threshold_scale:     i32 => 1;
-    quiet_ldp_imp_hist_offset:     i32 => -4000;
-    quiet_ldp_imp_history_div:     i32 => 4000;
-    quiet_ldp_imp_history_min:     i32 => -2;
-    quiet_ldp_imp_history_max:     i32 => 2;
     quiet_ldp_hist_offset:         i32 => -4000;
     quiet_ldp_history_div:         i32 => 4000;
     quiet_ldp_history_min:         i32 => -2;
@@ -278,46 +274,33 @@ impl Params {
 
     #[inline]
     pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
-        let (base, scale, hist_offset, hist_div, hist_min, hist_max) = match (is_quiet, improving) {
+        let (base, scale) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
                 Self::quiet_ldp_imp_threshold_scale(),
-                Some(Self::quiet_ldp_imp_hist_offset()),
-                Some(Self::quiet_ldp_imp_history_div()),
-                Some(Self::quiet_ldp_imp_history_min()),
-                Some(Self::quiet_ldp_imp_history_max()),
             ),
             (true, false) => (
                 Self::quiet_ldp_threshold_base(),
                 Self::quiet_ldp_threshold_scale(),
-                Some(Self::quiet_ldp_hist_offset()),
-                Some(Self::quiet_ldp_history_div()),
-                Some(Self::quiet_ldp_history_min()),
-                Some(Self::quiet_ldp_history_max()),
             ),
             (false, true) => (
                 Self::noisy_ldp_imp_threshold_base(),
                 Self::noisy_ldp_imp_threshold_scale(),
-                None,
-                None,
-                None,
-                None,
             ),
             (false, false) => (
                 Self::noisy_ldp_threshold_base(),
                 Self::noisy_ldp_threshold_scale(),
-                None,
-                None,
-                None,
-                None,
             ),
         };
 
         let mut threshold = base + scale * depth;
-        if let (Some(off), Some(div), Some(min), Some(max)) =
-            (hist_offset, hist_div, hist_min, hist_max)
-        {
-            threshold += ((duck_history + off) / div).clamp(min, max);
+        if is_quiet {
+            threshold += ((duck_history + Params::quiet_ldp_hist_offset())
+                / Params::quiet_ldp_history_div())
+            .clamp(
+                Params::quiet_ldp_history_min(),
+                Params::quiet_ldp_history_max(),
+            );
         }
         threshold
     }
