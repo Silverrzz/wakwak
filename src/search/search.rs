@@ -395,6 +395,8 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let base_reduction = Params::lmr(depth);
+        let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
         legal_moves += 1;
 
@@ -404,6 +406,31 @@ fn search<Node: NodeType>(
             we can skip the rest of the duck moves that don't block the refutation(s).
             */
             if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+                continue;
+            }
+
+            /*
+            Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
+            quiet moves.
+            */
+            if is_quiet
+                && depth <= Params::fp_depth()
+                && static_eval + Params::fp_base() + Params::fp_scale() * depth <= alpha
+            {
+                move_picker.skip_quiets();
+                continue;
+            }
+
+            /*
+            Duck Count Pruning (DCP): After a certain number of moves containing a
+            given duck move, we can be reasonably confident that any move containing
+            that duck won't be much better, so we can skip the rest of them
+            */
+            if !Node::PV
+                && is_quiet
+                && depth <= Params::dcp_depth()
+                && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
+            {
                 continue;
             }
         }
@@ -416,32 +443,18 @@ fn search<Node: NodeType>(
         }
         let safe = duck_safety[dest].1;
 
-        if best_score.is_some() {
-            /*
-            Late Duck Pruning (LDP): After a certain number of duck moves for
-            a certain move, we can be reasonably confident they're not gonna get
-            much better, so we can skip the rest of them.
-            */
-            if safe == Bitboard::FULL
-                && depth <= Params::ldp_depth(is_quiet)
-                && ducks_by_move[src][dest]
-                    >= Params::ldp_threshold(depth, is_quiet, improving) as u8
-            {
-                continue;
-            }
-
-            /*
-            Duck Count Pruning (DCP): After a certain number of moves containing a
-            given duck move, we can be reasonably confident that any move containing
-            that duck won't be much better, so we can skip the rest of them
-             */
-            if !Node::PV
-                && is_quiet
-                && depth <= Params::dcp_depth()
-                && duck_counts[duck] >= Params::dcp_threshold(depth, improving) as u8
-            {
-                continue;
-            }
+        /*
+        Late Duck Pruning (LDP): After a certain number of duck moves for
+        a certain move, we can be reasonably confident they're not gonna get
+        much better, so we can skip the rest of them.
+        */
+        if best_score.is_some()
+            && safe == Bitboard::FULL
+            && lmr_depth <= Params::ldp_depth(is_quiet)
+            && ducks_by_move[src][dest]
+                >= Params::ldp_threshold(lmr_depth, is_quiet, improving) as u8
+        {
+            continue;
         }
 
         ducks_by_move[src][dest] += 1;
@@ -463,7 +476,8 @@ fn search<Node: NodeType>(
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
-                    let mut r = Params::lmr(depth);
+                    let mut r = base_reduction;
+                    r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
                     r / 1024
@@ -696,6 +710,11 @@ fn qsearch<Node: NodeType>(
             continue;
         }
 
+        // Duck Count Pruning (DCP)
+        if !Node::PV && duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
+            continue;
+        }
+
         if duck_safety[dest].0 != Some(src) {
             let mut board = *pos.board();
             // TODO: Calculate king capture blocks without making the full move.
@@ -706,11 +725,6 @@ fn qsearch<Node: NodeType>(
 
         // Late Duck Pruning (LDP)
         if safe == Bitboard::FULL && ducks_by_move[src][dest] >= Params::qsldp_threshold() as u8 {
-            continue;
-        }
-
-        // Duck Count Pruning (DCP)
-        if !Node::PV && duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
             continue;
         }
 
