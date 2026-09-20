@@ -100,7 +100,9 @@ params! {
     cont2_malus_scale: i32 => 128;
     cont2_malus_max:   i32 => 2048;
 
-    hindsight_ext_min_r: i32 => 3072;
+    hindsight_red_depth:  i32 => 2;
+    hindsight_red_min_r:  i32 => 1024;
+    hindsight_red_margin: i32 => 80;
 
     rfp_depth:     i32 => 8;
     rfp_base:      i32 => 0;
