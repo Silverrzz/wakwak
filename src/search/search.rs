@@ -16,6 +16,7 @@ pub struct SearchStack {
     raw_eval: Option<Score>,
     static_eval: Option<Score>,
     mv: Option<Move>,
+    reduction: i32,
 }
 
 pub fn iterative_deepening(
@@ -191,7 +192,7 @@ fn search<Node: NodeType>(
     shared: &SharedData,
     mut alpha: Score,
     beta: Score,
-    depth: i32,
+    mut depth: i32,
     ply: usize,
 ) -> Score {
     if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
@@ -289,6 +290,16 @@ fn search<Node: NodeType>(
 
     thread.stack[ply].raw_eval = Some(raw_eval);
     thread.stack[ply].static_eval = Some(static_eval);
+
+    // Hindsight extension
+    if !Node::ROOT
+        && thread.stack[ply - 1].reduction >= Params::hindsight_ext_min_r()
+        && thread.stack[ply - 1]
+            .static_eval
+            .is_some_and(|prev_eval| static_eval + prev_eval < 0)
+    {
+        depth += 1;
+    }
 
     /*
     Reverse Futility Pruning: If our evaluation of the position is already
@@ -466,18 +477,20 @@ fn search<Node: NodeType>(
                     let mut r = Params::lmr(depth);
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
-                    r / 1024
+                    r
                 } else {
                     0
                 };
+                let reduction = lmr / 1024;
+                let lmr_depth = (new_depth - reduction).max(1).min(new_depth);
+                move_depth = (depth - reduction).max(0);
 
-                let lmr_depth = (new_depth - lmr).max(1).min(new_depth);
-                move_depth = (depth - lmr).max(0);
-
+                thread.stack[ply].reduction = lmr;
                 score =
                     -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, lmr_depth, ply + 1);
+                thread.stack[ply].reduction = 0;
 
-                if score > alpha && lmr > 0 {
+                if score > alpha && reduction > 0 {
                     move_depth = depth;
                     score = -search::<NonPV>(
                         pos,
