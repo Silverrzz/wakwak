@@ -236,8 +236,8 @@ impl Engine {
         self.position.reset(board);
         for mv in moves {
             self.position.make_move(mv);
+            self.position.reset_nnue();
         }
-        self.position.reset_nnue();
     }
 
     #[inline]
