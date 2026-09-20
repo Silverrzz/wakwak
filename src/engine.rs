@@ -1,5 +1,6 @@
 use crate::board::Board;
 use crate::common::Move;
+use crate::nnue::load_network;
 use crate::position::Position;
 #[cfg(feature = "tune")]
 use crate::search::Params;
@@ -115,6 +116,7 @@ impl Engine {
             "id author 87flowers, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph and Tecci"
         );
         println!("option name Threads type spin default 1 min 1 max 1024");
+        println!("option name EvalFile type string default <empty>");
         println!(
             "option name Hash type spin default {} min 1 max {}",
             TranspositionTable::DEFAULT_SIZE_MB,
@@ -236,6 +238,21 @@ impl Engine {
     #[inline]
     fn set_option(&mut self, name: String, value: String) {
         match name.as_str() {
+            "EvalFile" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update EvalFile while searching");
+                    return;
+                }
+
+                self.searcher.wait();
+                if let Err(e) = unsafe { load_network(&value) } {
+                    println!("info string Unable to load EvalFile `{value}`: {e}");
+                    return;
+                }
+                self.position.refresh_nnue();
+                self.searcher.newgame();
+                println!("info string Set EvalFile to {value}");
+            }
             "Threads" => {
                 if self.searcher.is_searching() {
                     println!("info string Unable to update Hash while searching");

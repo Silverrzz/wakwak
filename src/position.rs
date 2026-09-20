@@ -28,6 +28,14 @@ impl Position {
         self.current = board;
         self.previous_boards.clear();
         self.previous_moves.clear();
+        self.nnue.full_reset(&board);
+    }
+
+    pub fn refresh_nnue(&mut self) {
+        for accumulator in &mut self.nnue.stack[..=self.nnue.cursor] {
+            accumulator.needs_refresh = enum_map::enum_map! { _ => true };
+        }
+        self.nnue.update(&self.current);
     }
 
     #[inline]
