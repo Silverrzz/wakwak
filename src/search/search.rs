@@ -546,6 +546,11 @@ fn search<Node: NodeType>(
                 );
                 break;
             }
+
+            // Alpha-raise reduction
+            if depth > 2 && depth < 12 && best_score.is_none_or(|s| !s.is_mate()) {
+                depth -= 1;
+            }
         }
 
         if best_move != Some(mv) {
@@ -554,11 +559,6 @@ fn search<Node: NodeType>(
             } else {
                 failed_quiets.push(mv);
             }
-        }
-
-        // Alpha-raise reduction
-        if depth > 2 && depth < 12 && !best_score.is_some_and(|s| s.is_mate()) {
-            depth -= 1;
         }
     }
 
