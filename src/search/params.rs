@@ -141,9 +141,9 @@ params! {
     ndp_depth: i32 => 8;
 
     hp_depth: i32 => 8;
-    hp_threshold_base: i32 => -2000;
-    hp_threshold_lin: i32 => -1500;
-    hp_threshold_quad: i32 => -100;
+    hp_threshold_base: i32 => -6400;
+    hp_threshold_lin:  i32 => -500;
+    hp_threshold_quad: i32 => -90;
 
     mp_quiet_neutral_malus: i32 => 5000;
 
