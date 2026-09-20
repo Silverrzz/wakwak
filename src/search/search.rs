@@ -454,6 +454,7 @@ fn search<Node: NodeType>(
             History Pruning (HP): Skip moves that have historically been bad.
              */
             if !Node::ROOT
+                && !Node::PV
                 && is_quiet
                 && safe == Bitboard::FULL
                 && depth <= Params::hp_depth()
