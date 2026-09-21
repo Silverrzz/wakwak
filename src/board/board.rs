@@ -2,8 +2,8 @@ use crate::board::{
     CastlingDirection, CastlingRights, EnPassant, SliderTag, ZOBRIST, bishop_attacks, rook_attacks,
 };
 use crate::common::{
-    Bitboard, Color, File, North, NorthEast, NorthWest, Piece, Rank, Square, between, king_attacks,
-    knight_attacks, pawn_attacks,
+    Bitboard, Color, File, Move, MoveFlag, North, NorthEast, NorthWest, Piece, Rank, Square,
+    between, king_attacks, knight_attacks, pawn_attacks,
 };
 use enum_map::EnumMap;
 
@@ -182,7 +182,7 @@ impl Board {
         let king = self.king(color);
         let unblockable = (pawn_attacks(king, color) & self.colored_pieces(!color, Piece::Pawn))
             | (knight_attacks(king) & self.colored_pieces(!color, Piece::Knight))
-            | (king_attacks(king) & self.colored_pieces(!color, Piece::King));
+            | (king_attacks(king) & self.king(!color));
         if unblockable.is_nonempty() {
             return Bitboard::EMPTY;
         }
@@ -194,6 +194,78 @@ impl Board {
         for attacker in sliders {
             safe &= between(king, attacker);
         }
+        safe
+    }
+
+    #[inline]
+    pub fn king_capture_blocks_after(&self, mv: Move) -> Bitboard {
+        let mut colors = self.colors;
+        let mut pieces = self.pieces;
+        let (src, dest, flag) = (mv.src(), mv.dest(), mv.flag());
+
+        let mut toggle_square = |piece: Piece, color: Color, sq: Square| {
+            colors[color] ^= sq;
+            pieces[piece] ^= sq;
+        };
+
+        let piece = self
+            .piece_on(src)
+            .expect("Board::king_capture_blocks_after(): Empty source square");
+        if let Some(dir) = flag.castling_dir() {
+            let rank = Rank::First.relative_to(self.stm);
+            let king_dest = Square::new(dir.king_dest(), rank);
+            let rook_dest = Square::new(dir.rook_dest(), rank);
+
+            toggle_square(Piece::King, self.stm, src);
+            toggle_square(Piece::Rook, self.stm, dest);
+            toggle_square(Piece::King, self.stm, king_dest);
+            toggle_square(Piece::Rook, self.stm, rook_dest);
+        } else if let Some(promo) = flag.promotion() {
+            toggle_square(Piece::Pawn, self.stm, src);
+            toggle_square(promo, self.stm, dest);
+        } else {
+            toggle_square(piece, self.stm, src);
+            toggle_square(piece, self.stm, dest);
+        }
+
+        if flag == MoveFlag::EnPassant {
+            let victim = Square::new(dest.file(), src.rank());
+            toggle_square(Piece::Pawn, !self.stm, victim);
+        } else if flag.is_capture()
+            && let Some(piece) = self.piece_on(dest)
+        {
+            toggle_square(piece, !self.stm, dest);
+        }
+
+        let colored_pieces = |color: Color, piece: Piece| colors[color] & pieces[piece];
+        let colored_diag_sliders =
+            |color: Color| colors[color] & (pieces[Piece::Bishop] | pieces[Piece::Queen]);
+        let colored_orth_sliders =
+            |color: Color| colors[color] & (pieces[Piece::Rook] | pieces[Piece::Queen]);
+
+        let Some(their_king) = colored_pieces(!self.stm, Piece::King).try_next() else {
+            return Bitboard::FULL;
+        };
+
+        let our_king = colored_pieces(self.stm, Piece::King).next();
+        let unblockable = (pawn_attacks(our_king, self.stm)
+            & colored_pieces(!self.stm, Piece::Pawn))
+            | (knight_attacks(our_king) & colored_pieces(!self.stm, Piece::Knight))
+            | (king_attacks(our_king) & their_king);
+        if unblockable.is_nonempty() {
+            return Bitboard::EMPTY;
+        }
+
+        let blockers = colors[Color::White] | colors[Color::Black];
+        let sliders = (bishop_attacks(blockers, our_king, self.slider_tag)
+            & colored_diag_sliders(!self.stm))
+            | (rook_attacks(blockers, our_king, self.slider_tag) & colored_orth_sliders(!self.stm));
+
+        let mut safe = Bitboard::FULL;
+        for attacker in sliders {
+            safe &= between(our_king, attacker);
+        }
+
         safe
     }
 

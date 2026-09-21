@@ -454,10 +454,7 @@ fn search<Node: NodeType>(
         }
 
         if duck_safety[dest].0 != Some(src) {
-            let mut board = *pos.board();
-            // TODO: Calculate king capture blocks without making the full move.
-            board.make_move(mv);
-            duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
+            duck_safety[dest] = (Some(src), pos.board().king_capture_blocks_after(mv));
         }
         let safe = duck_safety[dest].1;
 
@@ -727,10 +724,7 @@ fn qsearch<Node: NodeType>(
         }
 
         if duck_safety[dest].0 != Some(src) {
-            let mut board = *pos.board();
-            // TODO: Calculate king capture blocks without making the full move.
-            board.make_move(mv);
-            duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
+            duck_safety[dest] = (Some(src), pos.board().king_capture_blocks_after(mv));
         }
         let safe = duck_safety[dest].1;
 

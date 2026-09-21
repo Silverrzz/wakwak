@@ -90,7 +90,9 @@ impl Nnue {
     pub fn make_move(&mut self, board: &Board, mv: Move) {
         let mut updates = FeatureUpdates::default();
         let (src, mut dest, flag) = (mv.src(), mv.dest(), mv.flag());
-        let piece = board.piece_on(mv.src()).unwrap();
+        let piece = board
+            .piece_on(mv.src())
+            .expect("Nnue::make_move(): Empty source square");
         let stm = board.stm();
 
         //updates.duck_add = Some(DuckFeature(mv.duck()));
