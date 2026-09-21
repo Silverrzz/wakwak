@@ -415,7 +415,7 @@ fn search<Node: NodeType>(
             */
             if is_quiet
                 && lmr_depth <= Params::fp_depth()
-                && static_eval + Params::fp_base() + Params::fp_scale() * lmr_depth <= alpha
+                && static_eval + Params::fp_margin(lmr_depth, duck_history) <= alpha
             {
                 move_picker.skip_quiets();
                 continue;

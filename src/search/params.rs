@@ -179,9 +179,13 @@ params! {
     lmr_imp:         i32 => 1024;
     lmr_pv:          i32 => 1024;
 
-    fp_base:  i32 => 256;
-    fp_scale: i32 => 128;
-    fp_depth: i32 => 5;
+    fp_base:           i32 => 256;
+    fp_scale:          i32 => 128;
+    fp_depth:          i32 => 5;
+    fp_history_offset: i32 => -4000;
+    fp_history_div:    i32 => 4000;
+    fp_history_min:    i32 => -2;
+    fp_history_max:    i32 => 2;
 }
 
 impl Params {
@@ -294,6 +298,19 @@ impl Params {
     }
 
     #[inline]
+    pub fn fp_margin(depth: i32, duck_history: i32) -> i32 {
+        Self::fp_base()
+            + depth * Self::fp_scale()
+            + Self::history_adjustment(
+                duck_history,
+                Self::fp_history_offset(),
+                Self::fp_history_div(),
+                Self::fp_history_min(),
+                Self::fp_history_max(),
+            )
+    }
+
+    #[inline]
     pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
         let (base, scale) = match (is_quiet, improving) {
             (true, true) => (
@@ -316,11 +333,14 @@ impl Params {
 
         let mut threshold = base + scale * depth;
         if is_quiet {
-            let offset = Params::quiet_ldp_history_offset();
-            let divisor = Params::quiet_ldp_history_div();
-            let min = Params::quiet_ldp_history_min();
-            let max = Params::quiet_ldp_history_max();
-            threshold += ((duck_history + offset) / divisor).clamp(min, max);
+            let history_adjustment = Self::history_adjustment(
+                duck_history,
+                Params::quiet_ldp_history_offset(),
+                Params::quiet_ldp_history_div(),
+                Params::quiet_ldp_history_min(),
+                Params::quiet_ldp_history_max(),
+            );
+            threshold += history_adjustment;
         }
         threshold
     }
@@ -335,15 +355,14 @@ impl Params {
         } else {
             (Self::dcp_threshold_base(), Self::dcp_threshold_scale())
         };
-        let mut threshold = base + scale * depth;
-
-        let offset = Params::dcp_history_offset();
-        let divisor = Params::dcp_history_div();
-        let min = Params::dcp_history_min();
-        let max = Params::dcp_history_max();
-        threshold += ((duck_history + offset) / divisor).clamp(min, max);
-
-        threshold
+        let history_adjustment = Self::history_adjustment(
+            duck_history,
+            Params::dcp_history_offset(),
+            Params::dcp_history_div(),
+            Params::dcp_history_min(),
+            Params::dcp_history_max(),
+        );
+        base + scale * depth + history_adjustment
     }
 
     #[inline]
@@ -377,5 +396,10 @@ impl Params {
         let log_depth = depth.ilog2() as i32;
 
         Self::quiet_lmr_base() + Self::quiet_lmr_scale() * log_depth
+    }
+
+    #[inline]
+    fn history_adjustment(history: i32, offset: i32, divisor: i32, min: i32, max: i32) -> i32 {
+        ((history + offset) / divisor).clamp(min, max)
     }
 }
