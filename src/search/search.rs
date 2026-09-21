@@ -462,11 +462,6 @@ fn search<Node: NodeType>(
         pos.make_move(mv);
 
         /*
-        Check extension
-        */
-        let extension = if pos.board().in_check() { 1 } else { 0 };
-
-        /*
         Duck or Die Pruning: Treat duck moves that let the opponent capture
         the king as instant losses, unless it is a repetition.
         */
@@ -477,7 +472,7 @@ fn search<Node: NodeType>(
             thread.stack[ply + 1].mv = None;
             Score::mated(ply + 2)
         } else {
-            let new_depth = depth + extension - 1;
+            let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
@@ -485,6 +480,7 @@ fn search<Node: NodeType>(
                     r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
+                    r -= Params::lmr_in_check() * pos.board().in_check() as i32;
                     r / 1024
                 } else {
                     0
