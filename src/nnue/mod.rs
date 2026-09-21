@@ -19,7 +19,7 @@ pub const QA: i16 = 255;
 pub const QB: i16 = 64;
 
 pub const INPUT: usize = 768;
-pub const L1: usize = 64;
+pub const L1: usize = 128;
 pub const HM: bool = true;
 
 #[inline]
