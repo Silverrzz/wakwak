@@ -13,4 +13,4 @@ jobs:
       - name: Download network
         run: python3 download_net.py
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features
+        run: RUSTFLAGS="-Ctarget-cpu=native" cargo clippy --all-targets --all-features
