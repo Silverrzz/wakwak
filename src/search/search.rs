@@ -410,12 +410,12 @@ fn search<Node: NodeType>(
             }
 
             /*
-            Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
-            quiet moves.
+            Futility Pruning (FP): If we are unlikely to raise alpha with a quiet move,
+            we skip the quiet moves.
             */
             if is_quiet
                 && lmr_depth <= Params::fp_depth()
-                && static_eval + Params::fp_base() + Params::fp_scale() * lmr_depth <= alpha
+                && static_eval + Params::fp_margin(lmr_depth) <= alpha
             {
                 move_picker.skip_quiets();
                 continue;
@@ -443,18 +443,30 @@ fn search<Node: NodeType>(
         }
         let safe = duck_safety[dest].1;
 
-        /*
-        Late Duck Pruning (LDP): After a certain number of duck moves for
-        a certain move, we can be reasonably confident they're not gonna get
-        much better, so we can skip the rest of them.
-        */
-        if best_score.is_some()
-            && safe == Bitboard::FULL
-            && lmr_depth <= Params::ldp_depth(is_quiet)
-            && ducks_by_move[src][dest]
-                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
-        {
-            continue;
+        if best_score.is_some() {
+            /*
+            Late Move Pruning (LMP): After a certain number of moves, we can be reasonably
+            confident they're not gonna get much better, so we can skip the rest of
+            them.
+            */
+            if is_quiet && safe == Bitboard::FULL && searched_moves >= Params::lmp_threshold(depth)
+            {
+                move_picker.skip_quiets();
+                continue;
+            }
+
+            /*
+            Late Duck Pruning (LDP): After a certain number of duck moves for
+            a certain move, we can be reasonably confident they're not gonna get
+            much better, so we can skip the rest of them.
+            */
+            if safe == Bitboard::FULL
+                && lmr_depth <= Params::ldp_depth(is_quiet)
+                && ducks_by_move[src][dest]
+                    >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            {
+                continue;
+            }
         }
 
         ducks_by_move[src][dest] += 1;

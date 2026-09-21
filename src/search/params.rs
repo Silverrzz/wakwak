@@ -127,6 +127,9 @@ params! {
     mvvlva_rook:   i32 => 500;
     mvvlva_queen:  i32 => 900;
 
+    lmp_base:  i32 => 32;
+    lmp_scale: i32 => 16;
+
     quiet_ldp_depth:               i32 => 8;
     quiet_ldp_imp_threshold_base:  i32 => 2;
     quiet_ldp_imp_threshold_scale: i32 => 2;
@@ -282,6 +285,16 @@ impl Params {
     #[inline]
     pub const fn razor_margin(depth: i32) -> i32 {
         Self::razor_base() + Self::razor_scale() * depth
+    }
+
+    #[inline]
+    pub const fn fp_margin(depth: i32) -> i32 {
+        Self::fp_base() + Self::fp_scale() * depth
+    }
+
+    #[inline]
+    pub const fn lmp_threshold(depth: i32) -> i32 {
+        Self::lmp_base() + Self::lmp_scale() * depth * depth
     }
 
     #[inline]
