@@ -33,7 +33,8 @@ impl Nnue {
             &self.stack[self.cursor].values[!stm],
         );
 
-        Score(feed_forward(stm, ntm))
+        // Clamp so that it fits in 15 bits in the TT
+        Score(feed_forward(stm, ntm).clamp(-16384, 16383))
     }
 
     #[inline]
