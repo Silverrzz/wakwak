@@ -182,8 +182,8 @@ params! {
     fp_base:           i32 => 256;
     fp_scale:          i32 => 128;
     fp_depth:          i32 => 5;
-    fp_history_offset: i32 => -4000;
-    fp_history_div:    i32 => 4000;
+    fp_history_offset: i32 => -8000;
+    fp_history_div:    i32 => 8000;
     fp_history_min:    i32 => -2;
     fp_history_max:    i32 => 2;
 }

@@ -397,6 +397,11 @@ fn search<Node: NodeType>(
         let base_reduction = Params::lmr(depth);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
+        let move_history = if is_quiet {
+            thread.history.quiet(pos.board(), mv) + thread.history.cont(pos.board(), indices, mv)
+        } else {
+            thread.history.noisy(pos.board(), mv)
+        };
         let duck_history = thread.history.duck(pos.board(), mv);
         legal_moves += 1;
 
@@ -415,7 +420,7 @@ fn search<Node: NodeType>(
             */
             if is_quiet
                 && lmr_depth <= Params::fp_depth()
-                && static_eval + Params::fp_margin(lmr_depth, duck_history) <= alpha
+                && static_eval + Params::fp_margin(lmr_depth, move_history) <= alpha
             {
                 move_picker.skip_quiets();
                 continue;
