@@ -402,6 +402,14 @@ fn search<Node: NodeType>(
         let base_reduction = Params::lmr(depth);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
+        let history = if mv.flag().is_noisy() {
+            thread.history.noisy(pos.board(), mv) / 8 + thread.history.duck(pos.board(), mv) / 8
+        } else {
+            thread.history.quiet(pos.board(), mv)
+                + thread.history.duck(pos.board(), mv)
+                + thread.history.partial_cont(pos.board(), indices, mv)
+        };
+
         let duck_history = thread.history.duck(pos.board(), mv);
         legal_moves += 1;
 
@@ -482,6 +490,7 @@ fn search<Node: NodeType>(
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
                     r -= Params::lmr_in_check() * pos.board().in_check() as i32;
+                    r -= Params::lmr_history() * history / 1024;
                     r / 1024
                 } else {
                     0
