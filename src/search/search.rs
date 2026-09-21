@@ -5,7 +5,8 @@ use crate::score::Score;
 use crate::search::cont::ContIndices;
 use crate::search::tt::TTFlag;
 use crate::search::{
-    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData,
+    MAX_HISTORY, MAX_PLY, MovePicker, Params, PrincipalVariation, ScoredMove, SearchInfo,
+    SharedData, ThreadData,
 };
 use std::sync::atomic::Ordering;
 
@@ -390,7 +391,7 @@ fn search<Node: NodeType>(
     let mut flag = TTFlag::Upper;
 
     let indices = ContIndices::new(pos);
-    while let Some(mv) = move_picker.next(pos, thread, indices) {
+    while let Some(ScoredMove(mv, hist)) = move_picker.next(pos, thread, indices) {
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
@@ -477,6 +478,7 @@ fn search<Node: NodeType>(
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     let mut r = base_reduction;
+                    r -= Params::quiet_hist_lmr() * hist / MAX_HISTORY;
                     r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
@@ -702,7 +704,7 @@ fn qsearch<Node: NodeType>(
     let mut flag = TTFlag::Upper;
 
     let indices = ContIndices::new(pos);
-    while let Some(mv) = move_picker.next(pos, thread, indices) {
+    while let Some(ScoredMove(mv, _hist)) = move_picker.next(pos, thread, indices) {
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
 
         // Duck Refutations

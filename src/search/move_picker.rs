@@ -6,7 +6,8 @@ use crate::search::{History, MAX_PLY, Params, ThreadData};
 use crate::util::Abort;
 use std::cmp::Reverse;
 
-pub struct ScoredMove(Move, i32);
+#[derive(Debug, Copy, Clone)]
+pub struct ScoredMove(pub Move, pub i32);
 
 pub struct MoveStack {
     stack: Vec<ScoredMove>,
@@ -163,14 +164,20 @@ impl MovePicker {
         pos: &Position,
         thread: &mut ThreadData,
         indices: ContIndices,
-    ) -> Option<Move> {
+    ) -> Option<ScoredMove> {
         let board = pos.board();
         if self.stage == Stage::TTMove {
             self.stage = Stage::GenerateNoisies;
             if let Some(mv) = self.tt_move
                 && board.is_legal(mv)
             {
-                return Some(mv);
+                let is_neutral = self.neutral_ducks.has(mv.duck());
+                let score = thread.history.quiet(board, mv)
+                    + thread.history.duck(board, mv)
+                    + thread.history.cont(board, indices, mv)
+                    - Params::mp_quiet_neutral_malus() * is_neutral as i32;
+
+                return Some(ScoredMove(mv, score));
             }
         }
 
@@ -222,15 +229,15 @@ impl MovePicker {
     }
 
     #[inline]
-    fn yield_next(&mut self, thread: &ThreadData) -> Option<Move> {
+    fn yield_next(&mut self, thread: &ThreadData) -> Option<ScoredMove> {
         let moves = thread.move_stack.get();
 
         while self.cursor < moves.len() {
-            let mv = moves[self.cursor].0;
+            let mv = moves[self.cursor];
             self.cursor += 1;
 
             // Don't yield the TT move a second time
-            if self.tt_move != Some(mv) {
+            if self.tt_move != Some(mv.0) {
                 return Some(mv);
             }
         }
