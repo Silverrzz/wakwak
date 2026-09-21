@@ -1,8 +1,7 @@
 use crate::engine::EngineOptions;
 use crate::position::Position;
-use crate::search::tt::TranspositionTable;
 use crate::search::{
-    History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager, iterative_deepening,
+    History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TTable, TimeManager, iterative_deepening,
 };
 use crate::uci::SearchLimit;
 use crate::util::{BatchedAtomicCounter, Receiver, Sender, channel};
@@ -70,7 +69,7 @@ impl Searcher {
         self.shared = Arc::new(SharedData {
             nodes: Arc::new(AtomicU64::new(0)),
             time_man: TimeManager::default(),
-            tt: TranspositionTable::new(size_mb),
+            tt: TTable::new(size_mb),
             num_searching: AtomicU32::new(0),
             best_score: AtomicI32::new(0),
         });
@@ -195,7 +194,7 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
 pub struct SharedData {
     pub nodes: Arc<AtomicU64>,
     pub time_man: TimeManager,
-    pub tt: TranspositionTable,
+    pub tt: TTable,
     pub num_searching: AtomicU32,
     pub best_score: AtomicI32,
 }
@@ -205,7 +204,7 @@ impl Default for SharedData {
     fn default() -> Self {
         Self {
             nodes: Arc::new(AtomicU64::new(0)),
-            tt: TranspositionTable::default(),
+            tt: TTable::default(),
             time_man: TimeManager::default(),
             num_searching: AtomicU32::new(0),
             best_score: AtomicI32::new(0),

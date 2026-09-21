@@ -3,12 +3,11 @@ use crate::common::Move;
 use crate::position::Position;
 #[cfg(feature = "tune")]
 use crate::search::Params;
-use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher, tt};
+use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher, TTable};
 use crate::uci::{GENFENS_USAGE, SearchLimit, UciCommand, UciParseError};
 use crate::util::Abort;
 use std::io;
 use std::time::{Duration, Instant};
-use tt::TranspositionTable;
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -118,8 +117,8 @@ impl Engine {
         println!("option name Threads type spin default 1 min 1 max 1024");
         println!(
             "option name Hash type spin default {} min 1 max {}",
-            TranspositionTable::DEFAULT_SIZE_MB,
-            TranspositionTable::MAX_SIZE_MB
+            TTable::DEFAULT_SIZE_MB,
+            TTable::MAX_SIZE_MB
         );
         println!("option name MoveOverhead type spin default {DEFAULT_OVERHEAD} min 0 max 5000");
         println!("option name Minimal type check default false");

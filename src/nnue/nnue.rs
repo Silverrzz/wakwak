@@ -33,7 +33,7 @@ impl Nnue {
             &self.stack[self.cursor].values[!stm],
         );
 
-        Score(feed_forward(stm, ntm)).clamp_mate()
+        Score(feed_forward(stm, ntm))
     }
 
     #[inline]
