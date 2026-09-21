@@ -79,6 +79,13 @@ params! {
     noisy_malus_scale: i32 => 128;
     noisy_malus_max:   i32 => 2048;
 
+    pawn_bonus_base:  i32 => 128;
+    pawn_bonus_scale: i32 => 128;
+    pawn_bonus_max:   i32 => 2048;
+    pawn_malus_base:  i32 => 128;
+    pawn_malus_scale: i32 => 128;
+    pawn_malus_max:   i32 => 2048;
+
     duck_bonus_base:  i32 => 128;
     duck_bonus_scale: i32 => 128;
     duck_bonus_max:   i32 => 2048;
@@ -209,6 +216,16 @@ impl Params {
     #[inline]
     pub fn noisy_malus(depth: i32) -> i32 {
         -(Self::noisy_malus_base() + Self::noisy_malus_scale() * depth).min(Self::noisy_malus_max())
+    }
+
+    #[inline]
+    pub fn pawn_bonus(depth: i32) -> i32 {
+        (Self::pawn_bonus_base() + Self::pawn_bonus_scale() * depth).min(Self::pawn_bonus_max())
+    }
+
+    #[inline]
+    pub fn pawn_malus(depth: i32) -> i32 {
+        -(Self::pawn_malus_base() + Self::pawn_malus_scale() * depth).min(Self::pawn_malus_max())
     }
 
     #[inline]

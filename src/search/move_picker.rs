@@ -274,6 +274,7 @@ impl MovePicker {
             let is_neutral = self.neutral_ducks.has(mv.duck());
 
             scored.1 = thread.history.quiet(board, mv)
+                + thread.history.pawn(board, mv)
                 + thread.history.duck(board, mv)
                 + thread.history.cont(board, indices, mv)
                 - Params::mp_quiet_neutral_malus() * is_neutral as i32;
