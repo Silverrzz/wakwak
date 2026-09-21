@@ -140,8 +140,8 @@ params! {
     noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
     noisy_ldp_imp_threshold_scale: i32 => 4;
-    noisy_ldp_threshold_base:      i32 => 4;
-    noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_threshold_base:      i32 => 3;
+    noisy_ldp_threshold_scale:     i32 => 3;
 
     dcp_depth:               i32 => 8;
     dcp_threshold_imp_base:  i32 => 2;
