@@ -474,7 +474,17 @@ fn search<Node: NodeType>(
         } else {
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
+
+            /*
+            Principal Variation Search (PVS): We assume the first move is best, and search all
+            others with a null window and/or reduced depth. If any of these moves beat alpha, a
+            re-search is required.
+             */
             if !Node::PV || legal_moves > 1 {
+                /*
+                Late Move Reductions (LMR): Moves ordered late in the list are less likely to be
+                good, so we reduce the depth
+                 */
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     let mut r = base_reduction;
                     r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
@@ -485,13 +495,20 @@ fn search<Node: NodeType>(
                     0
                 };
 
-                let lmr_depth = (new_depth - lmr).max(1).min(new_depth);
+                let reduced_depth = (new_depth - lmr).max(1).min(new_depth);
                 move_depth = (depth - lmr).max(0);
 
-                score =
-                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, lmr_depth, ply + 1);
+                score = -search::<NonPV>(
+                    pos,
+                    thread,
+                    shared,
+                    -alpha - 1,
+                    -alpha,
+                    reduced_depth,
+                    ply + 1,
+                );
 
-                if score > alpha && lmr > 0 {
+                if score > alpha && new_depth > reduced_depth {
                     move_depth = depth;
                     score = -search::<NonPV>(
                         pos,
@@ -503,6 +520,9 @@ fn search<Node: NodeType>(
                         ply + 1,
                     );
                 }
+            } else if !Node::PV || searched_moves > 1 {
+                score =
+                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, new_depth, ply + 1);
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
                 move_depth = depth;
