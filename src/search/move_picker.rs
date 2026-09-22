@@ -241,7 +241,6 @@ impl MovePicker {
         }
 
         if self.stage == Stage::YieldBadNoisies {
-            println!("in here");
             if !self.skip_bad_noisies
                 && let Some(mv) = self.yield_until(thread, self.bad_noisy_count)
             {
