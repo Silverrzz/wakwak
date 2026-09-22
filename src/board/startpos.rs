@@ -121,6 +121,7 @@ impl Board {
             pawn_hash: 0,
             minor_hash: 0,
             major_hash: 0,
+            slider_hash: 0,
             white_hash: 0,
             black_hash: 0,
             stm: Color::White,

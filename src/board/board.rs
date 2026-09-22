@@ -19,6 +19,7 @@ pub struct Board {
     pub(super) pawn_hash: u64,
     pub(super) minor_hash: u64,
     pub(super) major_hash: u64,
+    pub(super) slider_hash: u64,
     pub(super) white_hash: u64,
     pub(super) black_hash: u64,
     pub(super) stm: Color,
@@ -124,6 +125,11 @@ impl Board {
     #[inline]
     pub fn major_hash(&self) -> u64 {
         self.major_hash
+    }
+
+    #[inline]
+    pub fn slider_hash(&self) -> u64 {
+        self.slider_hash
     }
 
     #[inline]
@@ -279,9 +285,18 @@ impl Board {
         match piece {
             Piece::Pawn => self.pawn_hash ^= value,
             Piece::Knight => self.minor_hash ^= value,
-            Piece::Bishop => self.minor_hash ^= value,
-            Piece::Rook => self.major_hash ^= value,
-            Piece::Queen => self.major_hash ^= value,
+            Piece::Bishop => {
+                self.minor_hash ^= value;
+                self.slider_hash ^= value;
+            }
+            Piece::Rook => {
+                self.major_hash ^= value;
+                self.slider_hash ^= value;
+            }
+            Piece::Queen => {
+                self.major_hash ^= value;
+                self.slider_hash ^= value;
+            }
             Piece::King => {
                 self.minor_hash ^= value;
                 self.major_hash ^= value;
