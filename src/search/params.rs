@@ -1,4 +1,6 @@
-use crate::common::Piece;
+use crate::common::{Move, Piece};
+use crate::position::Position;
+use crate::search::{ContIndices, ThreadData};
 #[cfg(feature = "tune")]
 use crate::uci::UciParseError;
 use std::cell::UnsafeCell;
@@ -199,6 +201,14 @@ params! {
     fp_base:  i32 => 256;
     fp_scale: i32 => 128;
     fp_depth: i32 => 5;
+
+    noisy_lmr_noisy_scale: i32 => 128;
+    noisy_lmr_duck_scale:  i32 => 128;
+
+    quiet_lmr_quiet_scale: i32 => 1024;
+    quiet_lmr_duck_scale:  i32 => 1024;
+    quiet_lmr_cont1_scale: i32 => 1024;
+    quiet_lmr_cont2_scale: i32 => 1024;
 }
 
 impl Params {
@@ -416,5 +426,35 @@ impl Params {
         let log_depth = depth.ilog2() as i32;
 
         Self::quiet_lmr_base() + Self::quiet_lmr_scale() * log_depth
+    }
+
+    #[inline]
+    pub fn noisy_lmr_history(thread: &ThreadData, pos: &Position, mv: Move) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        history += thread.history.noisy(board, mv) * Self::noisy_lmr_noisy_scale();
+
+        history += thread.history.duck(board, mv) * Self::noisy_lmr_duck_scale();
+
+        history / 1024
+    }
+
+    #[inline]
+    pub fn quiet_lmr_history(thread: &ThreadData, pos: &Position, mv: Move) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        history += thread.history.quiet(board, mv) * Self::quiet_lmr_quiet_scale();
+
+        history += thread.history.duck(board, mv) * Self::quiet_lmr_duck_scale();
+
+        let indices = ContIndices::new(pos);
+
+        history += thread.history.cont1(board, indices, mv) * Self::quiet_lmr_cont1_scale();
+
+        history += thread.history.cont2(board, indices, mv) * Self::quiet_lmr_cont2_scale();
+
+        history / 1024
     }
 }
