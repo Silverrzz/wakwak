@@ -170,9 +170,6 @@ impl MovePicker {
     #[inline]
     pub fn skip_quiets(&mut self) {
         self.skip_quiets = true;
-        if matches!(self.stage, Stage::GenerateQuiets | Stage::YieldQuiets) {
-            self.stage = Stage::Finished;
-        }
     }
 
     pub fn next(
