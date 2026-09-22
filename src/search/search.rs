@@ -380,7 +380,13 @@ fn search<Node: NodeType>(
     let neutral_ducks = pos.board().neutral_ducks();
     let prune_neutrals =
         !Node::PV && depth <= Params::ndp_depth() && !alpha.is_mate() && !beta.is_mate();
-    let mut move_picker = MovePicker::new(tt_move, neutral_ducks, prune_neutrals, prune_neutrals);
+    let mut move_picker = MovePicker::new(
+        tt_move,
+        Params::mp_see_threshold(),
+        neutral_ducks,
+        prune_neutrals,
+        prune_neutrals,
+    );
     let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
         [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
@@ -695,7 +701,13 @@ fn qsearch<Node: NodeType>(
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
     let neutral_ducks = pos.board().neutral_ducks();
     let prune_noisy_neutrals = !Node::PV && !alpha.is_mate() && !beta.is_mate();
-    let mut move_picker = MovePicker::new(tt_move, neutral_ducks, false, prune_noisy_neutrals);
+    let mut move_picker = MovePicker::new(
+        tt_move,
+        Params::mp_qs_see_threshold(),
+        neutral_ducks,
+        false,
+        prune_noisy_neutrals,
+    );
     move_picker.skip_quiets();
     let mut best_move = None;
     let mut flag = TTFlag::Upper;

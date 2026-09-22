@@ -128,11 +128,17 @@ params! {
     iid_depth_scale:     i32 => 768;
     iid_depth_reduction: i32 => 1536;
 
-    mvvlva_pawn:   i32 => 100;
-    mvvlva_knight: i32 => 320;
-    mvvlva_bishop: i32 => 330;
-    mvvlva_rook:   i32 => 500;
-    mvvlva_queen:  i32 => 900;
+    mvv_pawn:   i32 => 100;
+    mvv_knight: i32 => 320;
+    mvv_bishop: i32 => 330;
+    mvv_rook:   i32 => 500;
+    mvv_queen:  i32 => 900;
+
+    see_pawn:   i32 => 100;
+    see_knight: i32 => 320;
+    see_bishop: i32 => 330;
+    see_rook:   i32 => 500;
+    see_queen:  i32 => 900;
 
     quiet_ldp_depth:               i32 => 8;
     quiet_ldp_imp_threshold_base:  i32 => 2;
@@ -162,6 +168,8 @@ params! {
 
     ndp_depth: i32 => 8;
 
+    mp_see_threshold: i32 => 0;
+    mp_qs_see_threshold: i32 => 0;
     mp_quiet_neutral_malus: i32 => 5000;
 
     qsldp_threshold: i32 => 2;
@@ -365,13 +373,25 @@ impl Params {
     }
 
     #[inline]
-    pub const fn piece_value(piece: Piece) -> i32 {
+    pub const fn mvv_value(piece: Piece) -> i32 {
         match piece {
-            Piece::Pawn => Self::mvvlva_pawn(),
-            Piece::Knight => Self::mvvlva_knight(),
-            Piece::Bishop => Self::mvvlva_bishop(),
-            Piece::Rook => Self::mvvlva_rook(),
-            Piece::Queen => Self::mvvlva_queen(),
+            Piece::Pawn => Self::mvv_pawn(),
+            Piece::Knight => Self::mvv_knight(),
+            Piece::Bishop => Self::mvv_bishop(),
+            Piece::Rook => Self::mvv_rook(),
+            Piece::Queen => Self::mvv_queen(),
+            Piece::King => 20000,
+        }
+    }
+
+    #[inline]
+    pub const fn see_value(piece: Piece) -> i32 {
+        match piece {
+            Piece::Pawn => Self::see_pawn(),
+            Piece::Knight => Self::see_knight(),
+            Piece::Bishop => Self::see_bishop(),
+            Piece::Rook => Self::see_rook(),
+            Piece::Queen => Self::see_queen(),
             Piece::King => 20000,
         }
     }

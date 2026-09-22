@@ -98,15 +98,16 @@ impl Default for MoveStack {
 #[inline]
 fn mvv(board: &Board, mv: Move) -> i32 {
     let victim = if mv.flag() == MoveFlag::EnPassant {
-        Params::piece_value(Piece::Pawn)
+        Params::mvv_value(Piece::Pawn)
     } else if mv.flag().is_capture() {
-        Params::piece_value(board.piece_on(mv.dest()).unwrap())
+        Params::mvv_value(board.piece_on(mv.dest()).unwrap())
     } else {
         0
     };
-    let promotion = mv.flag().promotion().map_or(0, |p| {
-        Params::piece_value(p) - Params::piece_value(Piece::Pawn)
-    });
+    let promotion = mv
+        .flag()
+        .promotion()
+        .map_or(0, |p| Params::mvv_value(p) - Params::mvv_value(Piece::Pawn));
 
     victim + promotion
 }
@@ -115,19 +116,22 @@ fn mvv(board: &Board, mv: Move) -> i32 {
 pub enum Stage {
     TTMove,
     GenerateNoisies,
-    YieldNoisies,
+    YieldGoodNoisies,
     GenerateQuiets,
     YieldQuiets,
+    YieldBadNoisies,
     Finished,
 }
 
 pub struct MovePicker {
     stage: Stage,
     tt_move: Option<Move>,
+    see_threshold: i32,
     skip_quiets: bool,
     neutral_ducks: Bitboard,
     prune_quiet_neutrals: bool,
     prune_noisy_neutrals: bool,
+    bad_noisy_count: usize,
     cursor: usize,
 }
 
@@ -135,6 +139,7 @@ impl MovePicker {
     #[inline]
     pub fn new(
         tt_move: Option<Move>,
+        see_threshold: i32,
         neutral_ducks: Bitboard,
         prune_quiet_neutrals: bool,
         prune_noisy_neutrals: bool,
@@ -142,10 +147,12 @@ impl MovePicker {
         Self {
             stage: Stage::TTMove,
             tt_move,
+            see_threshold,
             skip_quiets: false,
             neutral_ducks,
             prune_quiet_neutrals,
             prune_noisy_neutrals,
+            bad_noisy_count: 0,
             cursor: 0,
         }
     }
@@ -182,11 +189,11 @@ impl MovePicker {
                 &thread.history,
             );
             self.score_noisies(board, thread, start);
-            self.stage = Stage::YieldNoisies;
+            self.stage = Stage::YieldGoodNoisies;
         }
 
-        if self.stage == Stage::YieldNoisies {
-            if let Some(mv) = self.yield_next(thread) {
+        if self.stage == Stage::YieldGoodNoisies {
+            if let Some(mv) = self.yield_good_noisy(board, thread) {
                 return Some(mv);
             }
 
@@ -195,7 +202,7 @@ impl MovePicker {
 
         if self.stage == Stage::GenerateQuiets {
             if self.skip_quiets {
-                self.stage = Stage::Finished;
+                self.stage = Stage::YieldBadNoisies;
             } else {
                 let start = thread.move_stack.add_moves::<Quiet>(
                     board,
@@ -210,8 +217,17 @@ impl MovePicker {
 
         if self.stage == Stage::YieldQuiets {
             if !self.skip_quiets
-                && let Some(mv) = self.yield_next(thread)
+                && let Some(mv) = self.yield_quiet(thread)
             {
+                return Some(mv);
+            }
+
+            self.stage = Stage::YieldBadNoisies;
+            self.cursor = 0;
+        }
+
+        if self.stage == Stage::YieldBadNoisies {
+            if let Some(mv) = self.yield_bad_noisy(thread) {
                 return Some(mv);
             }
 
@@ -222,7 +238,48 @@ impl MovePicker {
     }
 
     #[inline]
-    fn yield_next(&mut self, thread: &ThreadData) -> Option<Move> {
+    fn yield_good_noisy(&mut self, board: &Board, thread: &mut ThreadData) -> Option<Move> {
+        let moves = thread.move_stack.get_mut();
+
+        while self.cursor < moves.len() {
+            let mv = moves[self.cursor].0;
+            self.cursor += 1;
+
+            // Don't yield the TT move a second time
+            if self.tt_move == Some(mv) {
+                continue;
+            }
+
+            if board.cmp_see(mv, self.see_threshold) {
+                return Some(mv);
+            }
+
+            moves.swap(self.bad_noisy_count, self.cursor - 1);
+            self.bad_noisy_count += 1;
+        }
+
+        None
+    }
+
+    #[inline]
+    fn yield_bad_noisy(&mut self, thread: &ThreadData) -> Option<Move> {
+        let moves = thread.move_stack.get();
+
+        while self.cursor < self.bad_noisy_count {
+            let mv = moves[self.cursor].0;
+            self.cursor += 1;
+
+            // Don't yield the TT move a second time
+            if self.tt_move != Some(mv) {
+                return Some(mv);
+            }
+        }
+
+        None
+    }
+
+    #[inline]
+    fn yield_quiet(&mut self, thread: &ThreadData) -> Option<Move> {
         let moves = thread.move_stack.get();
 
         while self.cursor < moves.len() {

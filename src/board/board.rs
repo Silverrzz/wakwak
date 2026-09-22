@@ -36,6 +36,11 @@ impl Board {
     }
 
     #[inline]
+    pub fn occupied_duckless(&self) -> Bitboard {
+        self.colors[Color::White] | self.colors[Color::Black]
+    }
+
+    #[inline]
     pub fn colors(&self, color: Color) -> Bitboard {
         self.colors[color]
     }
