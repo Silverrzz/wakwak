@@ -434,6 +434,18 @@ fn search<Node: NodeType>(
             {
                 continue;
             }
+
+            /*
+            Late Duck Pruning (LDP): After a certain number of duck moves for
+            a certain move, we can be reasonably confident they're not gonna get
+            much better, so we can skip the rest of them.
+            */
+            if lmr_depth <= Params::ldp_depth(is_quiet)
+                && ducks_by_move[src][dest]
+                    >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            {
+                continue;
+            }
         }
 
         if duck_safety[dest].0 != Some(src) {
@@ -443,20 +455,6 @@ fn search<Node: NodeType>(
             duck_safety[dest] = (Some(src), board.king_capture_blocks(!board.stm()));
         }
         let safe = duck_safety[dest].1;
-
-        /*
-        Late Duck Pruning (LDP): After a certain number of duck moves for
-        a certain move, we can be reasonably confident they're not gonna get
-        much better, so we can skip the rest of them.
-        */
-        if can_move_loop_prune
-            && safe == Bitboard::FULL
-            && lmr_depth <= Params::ldp_depth(is_quiet)
-            && ducks_by_move[src][dest]
-                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
-        {
-            continue;
-        }
 
         ducks_by_move[src][dest] += 1;
         duck_counts[duck] += 1;
