@@ -6,6 +6,7 @@ pub mod pv;
 #[allow(clippy::module_inception)]
 pub mod search;
 pub mod searcher;
+pub mod see;
 pub mod time;
 pub mod tt;
 

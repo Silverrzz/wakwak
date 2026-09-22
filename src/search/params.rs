@@ -157,8 +157,9 @@ params! {
 
     mp_quiet_neutral_malus: i32 => 5000;
 
-    qsldp_threshold: i32 => 2;
-    qsdcp_threshold: i32 => 2;
+    qs_ldp_threshold: i32 => 2;
+    qs_dcp_threshold: i32 => 2;
+    qs_see_threshold: i32 => -100;
 
     soft_time_div: u64 => 98304;
     soft_time_inc: u64 => 2048;
@@ -183,6 +184,12 @@ params! {
     fp_base:  i32 => 256;
     fp_scale: i32 => 128;
     fp_depth: i32 => 5;
+
+    see_pawn_value: i32     => 100;
+    see_bishop_value: i32   => 320;
+    see_knight_value: i32   => 330;
+    see_rook_value: i32     => 500;
+    see_queen_value: i32    => 900;
 }
 
 impl Params {

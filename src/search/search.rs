@@ -3,6 +3,7 @@ use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
 use crate::search::cont::ContIndices;
+use crate::search::see::see;
 use crate::search::tt::TTFlag;
 use crate::search::{
     MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData,
@@ -713,7 +714,7 @@ fn qsearch<Node: NodeType>(
         }
 
         // Duck Count Pruning (DCP)
-        if !Node::PV && duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
+        if !Node::PV && duck_counts[duck] >= Params::qs_dcp_threshold() as u8 {
             continue;
         }
 
@@ -726,7 +727,11 @@ fn qsearch<Node: NodeType>(
         let safe = duck_safety[dest].1;
 
         // Late Duck Pruning (LDP)
-        if safe == Bitboard::FULL && ducks_by_move[src][dest] >= Params::qsldp_threshold() as u8 {
+        if safe == Bitboard::FULL && ducks_by_move[src][dest] >= Params::qs_ldp_threshold() as u8 {
+            continue;
+        }
+
+        if !see(pos.board(), mv, Params::qs_see_threshold()) {
             continue;
         }
 
