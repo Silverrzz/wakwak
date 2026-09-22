@@ -198,6 +198,21 @@ impl Board {
     }
 
     #[inline]
+    pub fn attackers_to(&self, dest: Square, occupied: Bitboard) -> Bitboard {
+        let orth = self.orth_sliders();
+        let diag = self.diag_sliders();
+
+        occupied
+            & ((pawn_attacks(dest, Color::White) & self.colored_pieces(Color::Black, Piece::Pawn))
+                | (pawn_attacks(dest, Color::Black)
+                    & self.colored_pieces(Color::White, Piece::Pawn))
+                | (knight_attacks(dest) & self.pieces(Piece::Knight))
+                | (bishop_attacks(occupied, dest, self.slider_tag) & diag)
+                | (rook_attacks(occupied, dest, self.slider_tag) & orth)
+                | (king_attacks(dest) & self.pieces(Piece::King)))
+    }
+
+    #[inline]
     pub fn neutral_ducks(&self) -> Bitboard {
         let them = !self.stm;
         let blockers = self.colors(them);

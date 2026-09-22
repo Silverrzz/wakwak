@@ -1,11 +1,29 @@
 use crate::board::{Board, bishop_attacks, rook_attacks};
-use crate::common::{
-    Bitboard, Color, Move, MoveFlag, Piece, Square, between, king_attacks, knight_attacks,
-    pawn_attacks,
-};
+use crate::common::{Bitboard, Move, MoveFlag, Piece, Square, between};
 use crate::search::Params;
 
 impl Board {
+    #[inline]
+    fn move_value(&self, mv: Move) -> i32 {
+        let (dest, flag) = (mv.dest(), mv.flag());
+
+        match flag {
+            MoveFlag::Normal | MoveFlag::DoublePush => 0,
+            MoveFlag::EnPassant => Params::see_value(Piece::Pawn),
+            MoveFlag::Capture => Params::see_value(self.piece_on(dest).unwrap()),
+            _ if flag.is_capture_promotion() => {
+                Params::see_value(self.piece_on(dest).unwrap())
+                    + Params::see_value(flag.promotion().unwrap())
+                    - Params::see_value(Piece::Pawn)
+            }
+            _ if let Some(promo) = flag.promotion() => {
+                Params::see_value(promo) - Params::see_value(Piece::Pawn)
+            }
+            _ if flag.is_castling() => 0,
+            _ => unreachable!(),
+        }
+    }
+
     #[inline]
     pub fn cmp_see(&self, mv: Move, threshold: i32) -> bool {
         if mv.flag().is_castling() {
@@ -16,28 +34,13 @@ impl Board {
         let next_victim = flag
             .promotion()
             .unwrap_or_else(|| self.piece_on(src).unwrap());
-        let mut balance = -threshold
-            + match flag {
-                MoveFlag::Normal | MoveFlag::DoublePush => 0,
-                MoveFlag::EnPassant => Params::see_value(Piece::Pawn),
-                MoveFlag::Capture => Params::see_value(self.piece_on(dest).unwrap()),
-                _ if flag.is_capture_promotion() => {
-                    Params::see_value(self.piece_on(dest).unwrap())
-                        + Params::see_value(flag.promotion().unwrap())
-                        - Params::see_value(Piece::Pawn)
-                }
-                _ if let Some(promo) = flag.promotion() => {
-                    Params::see_value(promo) - Params::see_value(Piece::Pawn)
-                }
-                _ => unreachable!(),
-            };
 
+        let mut balance = -threshold + self.move_value(mv);
         if balance < 0 {
             return false;
         }
 
         balance -= Params::see_value(next_victim);
-
         if balance >= 0 {
             return true;
         }
@@ -51,18 +54,9 @@ impl Board {
         let orth = self.orth_sliders();
 
         // All possible attackers to dest
-        #[rustfmt::skip]
-        let mut attackers = occupied & (
-            (pawn_attacks(dest, Color::White) & self.colored_pieces(Color::Black, Piece::Pawn))
-            | (pawn_attacks(dest, Color::Black) & self.colored_pieces(Color::White, Piece::Pawn))
-            | (knight_attacks(dest) & self.pieces(Piece::Knight))
-            | (bishop_attacks(occupied, dest, self.slider_tag) & diag)
-            | (rook_attacks(occupied, dest, self.slider_tag) & orth)
-            | (king_attacks(dest) & self.pieces(Piece::King))
-        );
-
-        let mut stm = !self.stm;
+        let mut attackers = self.attackers_to(dest, occupied);
         let mut duck = mv.duck().bitboard();
+        let mut stm = !self.stm;
 
         loop {
             // Possible attackers taking into account the duck as a blocker

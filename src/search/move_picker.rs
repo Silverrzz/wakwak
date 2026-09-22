@@ -64,6 +64,12 @@ impl MoveStack {
     }
 
     #[inline]
+    pub fn reset(&mut self) {
+        self.stack.clear();
+        self.ply = 0;
+    }
+
+    #[inline]
     pub fn get(&self) -> &[ScoredMove] {
         debug_assert!(self.ply > 0, "MoveStack::get(): Empty stack");
 
@@ -78,9 +84,13 @@ impl MoveStack {
     }
 
     #[inline]
-    pub fn reset(&mut self) {
-        self.stack.clear();
-        self.ply = 0;
+    pub fn len(&self) -> usize {
+        self.get().len()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.get().is_empty()
     }
 }
 
@@ -217,7 +227,7 @@ impl MovePicker {
 
         if self.stage == Stage::YieldQuiets {
             if !self.skip_quiets
-                && let Some(mv) = self.yield_quiet(thread)
+                && let Some(mv) = self.yield_until(thread, thread.move_stack.len())
             {
                 return Some(mv);
             }
@@ -227,7 +237,7 @@ impl MovePicker {
         }
 
         if self.stage == Stage::YieldBadNoisies {
-            if let Some(mv) = self.yield_bad_noisy(thread) {
+            if let Some(mv) = self.yield_until(thread, self.bad_noisy_count) {
                 return Some(mv);
             }
 
@@ -262,27 +272,10 @@ impl MovePicker {
     }
 
     #[inline]
-    fn yield_bad_noisy(&mut self, thread: &ThreadData) -> Option<Move> {
+    fn yield_until(&mut self, thread: &ThreadData, index: usize) -> Option<Move> {
         let moves = thread.move_stack.get();
 
-        while self.cursor < self.bad_noisy_count {
-            let mv = moves[self.cursor].0;
-            self.cursor += 1;
-
-            // Don't yield the TT move a second time
-            if self.tt_move != Some(mv) {
-                return Some(mv);
-            }
-        }
-
-        None
-    }
-
-    #[inline]
-    fn yield_quiet(&mut self, thread: &ThreadData) -> Option<Move> {
-        let moves = thread.move_stack.get();
-
-        while self.cursor < moves.len() {
+        while self.cursor < index {
             let mv = moves[self.cursor].0;
             self.cursor += 1;
 
