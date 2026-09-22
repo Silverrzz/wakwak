@@ -170,6 +170,11 @@ impl MovePicker {
     }
 
     #[inline]
+    pub fn stage(&self) -> Stage {
+        self.stage
+    }
+
+    #[inline]
     pub fn skip_quiets(&mut self) {
         self.skip_quiets = true;
     }

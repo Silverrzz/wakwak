@@ -167,6 +167,10 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
+    see_depth: i32 => 10;
+    see_base:  i32 => 0;
+    see_scale: i32 => -80;
+
     mp_see_threshold: i32 => 0;
     mp_qs_see_threshold: i32 => 0;
     mp_quiet_neutral_malus: i32 => 5000;
@@ -378,6 +382,11 @@ impl Params {
         threshold += ((duck_history + offset) / divisor).clamp(min, max);
 
         threshold
+    }
+
+    #[inline]
+    pub fn see_margin(depth: i32) -> i32 {
+        Self::see_base() + Self::see_scale() * depth
     }
 
     #[inline]

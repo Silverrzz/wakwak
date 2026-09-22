@@ -5,7 +5,7 @@ use crate::score::Score;
 use crate::search::cont::ContIndices;
 use crate::search::tt::TTFlag;
 use crate::search::{
-    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData,
+    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, Stage, ThreadData,
 };
 use std::sync::atomic::Ordering;
 
@@ -447,6 +447,17 @@ fn search<Node: NodeType>(
             if lmr_depth <= 8
                 && ducks_by_move[src][dest]
                     >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            {
+                continue;
+            }
+
+            /*
+            SEE Pruning: Prune moves that have bad SEE score idk
+            */
+            if !is_quiet
+                && depth <= Params::see_depth()
+                && move_picker.stage() == Stage::YieldBadNoisies
+                && !pos.board().cmp_see(mv, Params::see_margin(depth))
             {
                 continue;
             }
