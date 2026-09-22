@@ -304,9 +304,8 @@ impl MovePicker {
                 continue;
             }
 
-            scored.1 = mvv(board, mv) * 8
-                + thread.history.noisy(board, mv) / 8
-                + thread.history.duck(board, mv) / 8;
+            scored.1 =
+                mvv(board, mv) * 8 + Params::noisy_mp_history(thread.history.as_ref(), board, mv);
         }
 
         moves[start..].sort_unstable_by_key(|m| Reverse(m.1));
@@ -329,10 +328,7 @@ impl MovePicker {
             }
             let is_neutral = self.neutral_ducks.has(mv.duck());
 
-            scored.1 = thread.history.quiet(board, mv)
-                + thread.history.pawn(board, mv)
-                + thread.history.duck(board, mv)
-                + thread.history.cont(board, indices, mv)
+            scored.1 = Params::quiet_mp_history(thread.history.as_ref(), board, indices, mv)
                 - Params::mp_quiet_neutral_malus() * is_neutral as i32;
         }
 

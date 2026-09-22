@@ -1,6 +1,7 @@
+use crate::board::Board;
 use crate::common::{Move, Piece};
 use crate::position::Position;
-use crate::search::{ContIndices, ThreadData};
+use crate::search::{ContIndices, History, ThreadData};
 #[cfg(feature = "tune")]
 use crate::uci::UciParseError;
 use std::cell::UnsafeCell;
@@ -209,6 +210,16 @@ params! {
     quiet_lmr_duck_scale:  i32 => 1024;
     quiet_lmr_cont1_scale: i32 => 1024;
     quiet_lmr_cont2_scale: i32 => 1024;
+
+    quiet_mp_quiet_scale: i32 => 1024;
+    quiet_mp_duck_scale:  i32 => 1024;
+    quiet_mp_pawn_scale:  i32 => 1024;
+    quiet_mp_cont1_scale: i32 => 1024;
+    quiet_mp_cont2_scale: i32 => 1024;
+    quiet_mp_cont4_scale: i32 => 1024;
+
+    noisy_mp_noisy_scale: i32 => 128;
+    noisy_mp_duck_scale:  i32 => 128;
 }
 
 impl Params {
@@ -456,5 +467,39 @@ impl Params {
         history += thread.history.cont2(board, indices, mv) * Self::quiet_lmr_cont2_scale();
 
         history / 1024
+    }
+
+    #[inline]
+    pub fn quiet_mp_history(
+        history: &History,
+        board: &Board,
+        indices: ContIndices,
+        mv: Move,
+    ) -> i32 {
+        let mut history_score = 0;
+
+        history_score += history.quiet(board, mv) * Self::quiet_mp_quiet_scale();
+
+        history_score += history.duck(board, mv) * Self::quiet_mp_duck_scale();
+
+        history_score += history.pawn(board, mv) * Self::quiet_mp_pawn_scale();
+
+        history_score += history.cont1(board, indices, mv) * Self::quiet_mp_cont1_scale();
+
+        history_score += history.cont2(board, indices, mv) * Self::quiet_mp_cont2_scale();
+
+        history_score += history.cont4(board, indices, mv) * Self::quiet_mp_cont4_scale();
+
+        history_score / 1024
+    }
+
+    pub fn noisy_mp_history(history: &History, board: &Board, mv: Move) -> i32 {
+        let mut history_score = 0;
+
+        history_score += history.noisy(board, mv) * Self::noisy_mp_noisy_scale() / 1024;
+
+        history_score += history.duck(board, mv) * Self::noisy_mp_duck_scale() / 1024;
+
+        history_score
     }
 }

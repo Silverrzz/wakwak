@@ -177,6 +177,13 @@ impl History {
     }
 
     #[inline]
+    pub fn cont4(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
+        self.cont_even
+            .entry(board, mv, indices.cont4)
+            .unwrap_or_default()
+    }
+
+    #[inline]
     pub fn corr(&self, board: &Board) -> i32 {
         let stm = board.stm();
         let mut corr = 0;
