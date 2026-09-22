@@ -393,6 +393,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
+        let is_neutral = neutral_ducks.has(duck);
         let base_reduction = Params::lmr(depth);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
@@ -431,6 +432,16 @@ fn search<Node: NodeType>(
                 && is_quiet
                 && depth <= Params::dcp_depth()
                 && duck_counts[duck] >= Params::dcp_threshold(depth, improving, duck_history) as u8
+            {
+                continue;
+            }
+
+            /*
+            Neutral Duck Pruning (NDP): At low depths neutral ducks are excluded in
+            the movepicker. At higher depths, we start pruning quiet neutral ducks
+            only when a certain number of moves have been searched.
+             */
+            if !Node::PV && depth <= 16 && is_quiet && is_neutral && searched_moves > 2 + 2 * depth
             {
                 continue;
             }
