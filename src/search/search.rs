@@ -387,8 +387,7 @@ fn search<Node: NodeType>(
         prune_neutrals,
         prune_neutrals,
     );
-    let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
-        [[0; Square::COUNT]; Square::COUNT];
+    let mut move_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
@@ -454,7 +453,7 @@ fn search<Node: NodeType>(
             much better, so we can skip the rest of them.
             */
             if lmr_depth <= Params::ldp_depth(is_quiet)
-                && ducks_by_move[src][dest]
+                && move_counts[src][dest]
                     >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
             {
                 continue;
@@ -466,7 +465,7 @@ fn search<Node: NodeType>(
         }
         let safe = duck_safety[dest].1;
 
-        ducks_by_move[src][dest] += 1;
+        move_counts[src][dest] += 1;
         duck_counts[duck] += 1;
         pos.make_move(mv);
 
@@ -700,8 +699,7 @@ fn qsearch<Node: NodeType>(
     thread.stack[ply].static_eval = Some(static_eval);
     thread.move_stack.push_ply();
 
-    let mut ducks_by_move: [[u8; Square::COUNT]; Square::COUNT] =
-        [[0; Square::COUNT]; Square::COUNT];
+    let mut move_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
@@ -732,17 +730,17 @@ fn qsearch<Node: NodeType>(
             continue;
         }
 
+        // Late Duck Pruning (LDP)
+        if move_counts[src][dest] >= Params::qsldp_threshold() as u8 {
+            continue;
+        }
+
         if duck_safety[dest].0 != Some(src) {
             duck_safety[dest] = (Some(src), pos.board().king_capture_blocks_after(mv));
         }
         let safe = duck_safety[dest].1;
 
-        // Late Duck Pruning (LDP)
-        if safe == Bitboard::FULL && ducks_by_move[src][dest] >= Params::qsldp_threshold() as u8 {
-            continue;
-        }
-
-        ducks_by_move[src][dest] += 1;
+        move_counts[src][dest] += 1;
         duck_counts[duck] += 1;
 
         pos.make_move(mv);
