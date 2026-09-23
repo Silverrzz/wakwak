@@ -497,7 +497,7 @@ impl Params {
 
     #[inline]
     pub fn nmr_reduction(depth: i32) -> i32 {
-        Self::nmr_reduction_base() + Self::nmr_reduction_scale() * depth / 1024
+        Self::nmr_reduction_base() + depth * Self::nmr_reduction_scale() / 1024
     }
 
     #[inline]
