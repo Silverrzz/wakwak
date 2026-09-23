@@ -86,18 +86,21 @@ impl TranspositionTable {
     pub const DEFAULT_SIZE_MB: usize = 64;
     pub const MAX_SIZE_MB: usize = 16 * 1024 * 1024; // duck it we ball
 
+    #[inline]
     pub fn new(size_mb: usize) -> TranspositionTable {
         let size = size_mb * 1024 * 1024 / size_of::<AtomicTTEntry>();
         let table = (0..size).map(|_| AtomicTTEntry::default()).collect();
         TranspositionTable { table, size }
     }
 
+    #[inline]
     pub fn clear(&self) {
         self.table.iter().for_each(|entry| {
             entry.packed.store(0, Ordering::Relaxed);
         });
     }
 
+    #[inline]
     pub fn probe(&self, hash: u64) -> Option<TTEntry> {
         let idx = self.idx(hash);
         let atomic_entry = &self.table[idx];
@@ -118,6 +121,7 @@ impl TranspositionTable {
         }
     }
 
+    #[inline]
     pub fn insert(
         &self,
         hash: u64,
@@ -131,6 +135,7 @@ impl TranspositionTable {
 
         let key_part = (hash & 0xFFFF) as u16;
         let old_packed = entry.packed.load(Ordering::Relaxed);
+        let old_depth = (old_packed >> DEPTH_SHIFT) as u8 as i32;
         let old_key = (old_packed >> KEY_SHIFT) as u16;
         let key_match = old_key == key_part;
 
@@ -145,9 +150,13 @@ impl TranspositionTable {
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT
             | (best_move.map_or(0, |mv| mv.raw().get()) as u64) << MOVE_SHIFT;
-        entry.packed.store(packed, Ordering::Relaxed);
+
+        if !key_match || flag == TTFlag::Exact || depth + 4 > old_depth {
+            entry.packed.store(packed, Ordering::Relaxed);
+        }
     }
 
+    #[inline]
     fn idx(&self, hash: u64) -> usize {
         let key = hash as u128;
         let len = self.size as u128;
