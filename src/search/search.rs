@@ -327,7 +327,7 @@ fn search<Node: NodeType>(
         && thread.stack[ply - 1].mv.is_some()
         && static_eval >= beta + Params::nmr_margin()
     {
-        let r = 5 + depth / 3;
+        let r = Params::nmr_reduction(depth);
         pos.make_null_move();
         let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
         pos.unmake_null_move();
@@ -352,7 +352,7 @@ fn search<Node: NodeType>(
 
     // Internal Iterative Deepening
     if !Node::ROOT && Node::PV && depth >= 5 && tt_move.is_none() && thread.id == 0 {
-        let iid_depth = (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024;
+        let iid_depth = Params::iid_depth(depth);
 
         thread.iid_iteration += 1;
         _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);

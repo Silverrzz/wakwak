@@ -126,7 +126,9 @@ params! {
     razor_base:  i32 => 320;
     razor_scale: i32 => 250;
 
-    nmr_margin: i32 => 20;
+    nmr_margin:          i32 => 20;
+    nmr_reduction_base:  i32 => 5120;
+    nmr_reduction_scale: i32 => 341;
 
     iid_depth_scale:     i32 => 768;
     iid_depth_reduction: i32 => 1536;
@@ -493,6 +495,7 @@ impl Params {
         history_score / 1024
     }
 
+    #[inline]
     pub fn noisy_mp_history(history: &History, board: &Board, mv: Move) -> i32 {
         let mut history_score = 0;
 
@@ -501,5 +504,15 @@ impl Params {
         history_score += history.duck(board, mv) * Self::noisy_mp_duck_scale() / 1024;
 
         history_score
+    }
+
+    #[inline]
+    pub fn iid_depth(depth: i32) -> i32 {
+        (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024
+    }
+
+    #[inline]
+    pub fn nmr_reduction(depth: i32) -> i32 {
+        Self::nmr_reduction_base() + Self::nmr_reduction_scale() * depth / 1024
     }
 }
