@@ -131,6 +131,7 @@ params! {
 
     iid_depth_scale:     i32 => 768;
     iid_depth_reduction: i32 => 1536;
+    iid_probcut_margin:  i32 => 200;
 
     mvv_pawn:   i32 => 100;
     mvv_knight: i32 => 320;

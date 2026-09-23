@@ -352,8 +352,13 @@ fn search<Node: NodeType>(
         let iid_depth = Params::iid_depth(depth);
 
         thread.iid_iteration += 1;
-        _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
+        let iid_score = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
         thread.iid_iteration -= 1;
+
+        // IID Probcut
+        if thread.iid_iteration == 0 && iid_score >= beta + Params::iid_probcut_margin() {
+            return beta + Params::iid_probcut_margin();
+        }
 
         let entry = shared.tt.probe(pos.board().hash());
         if thread.iid_iteration > 0
