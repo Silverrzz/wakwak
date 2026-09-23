@@ -167,7 +167,6 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
-    see_depth: i32 => 10;
     see_base:  i32 => 0;
     see_scale: i32 => -80;
 

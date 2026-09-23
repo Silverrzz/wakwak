@@ -455,7 +455,7 @@ fn search<Node: NodeType>(
             SEE Pruning: Prune moves that have bad SEE score idk
             */
             if !is_quiet
-                && depth <= Params::see_depth()
+                && depth <= 10
                 && move_picker.stage() == Stage::YieldBadNoisies
                 && !pos.board().cmp_see(mv, Params::see_margin(depth))
             {
