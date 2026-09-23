@@ -462,10 +462,9 @@ fn search<Node: NodeType>(
             /*
             SEE Pruning: Prune moves that have bad SEE score idk
             */
-            if !is_quiet
-                && depth <= 10
-                && move_picker.stage() == Stage::YieldBadNoisies
-                && !pos.board().cmp_see(mv, Params::see_margin(depth))
+            if depth <= 10
+                && move_picker.stage() >= Stage::YieldQuiets
+                && !pos.board().cmp_see(mv, Params::see_margin(depth, is_quiet))
             {
                 continue;
             }
