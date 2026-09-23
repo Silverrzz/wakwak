@@ -293,10 +293,7 @@ fn search<Node: NodeType>(
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::PV
-        && depth <= Params::rfp_depth()
-        && static_eval - Params::rfp_margin(depth, improving) >= beta
-    {
+    if !Node::PV && depth <= 8 && static_eval - Params::rfp_margin(depth, improving) >= beta {
         return static_eval;
     }
 
@@ -378,8 +375,7 @@ fn search<Node: NodeType>(
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
     let neutral_ducks = pos.board().neutral_ducks();
-    let prune_neutrals =
-        !Node::PV && depth <= Params::ndp_depth() && !alpha.is_mate() && !beta.is_mate();
+    let prune_neutrals = !Node::PV && depth <= 8 && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(
         tt_move,
         Params::mp_see_threshold(),
@@ -425,10 +421,7 @@ fn search<Node: NodeType>(
             Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
             quiet moves.
             */
-            if is_quiet
-                && lmr_depth <= Params::fp_depth()
-                && static_eval + Params::fp_base() + Params::fp_scale() * lmr_depth <= alpha
-            {
+            if is_quiet && lmr_depth <= 5 && static_eval + Params::fp_margin(lmr_depth) <= alpha {
                 move_picker.skip_quiets();
                 continue;
             }
@@ -440,7 +433,7 @@ fn search<Node: NodeType>(
             */
             if !Node::PV
                 && is_quiet
-                && depth <= Params::dcp_depth()
+                && depth <= 8
                 && duck_counts[duck] >= Params::dcp_threshold(depth, improving, duck_history) as u8
             {
                 continue;
@@ -451,7 +444,7 @@ fn search<Node: NodeType>(
             a certain move, we can be reasonably confident they're not gonna get
             much better, so we can skip the rest of them.
             */
-            if lmr_depth <= Params::ldp_depth(is_quiet)
+            if lmr_depth <= 8
                 && ducks_by_move[src][dest]
                     >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
             {

@@ -146,23 +146,6 @@ impl History {
     }
 
     #[inline]
-    pub fn cont(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
-        let mut value = self
-            .cont_odd
-            .entry(board, mv, indices.cont1)
-            .unwrap_or_default();
-        value += self
-            .cont_even
-            .entry(board, mv, indices.cont2)
-            .unwrap_or_default();
-        value += self
-            .cont_even
-            .entry(board, mv, indices.cont4)
-            .unwrap_or_default();
-        value
-    }
-
-    #[inline]
     pub fn cont1(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
         self.cont_odd
             .entry(board, mv, indices.cont1)

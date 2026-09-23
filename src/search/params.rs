@@ -117,7 +117,6 @@ params! {
     cont4_malus_scale: i32 => 128;
     cont4_malus_max:   i32 => 2048;
 
-    rfp_depth:     i32 => 8;
     rfp_base:      i32 => 0;
     rfp_scale:     i32 => 50;
     rfp_imp_base:  i32 => -50;
@@ -145,7 +144,6 @@ params! {
     see_rook:   i32 => 500;
     see_queen:  i32 => 900;
 
-    quiet_ldp_depth:               i32 => 8;
     quiet_ldp_imp_threshold_base:  i32 => 2;
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
@@ -155,13 +153,11 @@ params! {
     quiet_ldp_history_min:         i32 => -2;
     quiet_ldp_history_max:         i32 => 2;
 
-    noisy_ldp_depth:               i32 => 8;
     noisy_ldp_imp_threshold_base:  i32 => 4;
     noisy_ldp_imp_threshold_scale: i32 => 4;
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
 
-    dcp_depth:               i32 => 8;
     dcp_threshold_imp_base:  i32 => 2;
     dcp_threshold_imp_scale: i32 => 1;
     dcp_threshold_base:      i32 => 4;
@@ -170,8 +166,6 @@ params! {
     dcp_history_div:         i32 => 4000;
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
-
-    ndp_depth: i32 => 8;
 
     mp_see_threshold: i32 => 0;
     mp_qs_see_threshold: i32 => 0;
@@ -203,7 +197,6 @@ params! {
 
     fp_base:  i32 => 256;
     fp_scale: i32 => 128;
-    fp_depth: i32 => 5;
 
     noisy_lmr_noisy_scale: i32 => 128;
     noisy_lmr_duck_scale:  i32 => 128;
@@ -332,15 +325,6 @@ impl Params {
     #[inline]
     pub const fn razor_margin(depth: i32) -> i32 {
         Self::razor_base() + Self::razor_scale() * depth
-    }
-
-    #[inline]
-    pub const fn ldp_depth(is_quiet: bool) -> i32 {
-        if is_quiet {
-            Self::quiet_ldp_depth()
-        } else {
-            Self::noisy_ldp_depth()
-        }
     }
 
     #[inline]
@@ -514,5 +498,10 @@ impl Params {
     #[inline]
     pub fn nmr_reduction(depth: i32) -> i32 {
         Self::nmr_reduction_base() + Self::nmr_reduction_scale() * depth / 1024
+    }
+
+    #[inline]
+    pub fn fp_margin(depth: i32) -> i32 {
+        Params::fp_base() + Params::fp_scale() * depth
     }
 }
