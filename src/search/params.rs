@@ -431,7 +431,6 @@ impl Params {
         let mut history = 0;
 
         history += thread.history.noisy(board, mv) * Self::noisy_lmr_noisy_scale();
-
         history += thread.history.duck(board, mv) * Self::noisy_lmr_duck_scale();
 
         history / 1024
@@ -441,15 +440,11 @@ impl Params {
     pub fn quiet_lmr_history(thread: &ThreadData, pos: &Position, mv: Move) -> i32 {
         let board = pos.board();
         let mut history = 0;
-
-        history += thread.history.quiet(board, mv) * Self::quiet_lmr_quiet_scale();
-
-        history += thread.history.duck(board, mv) * Self::quiet_lmr_duck_scale();
-
         let indices = ContIndices::new(pos);
 
+        history += thread.history.quiet(board, mv) * Self::quiet_lmr_quiet_scale();
+        history += thread.history.duck(board, mv) * Self::quiet_lmr_duck_scale();
         history += thread.history.cont1(board, indices, mv) * Self::quiet_lmr_cont1_scale();
-
         history += thread.history.cont2(board, indices, mv) * Self::quiet_lmr_cont2_scale();
 
         history / 1024
@@ -465,15 +460,10 @@ impl Params {
         let mut history_score = 0;
 
         history_score += history.quiet(board, mv) * Self::quiet_mp_quiet_scale();
-
         history_score += history.duck(board, mv) * Self::quiet_mp_duck_scale();
-
         history_score += history.pawn(board, mv) * Self::quiet_mp_pawn_scale();
-
         history_score += history.cont1(board, indices, mv) * Self::quiet_mp_cont1_scale();
-
         history_score += history.cont2(board, indices, mv) * Self::quiet_mp_cont2_scale();
-
         history_score += history.cont4(board, indices, mv) * Self::quiet_mp_cont4_scale();
 
         history_score / 1024
@@ -484,7 +474,6 @@ impl Params {
         let mut history_score = 0;
 
         history_score += history.noisy(board, mv) * Self::noisy_mp_noisy_scale() / 1024;
-
         history_score += history.duck(board, mv) * Self::noisy_mp_duck_scale() / 1024;
 
         history_score
@@ -497,7 +486,7 @@ impl Params {
 
     #[inline]
     pub fn nmr_reduction(depth: i32) -> i32 {
-        Self::nmr_reduction_base() + depth * Self::nmr_reduction_scale() / 1024
+        (Self::nmr_reduction_base() + depth * Self::nmr_reduction_scale()) / 1024
     }
 
     #[inline]
