@@ -125,7 +125,7 @@ impl TTable {
 
     #[allow(clippy::too_many_arguments)]
     #[inline]
-    pub fn insert(
+    pub fn insert<const STATIC_EVAL: bool>(
         &self,
         hash: u64,
         best_move: Option<Move>,
@@ -155,18 +155,22 @@ impl TTable {
         }
 
         let old_entry = cluster.load(index);
-        cluster.store(
-            index,
-            TTEntry {
-                key: partial_key,
-                mv: best_move.or(old_entry.mv.filter(|_| old_entry.key == partial_key)),
-                score,
-                eval,
-                depth,
-                flag,
-                pv,
-            },
-        );
+
+        // Early static eval inserts should only replace empty entries
+        if !STATIC_EVAL || old_entry.flag == TTFlag::None {
+            cluster.store(
+                index,
+                TTEntry {
+                    key: partial_key,
+                    mv: best_move.or(old_entry.mv.filter(|_| old_entry.key == partial_key)),
+                    score,
+                    eval,
+                    depth,
+                    flag,
+                    pv,
+                },
+            );
+        }
     }
 
     #[inline]

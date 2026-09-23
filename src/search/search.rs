@@ -273,7 +273,7 @@ fn search<Node: NodeType>(
     let static_eval = adjust_eval(raw_eval, corr);
 
     if tt_entry.is_none() {
-        shared.tt.insert(
+        shared.tt.insert::<true>(
             pos.board().hash(),
             None,
             -Score::INFINITE,
@@ -608,7 +608,7 @@ fn search<Node: NodeType>(
         && matches!(flag, TTFlag::Exact | TTFlag::Lower)
         && !best_score.is_mate()
     {
-        shared.tt.insert(
+        shared.tt.insert::<false>(
             pos.board().duckless_hash(),
             best_move,
             best_score,
@@ -619,7 +619,7 @@ fn search<Node: NodeType>(
         );
     }
 
-    shared.tt.insert(
+    shared.tt.insert::<false>(
         pos.board().hash(),
         best_move,
         best_score,
@@ -705,7 +705,7 @@ fn qsearch<Node: NodeType>(
     let static_eval = adjust_eval(raw_eval, corr);
 
     if tt_entry.is_none() {
-        shared.tt.insert(
+        shared.tt.insert::<true>(
             pos.board().hash(),
             None,
             -Score::INFINITE,
@@ -821,7 +821,7 @@ fn qsearch<Node: NodeType>(
 
     thread.move_stack.pop_ply();
 
-    shared.tt.insert(
+    shared.tt.insert::<false>(
         pos.board().hash(),
         best_move,
         best_score,
