@@ -356,8 +356,8 @@ fn search<Node: NodeType>(
         thread.iid_iteration -= 1;
 
         // IID Probcut
-        if thread.iid_iteration == 0 && iid_score >= beta + Params::iid_probcut_margin() {
-            return beta + Params::iid_probcut_margin();
+        if thread.iid_iteration == 0 && iid_score <= alpha - Params::iid_probcut_margin() {
+            return alpha - Params::iid_probcut_margin();
         }
 
         let entry = shared.tt.probe(pos.board().hash());
