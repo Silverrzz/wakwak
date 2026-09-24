@@ -428,6 +428,10 @@ fn search<Node: NodeType>(
 
     let indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, indices) {
+        if Some(mv) == thread.stack[ply].excluded {
+            continue;
+        }
+
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
