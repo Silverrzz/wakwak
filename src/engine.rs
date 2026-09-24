@@ -103,6 +103,7 @@ impl Engine {
             UciCommand::Position { board, moves } => self.set_position(board, moves),
             UciCommand::SetOption { name, value } => self.set_option(name, value),
             UciCommand::Stop => self.stop(),
+            UciCommand::Wait => self.searcher.wait(),
             UciCommand::Quit => return self.quit(),
         }
 
