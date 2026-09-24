@@ -5,7 +5,7 @@ use crate::score::Score;
 use crate::search::cont::ContIndices;
 use crate::search::tt::TTFlag;
 use crate::search::{
-    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, ThreadData,
+    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, Stage, ThreadData,
 };
 use std::sync::atomic::Ordering;
 
@@ -293,10 +293,7 @@ fn search<Node: NodeType>(
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::PV
-        && depth <= Params::rfp_depth()
-        && static_eval - Params::rfp_margin(depth, improving) >= beta
-    {
+    if !Node::PV && depth <= 8 && static_eval - Params::rfp_margin(depth, improving) >= beta {
         return static_eval;
     }
 
@@ -327,7 +324,7 @@ fn search<Node: NodeType>(
         && thread.stack[ply - 1].mv.is_some()
         && static_eval >= beta + Params::nmr_margin()
     {
-        let r = 5 + depth / 3;
+        let r = Params::nmr_reduction(depth);
         pos.make_null_move();
         let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
         pos.unmake_null_move();
@@ -352,7 +349,7 @@ fn search<Node: NodeType>(
 
     // Internal Iterative Deepening
     if !Node::ROOT && Node::PV && depth >= 5 && tt_move.is_none() && thread.id == 0 {
-        let iid_depth = (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024;
+        let iid_depth = Params::iid_depth(depth);
 
         thread.iid_iteration += 1;
         _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
@@ -378,8 +375,7 @@ fn search<Node: NodeType>(
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
     let neutral_ducks = pos.board().neutral_ducks();
-    let prune_neutrals =
-        !Node::PV && depth <= Params::ndp_depth() && !alpha.is_mate() && !beta.is_mate();
+    let prune_neutrals = !Node::PV && depth <= 8 && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(
         tt_move,
         Params::mp_see_threshold(),
@@ -401,12 +397,10 @@ fn search<Node: NodeType>(
         let base_reduction = Params::lmr(depth);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
-        let history = if mv.flag().is_noisy() {
-            thread.history.noisy(pos.board(), mv) / 8 + thread.history.duck(pos.board(), mv) / 8
+        let lmr_history = if is_quiet {
+            Params::quiet_lmr_history(thread, pos, mv)
         } else {
-            thread.history.quiet(pos.board(), mv)
-                + thread.history.duck(pos.board(), mv)
-                + thread.history.partial_cont(pos.board(), indices, mv)
+            Params::noisy_lmr_history(thread, pos, mv)
         };
 
         let duck_history = thread.history.duck(pos.board(), mv);
@@ -426,10 +420,7 @@ fn search<Node: NodeType>(
             Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
             quiet moves.
             */
-            if is_quiet
-                && lmr_depth <= Params::fp_depth()
-                && static_eval + Params::fp_base() + Params::fp_scale() * lmr_depth <= alpha
-            {
+            if is_quiet && lmr_depth <= 5 && static_eval + Params::fp_margin(lmr_depth) <= alpha {
                 move_picker.skip_quiets();
                 continue;
             }
@@ -441,7 +432,7 @@ fn search<Node: NodeType>(
             */
             if !Node::PV
                 && is_quiet
-                && depth <= Params::dcp_depth()
+                && depth <= 8
                 && duck_counts[duck] >= Params::dcp_threshold(depth, improving, duck_history) as u8
             {
                 continue;
@@ -452,9 +443,20 @@ fn search<Node: NodeType>(
             a certain move, we can be reasonably confident they're not gonna get
             much better, so we can skip the rest of them.
             */
-            if lmr_depth <= Params::ldp_depth(is_quiet)
+            if lmr_depth <= 8
                 && move_counts[src][dest]
                     >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            {
+                continue;
+            }
+
+            /*
+            SEE Pruning: Prune moves that have bad SEE score idk
+            */
+            if !is_quiet
+                && depth <= 10
+                && move_picker.stage() == Stage::YieldBadNoisies
+                && !pos.board().cmp_see(mv, Params::see_margin(depth))
             {
                 continue;
             }
@@ -489,7 +491,7 @@ fn search<Node: NodeType>(
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
                     r -= Params::lmr_in_check() * pos.board().in_check() as i32;
-                    r -= Params::lmr_history() * history / 1024;
+                    r -= Params::lmr_history() * lmr_history / 1024;
                     r / 1024
                 } else {
                     0
