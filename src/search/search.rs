@@ -371,10 +371,11 @@ fn search<Node: NodeType>(
             && let Some(entry) = tt_entry
             && !entry.score().is_mate()
             && entry.score() >= beta
-            && entry.depth() >= depth / 2
+            && entry.depth() >= depth - 4
+            && entry.flag() != TTFlag::Upper
         {
             thread.stack[ply].excluded = tt_move;
-            let score = search::<NonPV>(pos, thread, shared, beta - 1, beta, depth / 2, ply);
+            let score = search::<NonPV>(pos, thread, shared, beta - 1, beta, depth - 5, ply);
             thread.stack[ply].excluded = None;
 
             if score >= beta && !score.is_mate() {
