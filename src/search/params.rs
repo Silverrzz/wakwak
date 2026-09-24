@@ -167,8 +167,10 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
-    udp_threshold_base:  i32 => 10;
-    udp_threshold_scale: i32 => 4;
+    udp_threshold_base:      i32 => 8;
+    udp_threshold_scale:     i32 => 3;
+    udp_threshold_imp_base:  i32 => 10;
+    udp_threshold_imp_scale: i32 => 4;
 
     see_base:  i32 => 0;
     see_scale: i32 => -80;
@@ -387,8 +389,16 @@ impl Params {
     }
 
     #[inline]
-    pub fn udp_threshold(depth: i32) -> i32 {
-        Self::udp_threshold_base() + Self::udp_threshold_scale() * depth
+    pub fn udp_threshold(depth: i32, improving: bool) -> i32 {
+        let (base, scale) = if improving {
+            (
+                Self::udp_threshold_imp_base(),
+                Self::udp_threshold_imp_scale(),
+            )
+        } else {
+            (Self::udp_threshold_base(), Self::udp_threshold_scale())
+        };
+        base + scale * depth
     }
 
     #[inline]
