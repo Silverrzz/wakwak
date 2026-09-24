@@ -167,6 +167,9 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
+    udp_threshold_base:  i32 => 10;
+    udp_threshold_scale: i32 => 4;
+
     see_base:  i32 => 0;
     see_scale: i32 => -80;
 
@@ -381,6 +384,11 @@ impl Params {
         threshold += ((duck_history + offset) / divisor).clamp(min, max);
 
         threshold
+    }
+
+    #[inline]
+    pub fn udp_threshold(depth: i32) -> i32 {
+        Self::udp_threshold_base() + Self::udp_threshold_scale() * depth
     }
 
     #[inline]
