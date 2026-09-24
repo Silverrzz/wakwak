@@ -714,6 +714,7 @@ fn qsearch<Node: NodeType>(
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
+    let mut unique_ducks = Bitboard::EMPTY;
     let neutral_ducks = pos.board().neutral_ducks();
     let prune_noisy_neutrals = !Node::PV && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(
@@ -746,11 +747,17 @@ fn qsearch<Node: NodeType>(
             continue;
         }
 
+        // Unique Duck Pruning (UDP)
+        if unique_ducks.has(duck) && unique_ducks.popcnt() >= Params::qsudp_threshold() as usize {
+            continue;
+        }
+
         if duck_safety[dest].0 != Some(src) {
             duck_safety[dest] = (Some(src), pos.board().king_capture_blocks_after(mv));
         }
         let safe = duck_safety[dest].1;
 
+        unique_ducks |= duck;
         move_counts[src][dest] += 1;
         duck_counts[duck] += 1;
 

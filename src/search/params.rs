@@ -181,6 +181,7 @@ params! {
 
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
+    qsudp_threshold: i32 => 5;
 
     soft_time_div: u64 => 98304;
     soft_time_inc: u64 => 2048;
