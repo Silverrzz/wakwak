@@ -395,7 +395,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
-        let base_reduction = Params::lmr(depth);
+        let base_reduction = Params::lmr(depth, is_quiet);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
         let lmr_history = if is_quiet {
@@ -494,7 +494,7 @@ fn search<Node: NodeType>(
             let new_depth = depth - 1;
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
+                let lmr = if depth >= 3 && searched_moves > 6 {
                     let mut r = base_reduction;
                     r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
                     r += Params::lmr_imp() * !improving as i32;
