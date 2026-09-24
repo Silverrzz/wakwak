@@ -24,6 +24,10 @@ cfg_select! {
         #[path = "simd/neon.rs"]
         pub mod simd;
     }
+    all(target_os = "emscripten", target_feature = "simd128") => {
+        #[path = "simd/wasm32.rs"]
+        pub mod simd;
+    }
     _ => {
         compile_error!(
             "Unsupported platform! Only AVX2 or newer (on x86) and Neon (on ARM) are supported"
