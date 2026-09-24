@@ -455,9 +455,8 @@ fn search<Node: NodeType>(
             a certain move, we can be reasonably confident they're not gonna get
             much better, so we can skip the rest of them.
             */
-            if lmr_depth <= 8
-                && move_counts[src][dest]
-                    >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            if move_counts[src][dest]
+                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
             {
                 continue;
             }
