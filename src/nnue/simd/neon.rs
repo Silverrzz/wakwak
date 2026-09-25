@@ -11,37 +11,10 @@ pub mod i16s {
 
     pub const LANES: usize = size_of::<I16Vec>() / size_of::<i16>();
 
-    #[target_feature(enable = "neon")]
-    pub fn splat(n: i16) -> I16Vec {
-        vdupq_n_s16(n)
-    }
-
-    #[target_feature(enable = "neon")]
-    pub unsafe fn load(ptr: *const i16) -> I16Vec {
-        unsafe { vld1q_s16(ptr) }
-    }
-
-    #[target_feature(enable = "neon")]
-    pub unsafe fn store(ptr: *mut i16, v: I16Vec) {
-        unsafe {
-            vst1q_s16(ptr, v);
-        }
-    }
-
-    #[target_feature(enable = "neon")]
-    pub fn min(a: I16Vec, b: I16Vec) -> I16Vec {
-        vminq_s16(a, b)
-    }
-
-    #[target_feature(enable = "neon")]
-    pub fn max(a: I16Vec, b: I16Vec) -> I16Vec {
-        vmaxq_s16(a, b)
-    }
-
-    #[target_feature(enable = "neon")]
-    pub fn mul(a: I16Vec, b: I16Vec) -> I16Vec {
-        vmulq_s16(a, b)
-    }
+    pub use std::arch::aarch64::{
+        vdupq_n_s16 as splat, vld1q_s16 as load, vmaxq_s16 as max, vminq_s16 as min,
+        vmulq_s16 as mul, vst1q_s16 as store,
+    };
 
     #[target_feature(enable = "neon")]
     pub fn madd(a: I16Vec, b: I16Vec) -> I32Vec {
@@ -56,18 +29,7 @@ pub mod i32s {
 
     pub const LANES: usize = size_of::<I32Vec>() / size_of::<i32>();
 
-    #[target_feature(enable = "neon")]
-    pub fn splat(n: i32) -> I32Vec {
-        vdupq_n_s32(n)
-    }
-
-    #[target_feature(enable = "neon")]
-    pub fn add(a: I32Vec, b: I32Vec) -> I32Vec {
-        vaddq_s32(a, b)
-    }
-
-    #[target_feature(enable = "neon")]
-    pub fn reduce_add(v: I32Vec) -> i32 {
-        vaddvq_s32(v)
-    }
+    pub use std::arch::aarch64::{
+        vaddq_s32 as add, vaddvq_s32 as reduce_add, vdupq_n_s32 as splat,
+    };
 }

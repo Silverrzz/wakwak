@@ -10,11 +10,10 @@ pub mod i16s {
     use super::*;
 
     pub const LANES: usize = size_of::<I16Vec>() / size_of::<i16>();
-
-    #[target_feature(enable = "avx2")]
-    pub fn splat(n: i16) -> I16Vec {
-        _mm256_set1_epi16(n)
-    }
+    pub use std::arch::x86_64::{
+        _mm256_madd_epi16 as madd, _mm256_max_epi16 as max, _mm256_min_epi16 as min,
+        _mm256_mullo_epi16 as mul, _mm256_set1_epi16 as splat,
+    };
 
     #[target_feature(enable = "avx2")]
     pub unsafe fn load(ptr: *const i16) -> I16Vec {
@@ -25,26 +24,6 @@ pub mod i16s {
     pub unsafe fn store(ptr: *mut i16, v: I16Vec) {
         unsafe { _mm256_storeu_si256(ptr.cast(), v) }
     }
-
-    #[target_feature(enable = "avx2")]
-    pub fn min(a: I16Vec, b: I16Vec) -> I16Vec {
-        _mm256_min_epi16(a, b)
-    }
-
-    #[target_feature(enable = "avx2")]
-    pub fn max(a: I16Vec, b: I16Vec) -> I16Vec {
-        _mm256_max_epi16(a, b)
-    }
-
-    #[target_feature(enable = "avx2")]
-    pub fn mul(a: I16Vec, b: I16Vec) -> I16Vec {
-        _mm256_mullo_epi16(a, b)
-    }
-
-    #[target_feature(enable = "avx2")]
-    pub fn madd(a: I16Vec, b: I16Vec) -> I32Vec {
-        _mm256_madd_epi16(a, b)
-    }
 }
 
 pub mod i32s {
@@ -52,15 +31,7 @@ pub mod i32s {
 
     pub const LANES: usize = size_of::<I32Vec>() / size_of::<i32>();
 
-    #[target_feature(enable = "avx2")]
-    pub fn splat(n: i32) -> I32Vec {
-        _mm256_set1_epi32(n)
-    }
-
-    #[target_feature(enable = "avx2")]
-    pub fn add(a: I32Vec, b: I32Vec) -> I32Vec {
-        _mm256_add_epi32(a, b)
-    }
+    pub use std::arch::x86_64::{_mm256_add_epi32 as add, _mm256_set1_epi32 as splat};
 
     #[target_feature(enable = "avx2")]
     pub fn reduce_add(v: I32Vec) -> i32 {
