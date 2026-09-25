@@ -4,6 +4,7 @@ pub mod duck;
 pub mod noisy;
 pub mod pawn;
 pub mod quiet;
+pub mod quiet_duck;
 
 use crate::board::Board;
 use crate::common::{Bitboard, Move, Square};
@@ -15,6 +16,7 @@ pub use duck::*;
 pub use noisy::*;
 pub use pawn::*;
 pub use quiet::*;
+pub use quiet_duck::*;
 
 pub const MAX_HISTORY: i32 = 16384;
 pub const PAWN_HIST_SIZE: usize = 4096;
@@ -27,6 +29,7 @@ pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
     pawn: PawnHistory<PAWN_HIST_SIZE>,
+    quiet_duck: QuietDuckHistory,
     duck: DuckHistory,
     cont_odd: ContHistory,
     cont_even: ContHistory,
@@ -107,6 +110,7 @@ impl History {
     ) {
         self.quiet.update::<BONUS>(board, depth, mv);
         self.pawn.update::<BONUS>(board, depth, mv);
+        self.quiet_duck.update::<BONUS>(board, depth, mv);
         self.cont_odd
             .update::<1, BONUS>(board, depth, mv, indices.cont1);
         self.cont_even
@@ -143,6 +147,11 @@ impl History {
     #[inline]
     pub fn duck(&self, board: &Board, mv: Move) -> i32 {
         self.duck.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn quiet_duck(&self, board: &Board, mv: Move) -> i32 {
+        self.quiet_duck.entry(board, mv)
     }
 
     #[inline]

@@ -96,6 +96,13 @@ params! {
     duck_malus_scale: i32 => 128;
     duck_malus_max:   i32 => 2048;
 
+    quiet_duck_bonus_base:  i32 => 128;
+    quiet_duck_bonus_scale: i32 => 128;
+    quiet_duck_bonus_max:   i32 => 2048;
+    quiet_duck_malus_base:  i32 => 128;
+    quiet_duck_malus_scale: i32 => 128;
+    quiet_duck_malus_max:   i32 => 2048;
+
     cont1_bonus_base:  i32 => 128;
     cont1_bonus_scale: i32 => 128;
     cont1_bonus_max:   i32 => 2048;
@@ -224,12 +231,13 @@ params! {
     quiet_lmr_cont1_scale: i32 => 1024;
     quiet_lmr_cont2_scale: i32 => 1024;
 
-    quiet_mp_quiet_scale: i32 => 1024;
-    quiet_mp_duck_scale:  i32 => 1024;
-    quiet_mp_pawn_scale:  i32 => 1024;
-    quiet_mp_cont1_scale: i32 => 1024;
-    quiet_mp_cont2_scale: i32 => 1024;
-    quiet_mp_cont4_scale: i32 => 1024;
+    quiet_mp_quiet_scale:       i32 => 1024;
+    quiet_mp_duck_scale:        i32 => 1024;
+    quiet_mp_pawn_scale:        i32 => 1024;
+    quiet_mp_quiet_duck_scale:  i32 => 1024;
+    quiet_mp_cont1_scale:       i32 => 1024;
+    quiet_mp_cont2_scale:       i32 => 1024;
+    quiet_mp_cont4_scale:       i32 => 1024;
 
     noisy_mp_noisy_scale: i32 => 128;
     noisy_mp_duck_scale:  i32 => 128;
@@ -279,6 +287,18 @@ impl Params {
     #[inline]
     pub fn duck_malus(depth: i32) -> i32 {
         -(Self::duck_malus_base() + Self::duck_malus_scale() * depth).min(Self::duck_malus_max())
+    }
+
+    #[inline]
+    pub fn quiet_duck_bonus(depth: i32) -> i32 {
+        (Self::quiet_duck_bonus_base() + Self::quiet_duck_bonus_scale() * depth)
+            .min(Self::quiet_duck_bonus_max())
+    }
+
+    #[inline]
+    pub fn quiet_duck_malus(depth: i32) -> i32 {
+        -(Self::quiet_duck_malus_base() + Self::quiet_duck_malus_scale() * depth)
+            .min(Self::quiet_duck_malus_max())
     }
 
     #[inline]
@@ -512,6 +532,7 @@ impl Params {
         history_score += history.quiet(board, mv) * Self::quiet_mp_quiet_scale();
         history_score += history.duck(board, mv) * Self::quiet_mp_duck_scale();
         history_score += history.pawn(board, mv) * Self::quiet_mp_pawn_scale();
+        history_score += history.quiet_duck(board, mv) * Self::quiet_mp_quiet_duck_scale();
         history_score += history.cont1(board, indices, mv) * Self::quiet_mp_cont1_scale();
         history_score += history.cont2(board, indices, mv) * Self::quiet_mp_cont2_scale();
         history_score += history.cont4(board, indices, mv) * Self::quiet_mp_cont4_scale();
