@@ -153,7 +153,7 @@ params! {
     see_queen:  i32 => 900;
 
     quiet_hp_base:  i32 => 0;
-    quiet_hp_scale: i32 => -1500;
+    quiet_hp_scale: i32 => -2500;
 
     quiet_ldp_imp_threshold_base:  i32 => 2;
     quiet_ldp_imp_threshold_scale: i32 => 2;
@@ -375,7 +375,7 @@ impl Params {
 
     #[inline]
     pub const fn quiet_hp_margin(depth: i32) -> i32 {
-        Self::quiet_hp_base() + Self::quiet_hp_scale() * depth
+        Self::quiet_hp_base() + Self::quiet_hp_scale() * depth * depth
     }
 
     #[inline]
