@@ -1,4 +1,5 @@
-use crate::common::{Bitboard, Move, Square, between};
+use crate::board::Board;
+use crate::common::{Bitboard, Move, Piece, Square, between};
 use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
@@ -171,6 +172,18 @@ impl NodeType for NonPV {
 }
 
 #[inline]
+fn scale_eval(mut raw_eval: Score, board: &Board) -> Score {
+    let material = Params::mat_scale_pawn() * board.pieces(Piece::Pawn).popcnt() as i32
+        + Params::mat_scale_knight() * board.pieces(Piece::Knight).popcnt() as i32
+        + Params::mat_scale_bishop() * board.pieces(Piece::Bishop).popcnt() as i32
+        + Params::mat_scale_rook() * board.pieces(Piece::Rook).popcnt() as i32
+        + Params::mat_scale_queen() * board.pieces(Piece::Queen).popcnt() as i32;
+    raw_eval = raw_eval * (Params::mat_scale_base() + material) / 32768;
+
+    raw_eval.clamp(Score(-16384), Score(16383))
+}
+
+#[inline]
 fn adjust_eval(eval: Score, corr: i32) -> Score {
     (eval + corr).clamp_mate()
 }
@@ -268,7 +281,7 @@ fn search<Node: NodeType>(
         }
     }
 
-    let raw_eval = pos.eval();
+    let raw_eval = scale_eval(pos.eval(), pos.board());
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
 
@@ -700,7 +713,10 @@ fn qsearch<Node: NodeType>(
     }
 
     if ply >= MAX_PLY {
-        return adjust_eval(pos.eval(), thread.history.corr(pos.board()));
+        return adjust_eval(
+            scale_eval(pos.eval(), pos.board()),
+            thread.history.corr(pos.board()),
+        );
     }
 
     // Transposition Table Cutoffs
@@ -721,7 +737,7 @@ fn qsearch<Node: NodeType>(
         }
     }
 
-    let raw_eval = pos.eval();
+    let raw_eval = scale_eval(pos.eval(), pos.board());
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
 

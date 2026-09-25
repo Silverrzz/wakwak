@@ -140,6 +140,13 @@ params! {
     iid_depth_scale:     i32 => 768;
     iid_depth_reduction: i32 => 1536;
 
+    mat_scale_pawn:   i32 => 100;
+    mat_scale_knight: i32 => 320;
+    mat_scale_bishop: i32 => 330;
+    mat_scale_rook:   i32 => 500;
+    mat_scale_queen:  i32 => 900;
+    mat_scale_base:   i32 => 25000;
+
     mvv_pawn:   i32 => 100;
     mvv_knight: i32 => 320;
     mvv_bishop: i32 => 330;
