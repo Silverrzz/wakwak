@@ -465,7 +465,7 @@ fn search<Node: NodeType>(
             Unique Duck Pruning (UDP) After we have encountered enough duck placements, we can be
             reasonably confident that no future duck will improve our position, so we skip it.
              */
-            if is_quiet && unique_ducks > Params::udp_threshold(depth, duck_history) {
+            if unique_ducks > Params::udp_threshold(depth, is_quiet, duck_history) {
                 continue;
             }
 

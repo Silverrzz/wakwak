@@ -167,12 +167,14 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
-    udp_threshold_base:  i32 => 10;
-    udp_threshold_scale: i32 => 4;
-    udp_history_offset:  i32 => -4000;
-    udp_history_div:     i32 => 4000;
-    udp_history_min:     i32 => -2;
-    udp_history_max:     i32 => 2;
+    udp_threshold_quiet_base:  i32 => 10;
+    udp_threshold_quiet_scale: i32 => 4;
+    udp_threshold_noisy_base:  i32 => 10;
+    udp_threshold_noisy_scale: i32 => 4;
+    udp_history_offset:        i32 => -4000;
+    udp_history_div:           i32 => 4000;
+    udp_history_min:           i32 => -2;
+    udp_history_max:           i32 => 2;
 
     quiet_see_base:  i32 => 0;
     quiet_see_scale: i32 => -80;
@@ -396,9 +398,19 @@ impl Params {
     }
 
     #[inline]
-    pub fn udp_threshold(depth: i32, duck_history: i32) -> i32 {
-        Self::udp_threshold_base()
-            + Self::udp_threshold_scale() * depth
+    pub fn udp_threshold(depth: i32, is_quiet: bool, duck_history: i32) -> i32 {
+        let (base, scale) = if is_quiet {
+            (
+                Self::udp_threshold_quiet_base(),
+                Self::udp_threshold_quiet_scale(),
+            )
+        } else {
+            (
+                Self::udp_threshold_noisy_base(),
+                Self::udp_threshold_noisy_scale(),
+            )
+        };
+        base + scale * depth
             + Self::history_adjustment(
                 duck_history,
                 Self::udp_history_offset(),
