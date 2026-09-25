@@ -82,6 +82,13 @@ params! {
     noisy_malus_scale: i32 => 128;
     noisy_malus_max:   i32 => 2048;
 
+    noisy_duck_bonus_base:  i32 => 128;
+    noisy_duck_bonus_scale: i32 => 128;
+    noisy_duck_bonus_max:   i32 => 2048;
+    noisy_duck_malus_base:  i32 => 128;
+    noisy_duck_malus_scale: i32 => 128;
+    noisy_duck_malus_max:   i32 => 2048;
+
     pawn_bonus_base:  i32 => 128;
     pawn_bonus_scale: i32 => 128;
     pawn_bonus_max:   i32 => 2048;
@@ -239,8 +246,9 @@ params! {
     quiet_mp_cont2_scale:       i32 => 1024;
     quiet_mp_cont4_scale:       i32 => 1024;
 
-    noisy_mp_noisy_scale: i32 => 128;
-    noisy_mp_duck_scale:  i32 => 128;
+    noisy_mp_noisy_scale:      i32 => 128;
+    noisy_mp_noisy_duck_scale: i32 => 128;
+    noisy_mp_duck_scale:       i32 => 128;
 }
 
 impl Params {
@@ -267,6 +275,18 @@ impl Params {
     #[inline]
     pub fn noisy_malus(depth: i32) -> i32 {
         -(Self::noisy_malus_base() + Self::noisy_malus_scale() * depth).min(Self::noisy_malus_max())
+    }
+
+    #[inline]
+    pub fn noisy_duck_bonus(depth: i32) -> i32 {
+        (Self::noisy_duck_bonus_base() + Self::noisy_duck_bonus_scale() * depth)
+            .min(Self::noisy_duck_bonus_max())
+    }
+
+    #[inline]
+    pub fn noisy_duck_malus(depth: i32) -> i32 {
+        -(Self::noisy_duck_malus_base() + Self::noisy_duck_malus_scale() * depth)
+            .min(Self::noisy_duck_malus_max())
     }
 
     #[inline]
@@ -545,6 +565,7 @@ impl Params {
         let mut history_score = 0;
 
         history_score += history.noisy(board, mv) * Self::noisy_mp_noisy_scale() / 1024;
+        history_score += history.noisy_duck(board, mv) * Self::noisy_mp_noisy_duck_scale() / 1024;
         history_score += history.duck(board, mv) * Self::noisy_mp_duck_scale() / 1024;
 
         history_score

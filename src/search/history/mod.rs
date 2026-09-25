@@ -2,6 +2,7 @@ pub mod cont;
 pub mod corr;
 pub mod duck;
 pub mod noisy;
+pub mod noisy_duck;
 pub mod pawn;
 pub mod quiet;
 pub mod quiet_duck;
@@ -14,6 +15,7 @@ pub use cont::*;
 pub use corr::*;
 pub use duck::*;
 pub use noisy::*;
+pub use noisy_duck::*;
 pub use pawn::*;
 pub use quiet::*;
 pub use quiet_duck::*;
@@ -28,6 +30,7 @@ pub const NONPAWN_CORR_SIZE: usize = 16384;
 pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
+    noisy_duck: NoisyDuckHistory,
     pawn: PawnHistory<PAWN_HIST_SIZE>,
     quiet_duck: QuietDuckHistory,
     duck: DuckHistory,
@@ -122,6 +125,7 @@ impl History {
     #[inline]
     fn update_noisy<const BONUS: bool>(&mut self, board: &Board, depth: i32, mv: Move) {
         self.noisy.update::<BONUS>(board, depth, mv);
+        self.noisy_duck.update::<BONUS>(board, depth, mv);
     }
 
     #[inline]
@@ -137,6 +141,11 @@ impl History {
     #[inline]
     pub fn noisy(&self, board: &Board, mv: Move) -> i32 {
         self.noisy.entry(board, mv)
+    }
+
+    #[inline]
+    pub fn noisy_duck(&self, board: &Board, mv: Move) -> i32 {
+        self.noisy_duck.entry(board, mv)
     }
 
     #[inline]
