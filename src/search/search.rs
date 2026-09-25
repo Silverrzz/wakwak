@@ -272,6 +272,17 @@ fn search<Node: NodeType>(
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
 
+    let eval = if let Some(entry) = tt_entry
+        && !entry.score().is_mate()
+        && entry
+            .flag()
+            .bounds_match(entry.score(), static_eval, static_eval)
+    {
+        entry.score()
+    } else {
+        static_eval
+    };
+
     let improving = {
         let prev2 = ply.wrapping_sub(2);
         let prev4 = ply.wrapping_sub(4);
@@ -293,8 +304,8 @@ fn search<Node: NodeType>(
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::PV && depth <= 8 && static_eval - Params::rfp_margin(depth, improving) >= beta {
-        return static_eval;
+    if !Node::PV && depth <= 8 && eval - Params::rfp_margin(depth, improving) >= beta {
+        return eval;
     }
 
     /*
@@ -322,7 +333,7 @@ fn search<Node: NodeType>(
         && depth >= 4
         && thread.nmr_ply != Some(ply)
         && thread.stack[ply - 1].mv.is_some()
-        && static_eval >= beta + Params::nmr_margin()
+        && eval >= beta + Params::nmr_margin()
     {
         let r = Params::nmr_reduction(depth);
         pos.make_null_move();
@@ -445,9 +456,8 @@ fn search<Node: NodeType>(
             a certain move, we can be reasonably confident they're not gonna get
             much better, so we can skip the rest of them.
             */
-            if lmr_depth <= 8
-                && move_counts[src][dest]
-                    >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            if move_counts[src][dest]
+                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
             {
                 continue;
             }
@@ -456,11 +466,18 @@ fn search<Node: NodeType>(
             Unique Duck Pruning (UDP) After we have encountered enough duck placements, we can be
             reasonably confident that no future duck will improve our position, so we skip it.
              */
-            if is_quiet && unique_ducks > Params::udp_threshold(depth) {
+            if is_quiet && unique_ducks > Params::udp_threshold(depth, duck_history) {
                 continue;
             }
 
-            if is_quiet && move_counts[src][dest] == 0 && unique_moves > 4 + 3 * depth * depth / 2 {
+            /*
+            Unique Move Pruning (UMP) After a certain number of unique moves (ignoring ducks), we can
+            apply pruning similar to LMP in normal chess, to skip late quiet moves
+             */
+            if is_quiet
+                && move_counts[src][dest] == 0
+                && unique_moves > Params::ump_threshold(depth)
+            {
                 continue;
             }
 
