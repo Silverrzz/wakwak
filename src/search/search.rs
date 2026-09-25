@@ -310,7 +310,7 @@ fn search<Node: NodeType>(
         && !estimated_score.is_win()
         && !beta.is_loss()
     {
-        return (estimated_score + beta) / 2;
+        return Score(Params::lerp(estimated_score.0, beta.0, Params::rfp_lerp()));
     }
 
     /*

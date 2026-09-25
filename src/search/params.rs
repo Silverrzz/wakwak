@@ -121,6 +121,7 @@ params! {
     rfp_scale:     i32 => 50;
     rfp_imp_base:  i32 => -50;
     rfp_imp_scale: i32 => 50;
+    rfp_lerp:      i32 => 512;
 
     razor_base:  i32 => 320;
     razor_scale: i32 => 250;
@@ -529,6 +530,15 @@ impl Params {
     #[inline]
     pub fn fp_margin(depth: i32) -> i32 {
         Params::fp_base() + Params::fp_scale() * depth
+    }
+
+    #[inline]
+    pub fn lerp(a: i32, b: i32, t: i32) -> i32 {
+        let a = a as i64;
+        let b = b as i64;
+        let t = t as i64;
+
+        ((a * (1024 - t) + b * t) / 1024) as i32
     }
 
     #[inline]
