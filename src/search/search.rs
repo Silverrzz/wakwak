@@ -416,7 +416,7 @@ fn search<Node: NodeType>(
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
         let lmr_history = if is_quiet {
-            Params::quiet_lmr_history(thread, pos, mv)
+            Params::quiet_lmr_history(thread, pos, indices, mv)
         } else {
             Params::noisy_lmr_history(thread, pos, mv)
         };
@@ -439,6 +439,18 @@ fn search<Node: NodeType>(
             quiet moves.
             */
             if is_quiet && lmr_depth <= 5 && static_eval + Params::fp_margin(lmr_depth) <= alpha {
+                move_picker.skip_quiets();
+                continue;
+            }
+
+            /*
+            History Pruning (HP): Prune quiet moves with terrible history scores
+            */
+            if is_quiet
+                && depth <= 5
+                && Params::quiet_hp_history(thread, pos, indices, mv)
+                    < Params::quiet_hp_margin(depth)
+            {
                 move_picker.skip_quiets();
                 continue;
             }

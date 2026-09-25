@@ -152,6 +152,9 @@ params! {
     see_rook:   i32 => 500;
     see_queen:  i32 => 900;
 
+    quiet_hp_base:  i32 => 0;
+    quiet_hp_scale: i32 => -1500;
+
     quiet_ldp_imp_threshold_base:  i32 => 2;
     quiet_ldp_imp_threshold_scale: i32 => 2;
     quiet_ldp_threshold_base:      i32 => 1;
@@ -241,6 +244,11 @@ params! {
 
     noisy_mp_noisy_scale: i32 => 128;
     noisy_mp_duck_scale:  i32 => 128;
+
+    quiet_hp_quiet_scale: i32 => 1024;
+    quiet_hp_duck_scale:  i32 => 1024;
+    quiet_hp_cont1_scale: i32 => 1024;
+    quiet_hp_cont2_scale: i32 => 1024;
 }
 
 impl Params {
@@ -363,6 +371,11 @@ impl Params {
     #[inline]
     pub const fn razor_margin(depth: i32) -> i32 {
         Self::razor_base() + Self::razor_scale() * depth
+    }
+
+    #[inline]
+    pub const fn quiet_hp_margin(depth: i32) -> i32 {
+        Self::quiet_hp_base() + Self::quiet_hp_scale() * depth
     }
 
     #[inline]
@@ -507,10 +520,14 @@ impl Params {
     }
 
     #[inline]
-    pub fn quiet_lmr_history(thread: &ThreadData, pos: &Position, mv: Move) -> i32 {
+    pub fn quiet_lmr_history(
+        thread: &ThreadData,
+        pos: &Position,
+        indices: ContIndices,
+        mv: Move,
+    ) -> i32 {
         let board = pos.board();
         let mut history = 0;
-        let indices = ContIndices::new(pos);
 
         history += thread.history.quiet(board, mv) * Self::quiet_lmr_quiet_scale();
         history += thread.history.duck(board, mv) * Self::quiet_lmr_duck_scale();
@@ -548,6 +565,24 @@ impl Params {
         history_score += history.duck(board, mv) * Self::noisy_mp_duck_scale() / 1024;
 
         history_score
+    }
+
+    #[inline]
+    pub fn quiet_hp_history(
+        thread: &ThreadData,
+        pos: &Position,
+        indices: ContIndices,
+        mv: Move,
+    ) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        history += thread.history.quiet(board, mv) * Self::quiet_hp_quiet_scale();
+        history += thread.history.duck(board, mv) * Self::quiet_hp_duck_scale();
+        history += thread.history.cont1(board, indices, mv) * Self::quiet_hp_cont1_scale();
+        history += thread.history.cont2(board, indices, mv) * Self::quiet_hp_cont2_scale();
+
+        history / 1024
     }
 
     #[inline]
