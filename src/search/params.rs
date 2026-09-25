@@ -174,8 +174,10 @@ params! {
     udp_history_min:     i32 => -2;
     udp_history_max:     i32 => 2;
 
-    see_base:  i32 => 0;
-    see_scale: i32 => -80;
+    quiet_see_base:  i32 => 0;
+    quiet_see_scale: i32 => -80;
+    noisy_see_base:  i32 => 0;
+    noisy_see_scale: i32 => -80;
 
     mp_see_threshold: i32 => 0;
     mp_qs_see_threshold: i32 => 0;
@@ -407,8 +409,12 @@ impl Params {
     }
 
     #[inline]
-    pub fn see_margin(depth: i32) -> i32 {
-        Self::see_base() + Self::see_scale() * depth
+    pub fn see_margin(depth: i32, is_quiet: bool) -> i32 {
+        if is_quiet {
+            Self::quiet_see_base() + Self::quiet_see_scale() * depth
+        } else {
+            Self::noisy_see_base() + Self::noisy_see_scale() * depth
+        }
     }
 
     #[inline]
