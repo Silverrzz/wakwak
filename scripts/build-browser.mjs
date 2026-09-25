@@ -1,21 +1,7 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
-import { delimiter, join, resolve } from "node:path";
+import { copyFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const sdk = resolve(process.env.EMSDK || fileURLToPath(new URL("../target/emsdk", import.meta.url)));
-if (existsSync(join(sdk, ".emscripten"))) {
-    process.env.EMSDK = sdk;
-    process.env.EM_CONFIG ??= join(sdk, ".emscripten");
-    process.env.PATH = [join(sdk, "upstream/emscripten"), join(sdk, "upstream/bin"), process.env.PATH || ""].join(delimiter);
-    const pythonRoot = join(sdk, "python");
-    if (process.platform === "win32" && !process.env.EMSDK_PYTHON && existsSync(pythonRoot)) {
-        const python = readdirSync(pythonRoot).map(name => join(pythonRoot, name, "python.exe"))
-            .find(path => existsSync(path));
-        if (python) process.env.EMSDK_PYTHON = python;
-    }
-    console.log(`Emscripten SDK: ${sdk}`);
-}
 process.chdir(fileURLToPath(new URL("..", import.meta.url)));
 const target = "target/browser-build";
 const output = "target/browser";

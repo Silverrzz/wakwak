@@ -1,10 +1,13 @@
-import { accessSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 
 const root = new URL("../target/browser/", import.meta.url);
 const types = { "wakwak.js": "text/javascript", "wakwak.worker.js": "text/javascript", "wakwak.wasm": "application/wasm" };
-for (const name of Object.keys(types)) accessSync(new URL(name, root));
+if (Object.keys(types).some(name => !existsSync(new URL(name, root)))) {
+    console.error("Browser build missing. Activate Emscripten SDK, then run: node scripts/build-browser.mjs");
+    process.exit(1);
+}
 const index = '<!doctype html><title>WakWak WASM</title><ul>' +
     Object.keys(types).map(name => `<li><a href="${name}">${name}</a></li>`).join("") + '</ul>';
 
