@@ -430,7 +430,10 @@ fn search<Node: NodeType>(
             Duck Refutations: If the opponent immediately refutes a duck move,
             we can skip the rest of the duck moves that don't block the refutation(s).
             */
-            if duck_refutations[dest].0 == piece_move && duck_refutations[dest].1.has(mv.duck()) {
+            if !Node::ROOT
+                && duck_refutations[dest].0 == piece_move
+                && duck_refutations[dest].1.has(mv.duck())
+            {
                 continue;
             }
 
@@ -438,7 +441,11 @@ fn search<Node: NodeType>(
             Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
             quiet moves.
             */
-            if is_quiet && lmr_depth <= 5 && static_eval + Params::fp_margin(lmr_depth) <= alpha {
+            if !Node::ROOT
+                && is_quiet
+                && lmr_depth <= 5
+                && static_eval + Params::fp_margin(lmr_depth) <= alpha
+            {
                 move_picker.skip_quiets();
                 continue;
             }
@@ -460,8 +467,9 @@ fn search<Node: NodeType>(
             a certain move, we can be reasonably confident they're not gonna get
             much better, so we can skip the rest of them.
             */
-            if move_counts[src][dest]
-                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+            if !Node::ROOT
+                && move_counts[src][dest]
+                    >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
             {
                 continue;
             }
@@ -470,7 +478,8 @@ fn search<Node: NodeType>(
             Unique Duck Pruning (UDP) After we have encountered enough duck placements, we can be
             reasonably confident that no future duck will improve our position, so we skip it.
              */
-            if is_quiet && unique_ducks > Params::udp_threshold(depth, duck_history) {
+            if !Node::ROOT && is_quiet && unique_ducks > Params::udp_threshold(depth, duck_history)
+            {
                 continue;
             }
 
@@ -478,7 +487,8 @@ fn search<Node: NodeType>(
             Unique Move Pruning (UMP) After a certain number of unique moves (ignoring ducks), we can
             apply pruning similar to LMP in normal chess, to skip late quiet moves
              */
-            if is_quiet
+            if !Node::ROOT
+                && is_quiet
                 && move_counts[src][dest] == 0
                 && unique_moves > Params::ump_threshold(depth)
             {
@@ -488,7 +498,8 @@ fn search<Node: NodeType>(
             /*
             SEE Pruning: Prune moves that have bad SEE score idk
             */
-            if depth <= 10
+            if !Node::ROOT
+                && depth <= 10
                 && move_picker.stage() >= Stage::YieldQuiets
                 && !pos.board().cmp_see(mv, Params::see_margin(depth, is_quiet))
             {
