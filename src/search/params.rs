@@ -233,6 +233,7 @@ params! {
     quiet_lmr_duck_scale:  i32 => 1024;
     quiet_lmr_cont1_scale: i32 => 1024;
     quiet_lmr_cont2_scale: i32 => 1024;
+    quiet_lmr_cont4_scale: i32 => 1024;
 
     quiet_mp_quiet_scale:       i32 => 1024;
     quiet_mp_duck_scale:        i32 => 1024;
@@ -249,6 +250,7 @@ params! {
     quiet_hp_duck_scale:  i32 => 1024;
     quiet_hp_cont1_scale: i32 => 1024;
     quiet_hp_cont2_scale: i32 => 1024;
+    quiet_hp_cont4_scale: i32 => 1024;
 }
 
 impl Params {
@@ -533,6 +535,7 @@ impl Params {
         history += thread.history.duck(board, mv) * Self::quiet_lmr_duck_scale();
         history += thread.history.cont1(board, indices, mv) * Self::quiet_lmr_cont1_scale();
         history += thread.history.cont2(board, indices, mv) * Self::quiet_lmr_cont2_scale();
+        history += thread.history.cont4(board, indices, mv) * Self::quiet_lmr_cont4_scale();
 
         history / 1024
     }
@@ -581,6 +584,7 @@ impl Params {
         history += thread.history.duck(board, mv) * Self::quiet_hp_duck_scale();
         history += thread.history.cont1(board, indices, mv) * Self::quiet_hp_cont1_scale();
         history += thread.history.cont2(board, indices, mv) * Self::quiet_hp_cont2_scale();
+        history += thread.history.cont4(board, indices, mv) * Self::quiet_hp_cont4_scale();
 
         history / 1024
     }
