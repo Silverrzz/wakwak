@@ -447,7 +447,7 @@ fn search<Node: NodeType>(
             History Pruning (HP): Prune quiet moves with terrible history scores
             */
             if is_quiet
-                && depth <= 5
+                && lmr_depth <= 5
                 && Params::quiet_hp_history(thread, pos, indices, mv)
                     < Params::quiet_hp_margin(depth)
             {
