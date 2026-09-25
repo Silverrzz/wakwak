@@ -203,6 +203,7 @@ params! {
     quiet_lmr_scale: i32 => 448;
     lmr_exact:       i32 => 1024;
     lmr_imp:         i32 => 1024;
+    lmr_cut:         i32 => 1024;
     lmr_pv:          i32 => 1024;
     lmr_in_check:    i32 => 512;
     lmr_history:     i32 => 64;
