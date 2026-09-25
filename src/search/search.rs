@@ -32,6 +32,7 @@ pub fn iterative_deepening(
     // Time management stuff
     let mut duck_stability = 0;
     let mut move_stability = 0;
+    let mut waddle_stability = 0;
     let mut best_move = None;
     let mut prev_move;
 
@@ -64,8 +65,15 @@ pub fn iterative_deepening(
         }
 
         move_stability += 1;
-        if best_move != prev_move {
+        if best_move.map(|mv| (mv.src(), mv.dest(), mv.flag()))
+            != prev_move.map(|mv| (mv.src(), mv.dest(), mv.flag()))
+        {
             move_stability = 0;
+        }
+
+        waddle_stability += 1;
+        if best_move != prev_move {
+            waddle_stability = 0;
         }
 
         depth += 1;
@@ -94,7 +102,7 @@ pub fn iterative_deepening(
 
             shared
                 .time_man
-                .deepen(depth, duck_stability, move_stability);
+                .deepen(depth, duck_stability, move_stability, waddle_stability);
         }
     }
 

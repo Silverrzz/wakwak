@@ -214,6 +214,10 @@ params! {
     move_stability_scale: u128 => 410;
     move_stability_min:   u128 => 2867;
 
+    waddle_stability_base:  u128 => 5325;
+    waddle_stability_scale: u128 => 410;
+    waddle_stability_min:   u128 => 2867;
+
     quiet_lmr_base:  i32 => 1024;
     quiet_lmr_scale: i32 => 96;
     lmr_exact:       i32 => 1024;
@@ -498,6 +502,13 @@ impl Params {
         Self::move_stability_base()
             .saturating_sub(Self::move_stability_scale() * stability as u128)
             .max(Self::move_stability_min())
+    }
+
+    #[inline]
+    pub fn waddle_stability(stability: u16) -> u128 {
+        Self::waddle_stability_base()
+            .saturating_sub(Self::waddle_stability_scale() * stability as u128)
+            .max(Self::waddle_stability_min())
     }
 
     #[inline]
