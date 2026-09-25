@@ -9,9 +9,14 @@ stat = ["dep:dashmap"]
 
 [dependencies]
 arrayvec = "0.7.8"
-atomic-wait = { git = "https://github.com/Sp00ph/atomic-wait" }
 colored = "3.1.1"
 dashmap = { version = "6.2.1", optional = true }
 enum-map = "3.1.0"
 thiserror = "2.0.20"
 zerocopy = "0.8.56"
+
+[target.'cfg(not(target_os = "emscripten"))'.dependencies]
+atomic-wait = "1.1.0"
+
+[target.'cfg(target_os = "emscripten")'.dependencies]
+atomic-wait-wasm = { package = "atomic-wait", git = "https://github.com/Sp00ph/atomic-wait" }
