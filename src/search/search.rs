@@ -272,7 +272,7 @@ fn search<Node: NodeType>(
     let corr = thread.history.corr(pos.board());
     let static_eval = adjust_eval(raw_eval, corr);
 
-    let eval = if let Some(entry) = tt_entry
+    let estimated_score = if let Some(entry) = tt_entry
         && !entry.score().is_mate()
         && entry
             .flag()
@@ -304,8 +304,13 @@ fn search<Node: NodeType>(
     so high that even a pessimistic estimate is still above beta, we can
     be reasonably confident that a further search will also fail high.
     */
-    if !Node::PV && depth <= 8 && eval - Params::rfp_margin(depth, improving) >= beta {
-        return eval;
+    if !Node::PV
+        && depth <= 8
+        && estimated_score - Params::rfp_margin(depth, improving) >= beta
+        && !estimated_score.is_win()
+        && !beta.is_loss()
+    {
+        return (estimated_score + beta) / 2;
     }
 
     /*
@@ -333,7 +338,7 @@ fn search<Node: NodeType>(
         && depth >= 4
         && thread.nmr_ply != Some(ply)
         && thread.stack[ply - 1].mv.is_some()
-        && eval >= beta + Params::nmr_margin()
+        && estimated_score >= beta + Params::nmr_margin()
     {
         let r = Params::nmr_reduction(depth);
         pos.make_null_move();
