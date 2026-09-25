@@ -226,10 +226,11 @@ params! {
     noisy_lmr_noisy_scale: i32 => 128;
     noisy_lmr_duck_scale:  i32 => 128;
 
-    quiet_lmr_quiet_scale: i32 => 1024;
-    quiet_lmr_duck_scale:  i32 => 1024;
-    quiet_lmr_cont1_scale: i32 => 1024;
-    quiet_lmr_cont2_scale: i32 => 1024;
+    quiet_lmr_quiet_scale:       i32 => 1024;
+    quiet_lmr_duck_scale:        i32 => 1024;
+    quiet_lmr_quiet_duck_scale:  i32 => 1024;
+    quiet_lmr_cont1_scale:       i32 => 1024;
+    quiet_lmr_cont2_scale:       i32 => 1024;
 
     quiet_mp_quiet_scale:       i32 => 1024;
     quiet_mp_duck_scale:        i32 => 1024;
@@ -514,6 +515,7 @@ impl Params {
 
         history += thread.history.quiet(board, mv) * Self::quiet_lmr_quiet_scale();
         history += thread.history.duck(board, mv) * Self::quiet_lmr_duck_scale();
+        history += thread.history.quiet_duck(board, mv) * Self::quiet_lmr_quiet_duck_scale();
         history += thread.history.cont1(board, indices, mv) * Self::quiet_lmr_cont1_scale();
         history += thread.history.cont2(board, indices, mv) * Self::quiet_lmr_cont2_scale();
 
