@@ -552,6 +552,8 @@ fn search<Node: NodeType>(
 
             if s_score < s_beta {
                 ext = 1;
+            } else if entry.score() >= beta {
+                ext = -1;
             }
         }
 
