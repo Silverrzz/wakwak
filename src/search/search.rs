@@ -552,6 +552,14 @@ fn search<Node: NodeType>(
 
             if s_score < s_beta {
                 ext = 1;
+            } else if s_beta >= beta {
+                /*
+                Multi-Cut: If another move fails high in the singular search,
+                we can assume that the TT move also fails high and do an early
+                cutoff.
+                */
+                thread.move_stack.pop_ply();
+                return s_beta;
             }
         }
 
