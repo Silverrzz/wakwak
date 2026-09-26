@@ -194,6 +194,9 @@ params! {
     noisy_see_base:  i32 => 0;
     noisy_see_scale: i32 => -80;
 
+    se_beta:       i32 => 128;
+    se_depth_lerp: i32 => 512;
+
     mp_see_threshold: i32 => 0;
     mp_qs_see_threshold: i32 => 0;
     mp_quiet_neutral_malus: i32 => 5000;
