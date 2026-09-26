@@ -492,7 +492,7 @@ fn search<Node: NodeType>(
              */
             if is_quiet
                 && move_counts[src][dest] == 0
-                && unique_moves > Params::ump_threshold(depth)
+                && unique_moves > Params::ump_threshold(depth, improving)
             {
                 continue;
             }
