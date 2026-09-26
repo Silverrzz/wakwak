@@ -497,6 +497,14 @@ fn search<Node: NodeType>(
                 continue;
             }
 
+            if !Node::PV
+                && lmr_depth < 8
+                && move_picker.stage() == Stage::YieldBadNoisies
+                && static_eval + Params::bnfp_margin(lmr_depth) <= alpha
+            {
+                break;
+            }
+
             /*
             SEE Pruning: Prune moves that have bad SEE score idk
             */

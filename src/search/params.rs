@@ -189,6 +189,9 @@ params! {
     ump_threshold_numerator:    i32 => 3;
     ump_threshold_denominator:  i32 => 2;
 
+    bnfp_base:  i32 => 0;
+    bnfp_scale: i32 => 128;
+
     quiet_see_base:  i32 => 0;
     quiet_see_scale: i32 => -80;
     noisy_see_base:  i32 => 0;
@@ -451,6 +454,11 @@ impl Params {
     pub fn ump_threshold(depth: i32) -> i32 {
         Self::ump_threshold_base()
             + Self::ump_threshold_numerator() * depth * depth / Self::ump_threshold_denominator()
+    }
+
+    #[inline]
+    pub fn bnfp_margin(depth: i32) -> i32 {
+        Self::bnfp_base() + Self::bnfp_scale() * depth
     }
 
     #[inline]
