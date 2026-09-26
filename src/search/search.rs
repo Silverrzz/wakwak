@@ -401,6 +401,8 @@ fn search<Node: NodeType>(
     );
     let mut move_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
+    let mut src_duck_counts: [[u8; Square::COUNT]; Square::COUNT] =
+        [[0; Square::COUNT]; Square::COUNT];
     let mut duck_refutations = [(None, Bitboard::EMPTY); Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
     let mut unique_ducks = 0;
@@ -479,6 +481,15 @@ fn search<Node: NodeType>(
             }
 
             /*
+            Source/Duck Pruning (DDP): After a certain number of moves from a given
+            source square with a given duck placement, assume the remaining destination
+            squares will be bad too.
+             */
+            if is_quiet && depth <= 5 && src_duck_counts[src][duck] >= 1 {
+                continue;
+            }
+
+            /*
             Unique Duck Pruning (UDP) After we have encountered enough duck placements, we can be
             reasonably confident that no future duck will improve our position, so we skip it.
              */
@@ -517,6 +528,7 @@ fn search<Node: NodeType>(
         unique_moves += (move_counts[src][dest] == 1) as i32;
         duck_counts[duck] += 1;
         unique_ducks += (duck_counts[duck] == 1) as i32;
+        src_duck_counts[dest][duck] += 1;
         pos.make_move(mv);
 
         /*
