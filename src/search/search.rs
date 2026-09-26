@@ -584,7 +584,17 @@ fn search<Node: NodeType>(
 
         // Duck Refutations
         if let Some(reply) = thread.stack[ply + 1].mv {
-            let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
+            let keep_duck_square = !reply.flag().is_capture()
+                || pos.board().has_slider_travelling_via(
+                    pos.board().stm(),
+                    reply.dest(),
+                    reply.duck(),
+                );
+
+            let mut refuted = !(between(reply.src(), reply.dest()) | reply.dest());
+            if keep_duck_square {
+                refuted &= !reply.duck().bitboard();
+            }
 
             if duck_refutations[dest].0 == piece_move {
                 duck_refutations[dest].1 |= refuted;
@@ -815,7 +825,17 @@ fn qsearch<Node: NodeType>(
 
         // Duck Refutations
         if let Some(reply) = thread.stack[ply + 1].mv {
-            let refuted = !(between(reply.src(), reply.dest()) | reply.dest() | reply.duck());
+            let keep_duck_square = !reply.flag().is_capture()
+                || pos.board().has_slider_travelling_via(
+                    pos.board().stm(),
+                    reply.dest(),
+                    reply.duck(),
+                );
+
+            let mut refuted = !(between(reply.src(), reply.dest()) | reply.dest());
+            if keep_duck_square {
+                refuted &= !reply.duck().bitboard();
+            }
             duck_refutations[dest] |= refuted;
         }
 

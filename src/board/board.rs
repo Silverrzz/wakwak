@@ -198,6 +198,20 @@ impl Board {
     }
 
     #[inline]
+    pub fn has_slider_travelling_via(&self, color: Color, dest: Square, via: Square) -> bool {
+        let blockers = self.occupied();
+
+        let diag_attacks = bishop_attacks(blockers, dest, self.slider_tag);
+        let diag_attackers = diag_attacks & self.colored_diag_sliders(color);
+
+        let orth_attacks = rook_attacks(blockers, dest, self.slider_tag);
+        let orth_attackers = orth_attacks & self.colored_orth_sliders(color);
+
+        let attackers = diag_attackers | orth_attackers;
+        attackers.iter().any(|sq| between(sq, dest).has(via))
+    }
+
+    #[inline]
     pub fn king_capture_blocks_after(&self, mv: Move) -> Bitboard {
         let mut colors = self.colors;
         let mut pieces = self.pieces;
