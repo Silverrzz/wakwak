@@ -348,6 +348,7 @@ fn search<Node: NodeType>(
     */
     if !Node::PV
         && depth >= 4
+        && !zugzwang
         && skip_move.is_none()
         && thread.nmr_ply != Some(ply)
         && thread.stack[ply - 1].mv.is_some()
@@ -372,6 +373,7 @@ fn search<Node: NodeType>(
                 if score >= beta {
                     return score;
                 }
+                zugzwang = true;
             }
         }
     }

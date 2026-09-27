@@ -154,7 +154,7 @@ impl TranspositionTable {
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT
             | (best_move.map_or(0, |mv| mv.raw().get()) as u64) << MOVE_SHIFT
-            | if zugz { 1u64 << ZUGZ_SHIFT } else { 0 };
+            | (zugz as u64) << ZUGZ_SHIFT;
         entry.packed.store(packed, Ordering::Relaxed);
     }
 
