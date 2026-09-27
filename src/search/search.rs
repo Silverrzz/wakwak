@@ -238,6 +238,7 @@ fn search<Node: NodeType>(
     let skip_move = thread.stack[ply].skip_move;
     let tt_entry = shared.tt.probe(pos.board().hash());
     let mut tt_move = tt_entry.and_then(|e| e.best_move());
+    let mut zugzwang = tt_entry.map_or(false, |e| e.zugzwang());
 
     if !Node::ROOT
         && skip_move.is_none()
@@ -269,6 +270,7 @@ fn search<Node: NodeType>(
                 return entry.score();
             }
             tt_move = Some(mv);
+            zugzwang |= entry.zugzwang();
         }
     }
 
@@ -706,6 +708,7 @@ fn search<Node: NodeType>(
             best_score,
             best_move_depth,
             TTFlag::Lower,
+            zugzwang,
         );
     }
 
@@ -716,6 +719,7 @@ fn search<Node: NodeType>(
             best_score,
             best_move_depth,
             flag,
+            zugzwang,
         );
     }
 
@@ -779,6 +783,8 @@ fn qsearch<Node: NodeType>(
     let tt_move = tt_entry
         .and_then(|e| e.best_move())
         .filter(|mv| mv.flag().is_noisy());
+
+    let zugzwang = tt_entry.map_or(false, |e| e.zugzwang());
 
     if let Some(entry) = tt_entry {
         let score = entry.score();
@@ -900,7 +906,7 @@ fn qsearch<Node: NodeType>(
 
     shared
         .tt
-        .insert(pos.board().hash(), best_move, best_score, 0, flag);
+        .insert(pos.board().hash(), best_move, best_score, 0, flag, zugzwang);
 
     best_score
 }

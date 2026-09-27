@@ -20,6 +20,7 @@ impl Default for AtomicTTEntry {
 }
 
 const KEY_SHIFT: u32 = 0;
+const ZUGZ_SHIFT: u32 = 15;
 const SCORE_SHIFT: u32 = 16;
 const DEPTH_SHIFT: u32 = 32;
 const FLAG_SHIFT: u32 = 40;
@@ -27,11 +28,12 @@ const MOVE_SHIFT: u32 = 42;
 
 #[derive(Clone, Copy)]
 pub struct TTEntry {
-    key: u16,       // 2 bytes
-    best_move: u32, // 4 bytes
-    score: i16,     // 2 bytes
-    depth: u8,      // 1 byte
-    flag: u8,       // 1 byte
+    key: u16,
+    best_move: u32,
+    score: i16,
+    depth: u8,
+    flag: u8,
+    zugz: bool,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -71,8 +73,13 @@ impl TTEntry {
     }
 
     #[inline]
+    pub fn zugzwang(&self) -> bool {
+        self.zugz
+    }
+
+    #[inline]
     pub fn validate_key(&self, key: u64) -> bool {
-        self.key == (key & 0xFFFF) as u16
+        self.key == (key & 0x7FFF) as u16
     }
 }
 
@@ -104,11 +111,12 @@ impl TranspositionTable {
         let packed = atomic_entry.packed.load(Ordering::Relaxed);
 
         let entry = TTEntry {
-            key: (packed >> KEY_SHIFT) as u16,
+            key: ((packed >> KEY_SHIFT) & 0x7FFF) as u16,
             best_move: (packed >> MOVE_SHIFT) as u32,
             score: (packed >> SCORE_SHIFT) as u16 as i16,
             depth: (packed >> DEPTH_SHIFT) as u8,
             flag: ((packed >> FLAG_SHIFT) & 0x3) as u8,
+            zugz: ((packed >> ZUGZ_SHIFT) & 1) != 0,
         };
 
         if entry.validate_key(hash) {
@@ -125,13 +133,14 @@ impl TranspositionTable {
         score: Score,
         depth: i32,
         flag: TTFlag,
+        zugz: bool,
     ) {
         let idx = self.idx(hash);
         let entry = &self.table[idx];
 
-        let key_part = (hash & 0xFFFF) as u16;
+        let key_part = (hash & 0x7FFF) as u16;
         let old_packed = entry.packed.load(Ordering::Relaxed);
-        let old_key = (old_packed >> KEY_SHIFT) as u16;
+        let old_key = ((old_packed >> KEY_SHIFT) & 0x7FFF) as u16;
         let key_match = old_key == key_part;
 
         if best_move.is_none() && key_match {
@@ -144,7 +153,8 @@ impl TranspositionTable {
             | ((score.0 as u16) as u64) << SCORE_SHIFT
             | (depth as u64) << DEPTH_SHIFT
             | (flag as u64) << FLAG_SHIFT
-            | (best_move.map_or(0, |mv| mv.raw().get()) as u64) << MOVE_SHIFT;
+            | (best_move.map_or(0, |mv| mv.raw().get()) as u64) << MOVE_SHIFT
+            | if zugz { 1u64 << ZUGZ_SHIFT } else { 0 };
         entry.packed.store(packed, Ordering::Relaxed);
     }
 
