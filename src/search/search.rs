@@ -237,14 +237,15 @@ fn search<Node: NodeType>(
     */
     let skip_move = thread.stack[ply].skip_move;
     let tt_entry = shared.tt.probe(pos.board().hash());
-    let mut tt_move = tt_entry.and_then(|e| e.best_move());
+    let mut tt_move = tt_entry.and_then(|e| e.best_move);
+    let tt_pv = Node::PV || tt_entry.is_some_and(|e| e.pv);
 
     if !Node::ROOT
         && skip_move.is_none()
         && let Some(entry) = tt_entry
     {
-        let score = entry.score();
-        if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
+        let score = entry.score;
+        if entry.depth >= depth && entry.flag.bounds_match(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
@@ -256,17 +257,17 @@ fn search<Node: NodeType>(
         && skip_move.is_none()
         && (!Node::PV || tt_move.is_none())
         && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
-        && entry.flag() == TTFlag::Lower
-        && !entry.score().is_mate()
+        && entry.flag == TTFlag::Lower
+        && !entry.score.is_mate()
     {
-        let cutoff = !Node::PV && entry.depth() >= depth && entry.score() >= beta;
+        let cutoff = !Node::PV && entry.depth >= depth && entry.score >= beta;
         if (cutoff || tt_move.is_none())
-            && let Some(mv) = entry.best_move()
+            && let Some(mv) = entry.best_move
             && pos.board().is_legal(mv)
         {
             if cutoff {
                 thread.stack[ply].mv = Some(mv);
-                return entry.score();
+                return entry.score;
             }
             tt_move = Some(mv);
         }
@@ -281,13 +282,13 @@ fn search<Node: NodeType>(
     let static_eval = adjust_eval(raw_eval, corr);
 
     let estimated_score = if let Some(entry) = tt_entry
-        && !entry.score().is_mate()
+        && !entry.score.is_mate()
         && skip_move.is_none()
         && entry
-            .flag()
-            .bounds_match(entry.score(), static_eval, static_eval)
+            .flag
+            .bounds_match(entry.score, static_eval, static_eval)
     {
-        entry.score()
+        entry.score
     } else {
         static_eval
     };
@@ -391,11 +392,11 @@ fn search<Node: NodeType>(
         let entry = shared.tt.probe(pos.board().hash());
         if thread.iid_iteration > 0
             && let Some(entry) = entry
-            && entry.depth() >= depth
+            && entry.depth >= depth
         {
-            return entry.score();
+            return entry.score;
         }
-        tt_move = entry.and_then(|e| e.best_move());
+        tt_move = entry.and_then(|e| e.best_move);
     }
 
     thread.move_stack.push_ply();
@@ -538,12 +539,12 @@ fn search<Node: NodeType>(
             && depth >= 6
             && skip_move.is_none()
             && let Some(entry) = tt_entry
-            && entry.best_move() == Some(mv)
-            && entry.depth() + 3 >= depth
-            && entry.flag() != TTFlag::Upper
-            && !entry.score().is_mate()
+            && entry.best_move == Some(mv)
+            && entry.depth + 3 >= depth
+            && entry.flag != TTFlag::Upper
+            && !entry.score.is_mate()
         {
-            let s_beta = entry.score() - depth * Params::se_beta() / 64;
+            let s_beta = entry.score - depth * Params::se_beta() / 64;
             let s_depth = Params::lerp(0, depth, Params::se_depth_lerp());
 
             thread.stack[ply].skip_move = Some(mv);
@@ -584,9 +585,10 @@ fn search<Node: NodeType>(
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     let mut r = base_reduction;
-                    r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
-                    r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
+                    r += Params::lmr_imp() * !improving as i32;
+                    r -= Params::lmr_ttpv() * tt_pv as i32;
+                    r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
                     r -= Params::lmr_in_check() * pos.board().in_check() as i32;
                     r -= Params::lmr_history() * lmr_history / 1024;
                     r -= Params::lmr_corr() * corr.abs() / 1024;
@@ -706,6 +708,7 @@ fn search<Node: NodeType>(
             best_score,
             best_move_depth,
             TTFlag::Lower,
+            tt_pv,
         );
     }
 
@@ -716,6 +719,7 @@ fn search<Node: NodeType>(
             best_score,
             best_move_depth,
             flag,
+            tt_pv,
         );
     }
 
@@ -777,12 +781,12 @@ fn qsearch<Node: NodeType>(
 
     // Only use noisy TT moves
     let tt_move = tt_entry
-        .and_then(|e| e.best_move())
+        .and_then(|e| e.best_move)
         .filter(|mv| mv.flag().is_noisy());
 
     if let Some(entry) = tt_entry {
-        let score = entry.score();
-        if entry.flag().bounds_match(score, alpha, beta) {
+        let score = entry.score;
+        if entry.flag.bounds_match(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
@@ -898,9 +902,14 @@ fn qsearch<Node: NodeType>(
 
     thread.move_stack.pop_ply();
 
-    shared
-        .tt
-        .insert(pos.board().hash(), best_move, best_score, 0, flag);
+    shared.tt.insert(
+        pos.board().hash(),
+        best_move,
+        best_score,
+        0,
+        flag,
+        Node::PV || tt_entry.is_some_and(|e| e.pv),
+    );
 
     best_score
 }
