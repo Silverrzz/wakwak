@@ -178,8 +178,9 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
-    udp_threshold_base:  i32 => 10;
-    udp_threshold_scale: i32 => 4;
+    udp_threshold_base:  i32 => 8;
+    udp_threshold_scale: i32 => 2;
+    udp_threshold_cap:   i32 => 20;
     udp_history_offset:  i32 => -4000;
     udp_history_div:     i32 => 4000;
     udp_history_min:     i32 => -2;
@@ -439,8 +440,8 @@ impl Params {
 
     #[inline]
     pub fn udp_threshold(depth: i32, duck_history: i32) -> i32 {
-        Self::udp_threshold_base()
-            + Self::udp_threshold_scale() * depth
+        (Self::udp_threshold_base() + Self::udp_threshold_scale() * depth)
+            .min(Self::udp_threshold_cap())
             + Self::history_adjustment(
                 duck_history,
                 Self::udp_history_offset(),
