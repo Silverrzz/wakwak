@@ -440,7 +440,7 @@ impl Params {
     #[inline]
     pub fn udp_threshold(depth: i32, duck_history: i32) -> i32 {
         Self::udp_threshold_base()
-            + Self::udp_threshold_scale() * depth
+            + Self::udp_threshold_scale() * depth.max(1).ilog2() as i32
             + Self::history_adjustment(
                 duck_history,
                 Self::udp_history_offset(),
