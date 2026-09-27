@@ -1,5 +1,6 @@
 use crate::common::{Color, Piece, Square};
 use crate::nnue::{HM, should_mirror};
+use arrayvec::ArrayVec;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PieceFeature {
@@ -58,9 +59,13 @@ pub struct FeatureUpdates {
 
 impl FeatureUpdates {
     #[inline]
-    pub fn to_indices(self, king: Square, perspective: Color) -> (Vec<usize>, Vec<usize>) {
-        let mut adds = Vec::new();
-        let mut subs = Vec::new();
+    pub fn to_indices(
+        self,
+        king: Square,
+        perspective: Color,
+    ) -> (ArrayVec<usize, 2>, ArrayVec<usize, 2>) {
+        let mut adds = ArrayVec::new();
+        let mut subs = ArrayVec::new();
 
         if let Some(feature) = self.add {
             adds.push(feature.to_index(king, perspective));
