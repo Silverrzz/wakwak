@@ -16,6 +16,7 @@ pub struct SearchStack {
     static_eval: Option<Score>,
     skip_move: Option<Move>,
     mv: Option<Move>,
+    in_nmr: bool,
 }
 
 pub fn iterative_deepening(
@@ -38,7 +39,6 @@ pub fn iterative_deepening(
 
     'id: loop {
         thread.sel_depth = 0;
-        thread.nmr_ply = None;
         let new_score = Some(search::<Root>(
             &mut pos,
             thread,
@@ -347,7 +347,7 @@ fn search<Node: NodeType>(
     if !Node::PV
         && depth >= 4
         && skip_move.is_none()
-        && thread.nmr_ply != Some(ply)
+        && !thread.stack[ply].in_nmr
         && thread.stack[ply - 1].mv.is_some()
         && estimated_score >= beta + Params::nmr_margin()
     {
@@ -361,15 +361,16 @@ fn search<Node: NodeType>(
         }
 
         if score >= beta {
-            if thread.nmr_ply.is_some() {
+            thread.stack[ply].in_nmr = true;
+            let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
+            thread.stack[ply].in_nmr = false;
+
+            if thread.stop {
+                return Score::ZERO;
+            }
+
+            if score >= beta {
                 return score;
-            } else {
-                thread.nmr_ply = Some(ply);
-                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
-                thread.nmr_ply = None;
-                if score >= beta {
-                    return score;
-                }
             }
         }
     }
