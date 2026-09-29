@@ -408,7 +408,7 @@ fn search<Node: NodeType>(
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
     let neutral_ducks = pos.board().neutral_ducks();
-    let prune_neutrals = !Node::PV && depth <= 8 && !alpha.is_mate() && !beta.is_mate();
+    let prune_neutrals = !Node::PV && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(
         tt_move,
         Params::mp_see_threshold(),
