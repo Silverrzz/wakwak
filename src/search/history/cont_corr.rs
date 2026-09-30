@@ -6,6 +6,7 @@ use crate::search::{MAX_CORR, Params, gravity};
 pub struct ContCorrIndices {
     pub prev_move: Option<(Piece, Move)>,
     pub cont1: Option<(Piece, Move)>,
+    pub cont2: Option<(Piece, Move)>,
 }
 
 impl ContCorrIndices {
@@ -14,6 +15,7 @@ impl ContCorrIndices {
         Self {
             prev_move: pos.prev_move(1),
             cont1: pos.prev_move(2),
+            cont2: pos.prev_move(3),
         }
     }
 }

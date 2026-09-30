@@ -67,6 +67,7 @@ params! {
     major_corr:       i32 => 64;
     nonpawn_corr:     i32 => 64;
     cont1_corr:       i32 => 64;
+    cont2_corr:       i32 => 64;
     corr_bonus_scale: i64 => 128;
 
     quiet_bonus_base:  i32 => 128;

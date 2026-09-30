@@ -41,6 +41,7 @@ pub struct History {
     white_corr: CorrHistory<NONPAWN_CORR_SIZE>,
     black_corr: CorrHistory<NONPAWN_CORR_SIZE>,
     cont_corr_odd: ContCorrHistory,
+    cont_corr_even: ContCorrHistory,
 }
 
 impl History {
@@ -110,6 +111,8 @@ impl History {
         self.black_corr.update(stm, board.black_hash(), depth, diff);
         self.cont_corr_odd
             .update(stm, indices.prev_move, indices.cont1, depth, diff);
+        self.cont_corr_even
+            .update(stm, indices.prev_move, indices.cont2, depth, diff);
     }
 
     #[inline]
@@ -201,6 +204,11 @@ impl History {
             * self
                 .cont_corr_odd
                 .entry(stm, indices.prev_move, indices.cont1)
+                .unwrap_or_default();
+        corr += Params::cont2_corr()
+            * self
+                .cont_corr_even
+                .entry(stm, indices.prev_move, indices.cont2)
                 .unwrap_or_default();
         corr / MAX_CORR
     }
