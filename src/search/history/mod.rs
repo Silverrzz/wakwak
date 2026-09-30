@@ -1,4 +1,5 @@
 pub mod cont;
+pub mod cont_corr;
 pub mod corr;
 pub mod duck;
 pub mod noisy;
@@ -11,6 +12,7 @@ use crate::common::{Bitboard, Move, Square};
 use crate::score::Score;
 use crate::search::Params;
 pub use cont::*;
+pub use cont_corr::*;
 pub use corr::*;
 pub use duck::*;
 pub use noisy::*;
@@ -38,6 +40,7 @@ pub struct History {
     major_corr: CorrHistory<MAJOR_CORR_SIZE>,
     white_corr: CorrHistory<NONPAWN_CORR_SIZE>,
     black_corr: CorrHistory<NONPAWN_CORR_SIZE>,
+    cont_corr_odd: ContCorrHistory,
 }
 
 impl History {
@@ -89,7 +92,14 @@ impl History {
     }
 
     #[inline]
-    pub fn update_corr(&mut self, board: &Board, depth: i32, score: Score, static_eval: Score) {
+    pub fn update_corr(
+        &mut self,
+        board: &Board,
+        indices: ContCorrIndices,
+        depth: i32,
+        score: Score,
+        static_eval: Score,
+    ) {
         let stm = board.stm();
         let diff = score.0 as i64 - static_eval.0 as i64;
 
@@ -98,6 +108,8 @@ impl History {
         self.major_corr.update(stm, board.major_hash(), depth, diff);
         self.white_corr.update(stm, board.white_hash(), depth, diff);
         self.black_corr.update(stm, board.black_hash(), depth, diff);
+        self.cont_corr_odd
+            .update(stm, indices.prev_move, indices.cont1, depth, diff);
     }
 
     #[inline]
@@ -176,7 +188,7 @@ impl History {
     }
 
     #[inline]
-    pub fn corr(&self, board: &Board) -> i32 {
+    pub fn corr(&self, board: &Board, indices: ContCorrIndices) -> i32 {
         let stm = board.stm();
         let mut corr = 0;
 
@@ -185,6 +197,11 @@ impl History {
         corr += Params::major_corr() * self.major_corr.entry(stm, board.major_hash());
         corr += Params::nonpawn_corr() * self.white_corr.entry(stm, board.white_hash());
         corr += Params::nonpawn_corr() * self.black_corr.entry(stm, board.black_hash());
+        corr += Params::cont1_corr()
+            * self
+                .cont_corr_odd
+                .entry(stm, indices.prev_move, indices.cont1)
+                .unwrap_or_default();
         corr / MAX_CORR
     }
 }

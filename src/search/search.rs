@@ -5,7 +5,8 @@ use crate::score::Score;
 use crate::search::cont::ContIndices;
 use crate::search::tt::TTFlag;
 use crate::search::{
-    MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData, Stage, ThreadData,
+    ContCorrIndices, MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData,
+    Stage, ThreadData,
 };
 use std::sync::atomic::Ordering;
 
@@ -277,7 +278,8 @@ fn search<Node: NodeType>(
     } else {
         pos.eval()
     };
-    let corr = thread.history.corr(pos.board());
+    let cont_corr_indices = ContCorrIndices::new(pos);
+    let corr = thread.history.corr(pos.board(), cont_corr_indices);
     let static_eval = adjust_eval(raw_eval, corr);
 
     let estimated_score = if let Some(entry) = tt_entry
@@ -424,8 +426,8 @@ fn search<Node: NodeType>(
     let mut unique_moves = 0;
     let mut flag = TTFlag::Upper;
 
-    let indices = ContIndices::new(pos);
-    while let Some(mv) = move_picker.next(pos, thread, indices) {
+    let cont_indices = ContIndices::new(pos);
+    while let Some(mv) = move_picker.next(pos, thread, cont_indices) {
         if skip_move == Some(mv) {
             continue;
         }
@@ -437,7 +439,7 @@ fn search<Node: NodeType>(
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
         let lmr_history = if is_quiet {
-            Params::quiet_lmr_history(thread, pos, indices, mv)
+            Params::quiet_lmr_history(thread, pos, cont_indices, mv)
         } else {
             Params::noisy_lmr_history(thread, pos, mv)
         };
@@ -469,7 +471,7 @@ fn search<Node: NodeType>(
             */
             if is_quiet
                 && depth <= 5
-                && Params::quiet_hp_history(thread, pos, indices, mv)
+                && Params::quiet_hp_history(thread, pos, cont_indices, mv)
                     < Params::quiet_hp_margin(depth)
             {
                 move_picker.skip_quiets();
@@ -662,7 +664,7 @@ fn search<Node: NodeType>(
                 flag = TTFlag::Lower;
                 thread.history.update(
                     pos.board(),
-                    indices,
+                    cont_indices,
                     depth,
                     best_move.unwrap(),
                     &failed_quiets,
@@ -719,14 +721,21 @@ fn search<Node: NodeType>(
         );
     }
 
-    let static_eval = adjust_eval(raw_eval, thread.history.corr(pos.board()));
+    let static_eval = adjust_eval(
+        raw_eval,
+        thread.history.corr(pos.board(), cont_corr_indices),
+    );
     if skip_move.is_none()
         && best_move.is_none_or(|mv| mv.flag().is_quiet())
         && flag.bounds_match(best_score, static_eval, static_eval)
     {
-        thread
-            .history
-            .update_corr(pos.board(), depth, best_score, static_eval);
+        thread.history.update_corr(
+            pos.board(),
+            cont_corr_indices,
+            depth,
+            best_score,
+            static_eval,
+        );
     }
 
     best_score
@@ -769,7 +778,10 @@ fn qsearch<Node: NodeType>(
     }
 
     if ply >= MAX_PLY {
-        return adjust_eval(pos.eval(), thread.history.corr(pos.board()));
+        return adjust_eval(
+            pos.eval(),
+            thread.history.corr(pos.board(), ContCorrIndices::new(pos)),
+        );
     }
 
     // Transposition Table Cutoffs
@@ -791,7 +803,8 @@ fn qsearch<Node: NodeType>(
     }
 
     let raw_eval = pos.eval();
-    let corr = thread.history.corr(pos.board());
+    let cont_corr_indices = ContCorrIndices::new(pos);
+    let corr = thread.history.corr(pos.board(), cont_corr_indices);
     let static_eval = adjust_eval(raw_eval, corr);
 
     // Stand-pat
@@ -824,8 +837,8 @@ fn qsearch<Node: NodeType>(
     let mut best_move = None;
     let mut flag = TTFlag::Upper;
 
-    let indices = ContIndices::new(pos);
-    while let Some(mv) = move_picker.next(pos, thread, indices) {
+    let cont_indices = ContIndices::new(pos);
+    while let Some(mv) = move_picker.next(pos, thread, cont_indices) {
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
 
         // Duck Refutations
