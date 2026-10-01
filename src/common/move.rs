@@ -262,7 +262,7 @@ impl Move {
             {
                 *dest = Square::new(rook_src, our_back_rank);
 
-                let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0x6).relative_to(stm);
+                let blockers = board.occupied() ^ src ^ *dest ^ Bitboard(0xC).relative_to(stm);
                 return if !blockers.has(duck) {
                     Some(MoveFlag::LongCastling)
                 } else {
