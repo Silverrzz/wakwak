@@ -22,7 +22,7 @@ impl Default for AtomicTTEntry {
 const KEY_SHIFT: u32 = 0;
 const SCORE_SHIFT: u32 = 16;
 const DEPTH_SHIFT: u32 = 32;
-const FLAG_SHIFT: u32 = 40;
+const BOUND_SHIFT: u32 = 40;
 const MOVE_SHIFT: u32 = 42;
 
 #[derive(Clone, Copy)]
@@ -31,11 +31,11 @@ pub struct TTEntry {
     best_move: u32, // 4 bytes
     score: i16,     // 2 bytes
     depth: u8,      // 1 byte
-    flag: u8,       // 1 byte
+    bound: u8,      // 1 byte
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub enum TTFlag {
+pub enum Bound {
     None = 0,
     Exact = 1,
     Lower = 2,
@@ -60,13 +60,13 @@ impl TTEntry {
     }
 
     #[inline]
-    pub fn flag(&self) -> TTFlag {
-        match self.flag {
-            0 => TTFlag::None,
-            1 => TTFlag::Exact,
-            2 => TTFlag::Lower,
-            3 => TTFlag::Upper,
-            _ => unreachable!("invalid TT flag byte"),
+    pub fn bound(&self) -> Bound {
+        match self.bound {
+            0 => Bound::None,
+            1 => Bound::Exact,
+            2 => Bound::Lower,
+            3 => Bound::Upper,
+            _ => unreachable!("invalid TT bound byte"),
         }
     }
 
@@ -108,7 +108,7 @@ impl TranspositionTable {
             best_move: (packed >> MOVE_SHIFT) as u32,
             score: (packed >> SCORE_SHIFT) as u16 as i16,
             depth: (packed >> DEPTH_SHIFT) as u8,
-            flag: ((packed >> FLAG_SHIFT) & 0x3) as u8,
+            bound: ((packed >> BOUND_SHIFT) & 0x3) as u8,
         };
 
         if entry.validate_key(hash) {
@@ -124,7 +124,7 @@ impl TranspositionTable {
         mut best_move: Option<Move>,
         score: Score,
         depth: i32,
-        flag: TTFlag,
+        bound: Bound,
     ) {
         let idx = self.idx(hash);
         let entry = &self.table[idx];
@@ -143,7 +143,7 @@ impl TranspositionTable {
         let packed = (key_part as u64) << KEY_SHIFT
             | ((score.0 as u16) as u64) << SCORE_SHIFT
             | (depth as u64) << DEPTH_SHIFT
-            | (flag as u64) << FLAG_SHIFT
+            | (bound as u64) << BOUND_SHIFT
             | (best_move.map_or(0, |mv| mv.raw().get()) as u64) << MOVE_SHIFT;
         entry.packed.store(packed, Ordering::Relaxed);
     }
@@ -155,14 +155,14 @@ impl TranspositionTable {
     }
 }
 
-impl TTFlag {
+impl Bound {
     #[inline]
-    pub fn bounds_match(&self, score: Score, lower: Score, upper: Score) -> bool {
+    pub fn matches(&self, score: Score, lower: Score, upper: Score) -> bool {
         match self {
-            TTFlag::None => false,
-            TTFlag::Exact => true,
-            TTFlag::Lower => score >= upper,
-            TTFlag::Upper => score <= lower,
+            Bound::None => false,
+            Bound::Exact => true,
+            Bound::Lower => score >= upper,
+            Bound::Upper => score <= lower,
         }
     }
 }

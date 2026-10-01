@@ -2,11 +2,9 @@ use crate::common::{Bitboard, Move, Square, between};
 use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
-use crate::search::cont::ContIndices;
-use crate::search::tt::TTFlag;
 use crate::search::{
-    ContCorrIndices, MAX_PLY, MovePicker, Params, PrincipalVariation, SearchInfo, SharedData,
-    Stage, ThreadData,
+    Bound, ContCorrIndices, ContIndices, MAX_PLY, MovePicker, Params, PrincipalVariation,
+    SearchInfo, SharedData, Stage, ThreadData,
 };
 use std::sync::atomic::Ordering;
 
@@ -29,7 +27,7 @@ pub fn iterative_deepening(
     let mut depth = 1;
     let mut completed_depth = 0;
     let mut pv = PrincipalVariation::default();
-    let mut score = None;
+    let mut score: Option<Score> = None;
 
     // Time management stuff
     let mut duck_stability = 0;
@@ -38,51 +36,67 @@ pub fn iterative_deepening(
     let mut prev_move;
 
     'id: loop {
-        thread.sel_depth = 0;
-        thread.nmr_ply = None;
-        let new_score = Some(search::<Root>(
-            &mut pos,
-            thread,
-            shared,
-            -Score::INFINITE,
-            Score::INFINITE,
-            depth as i32,
-            0,
-        ));
-        thread.nodes.flush();
+        let mut delta = Params::asp_delta();
+        let mut alpha = -Score::INFINITE;
+        let mut beta = Score::INFINITE;
 
-        if depth > 1 && thread.stop {
-            break 'id;
+        if depth >= 4
+            && let Some(score) = score
+        {
+            alpha = (score - delta).max(-Score::INFINITE);
+            beta = (score + delta).min(Score::INFINITE);
         }
 
-        score = new_score;
-        pv = thread.stack[0].pv.clone();
-        prev_move = best_move;
-        best_move = Some(pv[0]);
+        'asp: loop {
+            thread.sel_depth = 0;
+            thread.nmr_ply = None;
+            let new_score = search::<Root>(&mut pos, thread, shared, alpha, beta, depth as i32, 0);
+            thread.nodes.flush();
 
-        duck_stability += 1;
-        if best_move.map(|mv| mv.duck()) != prev_move.map(|mv| mv.duck()) {
-            duck_stability = 0;
-        }
+            if depth > 1 && thread.stop {
+                break 'id;
+            }
 
-        move_stability += 1;
-        if best_move != prev_move {
-            move_stability = 0;
+            if new_score > alpha && new_score < beta {
+                score = Some(new_score);
+                pv = thread.stack[0].pv.clone();
+                prev_move = best_move;
+                best_move = Some(pv[0]);
+
+                duck_stability += 1;
+                if best_move.map(|mv| mv.duck()) != prev_move.map(|mv| mv.duck()) {
+                    duck_stability = 0;
+                }
+
+                move_stability += 1;
+                if best_move != prev_move {
+                    move_stability = 0;
+                }
+            }
+
+            let bound = if new_score <= alpha {
+                alpha = (new_score - delta).max(-Score::INFINITE);
+                delta += delta * Params::asp_widen_scale() / 64;
+                Bound::Upper
+            } else if new_score >= beta {
+                beta = (new_score + delta).min(Score::INFINITE);
+                delta += delta * Params::asp_widen_scale() / 64;
+                Bound::Lower
+            } else {
+                Bound::Exact
+            };
+
+            if thread.id == 0 && info == SearchInfo::Full {
+                info.depth(thread, shared, options, depth, new_score, bound, &pv);
+            }
+
+            if bound == Bound::Exact {
+                break 'asp;
+            }
         }
 
         depth += 1;
         completed_depth += 1;
-
-        if thread.id == 0 && info == SearchInfo::Full {
-            info.depth(
-                thread,
-                shared,
-                options,
-                completed_depth,
-                score.unwrap(),
-                &pv,
-            );
-        }
 
         if thread.id == 0 {
             if shared
@@ -134,6 +148,7 @@ pub fn iterative_deepening(
             options,
             completed_depth,
             score.unwrap(),
+            Bound::Exact,
             &pv,
         );
         println!(
@@ -245,7 +260,7 @@ fn search<Node: NodeType>(
         && let Some(entry) = tt_entry
     {
         let score = entry.score();
-        if entry.depth() >= depth && entry.flag().bounds_match(score, alpha, beta) {
+        if entry.depth() >= depth && entry.bound().matches(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
@@ -257,7 +272,7 @@ fn search<Node: NodeType>(
         && skip_move.is_none()
         && (!Node::PV || tt_move.is_none())
         && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
-        && entry.flag() == TTFlag::Lower
+        && entry.bound() == Bound::Lower
         && !entry.score().is_mate()
     {
         let cutoff = !Node::PV && entry.depth() >= depth && entry.score() >= beta;
@@ -286,8 +301,8 @@ fn search<Node: NodeType>(
         && !entry.score().is_mate()
         && skip_move.is_none()
         && entry
-            .flag()
-            .bounds_match(entry.score(), static_eval, static_eval)
+            .bound()
+            .matches(entry.score(), static_eval, static_eval)
     {
         entry.score()
     } else {
@@ -424,7 +439,7 @@ fn search<Node: NodeType>(
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
     let mut unique_ducks = 0;
     let mut unique_moves = 0;
-    let mut flag = TTFlag::Upper;
+    let mut bound = Bound::Upper;
 
     let cont_indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, cont_indices) {
@@ -542,7 +557,7 @@ fn search<Node: NodeType>(
             && let Some(entry) = tt_entry
             && entry.best_move() == Some(mv)
             && entry.depth() + 3 >= depth
-            && entry.flag() != TTFlag::Upper
+            && entry.bound() != Bound::Upper
             && !entry.score().is_mate()
         {
             let s_beta = entry.score() - depth * Params::se_beta() / 64;
@@ -586,7 +601,7 @@ fn search<Node: NodeType>(
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     let mut r = base_reduction;
-                    r += Params::lmr_exact() * (flag == TTFlag::Exact) as i32;
+                    r += Params::lmr_exact() * (bound == Bound::Exact) as i32;
                     r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
                     r -= Params::lmr_in_check() * pos.board().in_check() as i32;
@@ -655,13 +670,13 @@ fn search<Node: NodeType>(
             best_move = Some(mv);
             best_move_depth = move_depth;
             thread.stack[ply].mv = best_move;
-            flag = TTFlag::Exact;
+            bound = Bound::Exact;
             if Node::PV {
                 update_pv(thread, mv, ply);
             }
 
             if score >= beta {
-                flag = TTFlag::Lower;
+                bound = Bound::Lower;
                 thread.history.update(
                     pos.board(),
                     cont_indices,
@@ -699,7 +714,7 @@ fn search<Node: NodeType>(
     if pos.board().duck().is_some()
         && skip_move.is_none()
         && best_move.is_some()
-        && matches!(flag, TTFlag::Exact | TTFlag::Lower)
+        && matches!(bound, Bound::Exact | Bound::Lower)
         && !best_score.is_mate()
     {
         shared.tt.insert(
@@ -707,7 +722,7 @@ fn search<Node: NodeType>(
             best_move,
             best_score,
             best_move_depth,
-            TTFlag::Lower,
+            Bound::Lower,
         );
     }
 
@@ -717,7 +732,7 @@ fn search<Node: NodeType>(
             best_move,
             best_score,
             best_move_depth,
-            flag,
+            bound,
         );
     }
 
@@ -727,7 +742,7 @@ fn search<Node: NodeType>(
     );
     if skip_move.is_none()
         && best_move.is_none_or(|mv| mv.flag().is_quiet())
-        && flag.bounds_match(best_score, static_eval, static_eval)
+        && bound.matches(best_score, static_eval, static_eval)
     {
         thread.history.update_corr(
             pos.board(),
@@ -794,7 +809,7 @@ fn qsearch<Node: NodeType>(
 
     if let Some(entry) = tt_entry {
         let score = entry.score();
-        if entry.flag().bounds_match(score, alpha, beta) {
+        if entry.bound().matches(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
@@ -835,7 +850,7 @@ fn qsearch<Node: NodeType>(
     );
     move_picker.skip_quiets();
     let mut best_move = None;
-    let mut flag = TTFlag::Upper;
+    let mut bound = Bound::Upper;
 
     let cont_indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, cont_indices) {
@@ -896,14 +911,14 @@ fn qsearch<Node: NodeType>(
         if score > alpha {
             alpha = score;
             best_move = Some(mv);
-            flag = TTFlag::Exact;
+            bound = Bound::Exact;
             thread.stack[ply].mv = Some(mv);
             if Node::PV {
                 update_pv(thread, mv, ply);
             }
 
             if score >= beta {
-                flag = TTFlag::Lower;
+                bound = Bound::Lower;
                 break;
             }
         }
@@ -913,7 +928,7 @@ fn qsearch<Node: NodeType>(
 
     shared
         .tt
-        .insert(pos.board().hash(), best_move, best_score, 0, flag);
+        .insert(pos.board().hash(), best_move, best_score, 0, bound);
 
     best_score
 }
