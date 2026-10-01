@@ -1,5 +1,5 @@
 use crate::board::{Board, MoveFilter, Noisy, Quiet};
-use crate::common::{Bitboard, Move, MoveFlag, Piece};
+use crate::common::{Bitboard, Move, MoveFlag, Piece, Square};
 use crate::position::Position;
 use crate::search::cont::ContIndices;
 use crate::search::{History, MAX_PLY, Params, ThreadData};
@@ -33,7 +33,6 @@ impl MoveStack {
         &mut self,
         board: &Board,
         neutral_ducks: Bitboard,
-        true_neutral_ducks: Bitboard,
         prune_neutral_ducks: bool,
         history: &History,
     ) -> usize {
@@ -46,8 +45,13 @@ impl MoveStack {
             These ducks should be safe to prune as long as we search at least one (1) of them, since
             they should all be equivalent in score.
             */
-
             let mut keep_ducks = Bitboard::EMPTY;
+            let true_neutral_ducks = board.true_neutral_ducks_after(Move::new(
+                moves.src,
+                moves.dest,
+                Square::A1,
+                moves.flag,
+            ));
             if let Some(duck) = (moves.duck & true_neutral_ducks)
                 .iter()
                 .max_by_key(|&duck| {
@@ -165,7 +169,6 @@ pub struct MovePicker {
     skip_quiets: bool,
     skip_bad_noisies: bool,
     neutral_ducks: Bitboard,
-    true_neutral_ducks: Bitboard,
     prune_quiet_neutrals: bool,
     prune_noisy_neutrals: bool,
     bad_noisy_count: usize,
@@ -178,7 +181,6 @@ impl MovePicker {
         tt_move: Option<Move>,
         see_threshold: i32,
         neutral_ducks: Bitboard,
-        true_neutral_ducks: Bitboard,
         prune_quiet_neutrals: bool,
         prune_noisy_neutrals: bool,
     ) -> Self {
@@ -189,7 +191,6 @@ impl MovePicker {
             skip_quiets: false,
             skip_bad_noisies: false,
             neutral_ducks,
-            true_neutral_ducks,
             prune_quiet_neutrals,
             prune_noisy_neutrals,
             bad_noisy_count: 0,
@@ -232,7 +233,6 @@ impl MovePicker {
             let start = thread.move_stack.add_moves::<Noisy>(
                 board,
                 self.neutral_ducks,
-                self.true_neutral_ducks,
                 self.prune_noisy_neutrals,
                 &thread.history,
             );
@@ -256,7 +256,6 @@ impl MovePicker {
                 let start = thread.move_stack.add_moves::<Quiet>(
                     board,
                     self.neutral_ducks,
-                    self.true_neutral_ducks,
                     self.prune_quiet_neutrals,
                     &thread.history,
                 );

@@ -313,8 +313,89 @@ impl Board {
     }
 
     #[inline]
-    pub fn true_neutral_ducks(&self) -> Bitboard {
-        self.neutral_ducks(Color::White) & self.neutral_ducks(Color::Black)
+    pub fn true_neutral_ducks_after(&self, mv: Move) -> Bitboard {
+        let mut colors = self.colors;
+        let mut pieces = self.pieces;
+        let (src, dest, flag) = (mv.src(), mv.dest(), mv.flag());
+
+        let mut toggle_square = |piece: Piece, color: Color, sq: Square| {
+            colors[color] ^= sq;
+            pieces[piece] ^= sq;
+        };
+
+        let piece = self
+            .piece_on(src)
+            .expect("Board::true_neutral_ducks_after(): Empty source square");
+        if let Some(dir) = flag.castling_dir() {
+            let rank = Rank::First.relative_to(self.stm);
+            let king_dest = Square::new(dir.king_dest(), rank);
+            let rook_dest = Square::new(dir.rook_dest(), rank);
+
+            toggle_square(Piece::King, self.stm, src);
+            toggle_square(Piece::Rook, self.stm, dest);
+            toggle_square(Piece::King, self.stm, king_dest);
+            toggle_square(Piece::Rook, self.stm, rook_dest);
+        } else if let Some(promo) = flag.promotion() {
+            toggle_square(Piece::Pawn, self.stm, src);
+            toggle_square(promo, self.stm, dest);
+        } else {
+            toggle_square(piece, self.stm, src);
+            toggle_square(piece, self.stm, dest);
+        }
+
+        if flag == MoveFlag::EnPassant {
+            let victim = Square::new(dest.file(), src.rank());
+            toggle_square(Piece::Pawn, !self.stm, victim);
+        } else if flag.is_capture()
+            && let Some(piece) = self.piece_on(dest)
+        {
+            toggle_square(piece, !self.stm, dest);
+        }
+
+        let colored_pieces = |color: Color, piece: Piece| colors[color] & pieces[piece];
+        let colored_diag_sliders =
+            |color: Color| colors[color] & (pieces[Piece::Bishop] | pieces[Piece::Queen]);
+        let colored_orth_sliders =
+            |color: Color| colors[color] & (pieces[Piece::Rook] | pieces[Piece::Queen]);
+
+        let Some(their_king) = colored_pieces(!self.stm, Piece::King).try_next() else {
+            return Bitboard::EMPTY;
+        };
+
+        let mut relevant = Bitboard::EMPTY;
+        for &color in Color::ALL {
+            // Since we just moved, we don't have to consider potential slider xray reveals.
+            let blockers = if color == self.stm {
+                colors[Color::White] | colors[Color::Black]
+            } else {
+                colors[color]
+            };
+            let pawns = colored_pieces(color, Piece::Pawn);
+            relevant |= pawns.shift::<North>(color.signum())
+                | (pawns & Rank::Second.relative_to(color)).shift::<North>(2 * color.signum())
+                | pawns.shift::<NorthEast>(color.signum())
+                | pawns.shift::<NorthWest>(color.signum())
+                | king_attacks(their_king);
+
+            for square in colored_pieces(color, Piece::Knight) {
+                relevant |= knight_attacks(square);
+            }
+            for square in colored_diag_sliders(color) {
+                relevant |= bishop_attacks(blockers, square, self.slider_tag);
+            }
+            for square in colored_orth_sliders(color) {
+                relevant |= rook_attacks(blockers, square, self.slider_tag);
+            }
+
+            if CastlingDirection::ALL
+                .iter()
+                .any(|&dir| self.castling_rights(color).get(dir).is_some())
+            {
+                relevant |= Rank::First.relative_to(color);
+            }
+        }
+
+        !relevant
     }
 
     #[inline]
