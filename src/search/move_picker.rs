@@ -33,6 +33,7 @@ impl MoveStack {
         &mut self,
         board: &Board,
         neutral_ducks: Bitboard,
+        true_neutral_ducks: Bitboard,
         prune_neutral_ducks: bool,
         history: &History,
     ) -> usize {
@@ -40,13 +41,37 @@ impl MoveStack {
         let old_len = self.stack.len();
 
         board.gen_moves::<F, _>(|mut moves| {
+            /*
+            True Neutral Duck Pruning: A duck is truly neutral if it does not block *any* attacks.
+            These ducks should be safe to prune as long as we search at least one (1) of them, since
+            they should all be equivalent in score.
+            */
+
+            let mut keep_ducks = Bitboard::EMPTY;
+            if let Some(duck) = (moves.duck & true_neutral_ducks)
+                .iter()
+                .max_by_key(|&duck| {
+                    history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
+                })
+            {
+                keep_ducks |= duck;
+            }
+            moves.duck &= !true_neutral_ducks;
+
+            /*
+            Neutral Duck Pruning: A duck is neutral if it blocks the opponent's attacks.
+            These ducks can be pruned in restrictive conditions.
+            */
             if prune_neutral_ducks
                 && let Some(duck) = (moves.duck & neutral_ducks).iter().max_by_key(|&duck| {
                     history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
                 })
             {
-                moves.duck &= !neutral_ducks | duck;
+                moves.duck &= !neutral_ducks;
+                keep_ducks |= duck;
             }
+
+            moves.duck |= keep_ducks;
             self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
             Abort::No
         });
@@ -140,6 +165,7 @@ pub struct MovePicker {
     skip_quiets: bool,
     skip_bad_noisies: bool,
     neutral_ducks: Bitboard,
+    true_neutral_ducks: Bitboard,
     prune_quiet_neutrals: bool,
     prune_noisy_neutrals: bool,
     bad_noisy_count: usize,
@@ -152,6 +178,7 @@ impl MovePicker {
         tt_move: Option<Move>,
         see_threshold: i32,
         neutral_ducks: Bitboard,
+        true_neutral_ducks: Bitboard,
         prune_quiet_neutrals: bool,
         prune_noisy_neutrals: bool,
     ) -> Self {
@@ -162,6 +189,7 @@ impl MovePicker {
             skip_quiets: false,
             skip_bad_noisies: false,
             neutral_ducks,
+            true_neutral_ducks,
             prune_quiet_neutrals,
             prune_noisy_neutrals,
             bad_noisy_count: 0,
@@ -204,6 +232,7 @@ impl MovePicker {
             let start = thread.move_stack.add_moves::<Noisy>(
                 board,
                 self.neutral_ducks,
+                self.true_neutral_ducks,
                 self.prune_noisy_neutrals,
                 &thread.history,
             );
@@ -227,6 +256,7 @@ impl MovePicker {
                 let start = thread.move_stack.add_moves::<Quiet>(
                     board,
                     self.neutral_ducks,
+                    self.true_neutral_ducks,
                     self.prune_quiet_neutrals,
                     &thread.history,
                 );

@@ -285,32 +285,36 @@ impl Board {
     }
 
     #[inline]
-    pub fn neutral_ducks(&self) -> Bitboard {
-        let them = !self.stm;
-        let blockers = self.colors(them);
-        let pawns = self.colored_pieces(them, Piece::Pawn);
-        let mut relevant = pawns.shift::<North>(them.signum())
-            | (pawns & Rank::Second.relative_to(them)).shift::<North>(2 * them.signum())
-            | pawns.shift::<NorthEast>(them.signum())
-            | pawns.shift::<NorthWest>(them.signum())
-            | king_attacks(self.king(them));
+    pub fn neutral_ducks(&self, color: Color) -> Bitboard {
+        let blockers = self.colors(color);
+        let pawns = self.colored_pieces(color, Piece::Pawn);
+        let mut relevant = pawns.shift::<North>(color.signum())
+            | (pawns & Rank::Second.relative_to(color)).shift::<North>(2 * color.signum())
+            | pawns.shift::<NorthEast>(color.signum())
+            | pawns.shift::<NorthWest>(color.signum())
+            | king_attacks(self.king(color));
 
-        for square in self.colored_pieces(them, Piece::Knight) {
+        for square in self.colored_pieces(color, Piece::Knight) {
             relevant |= knight_attacks(square);
         }
-        for square in self.colored_diag_sliders(them) {
+        for square in self.colored_diag_sliders(color) {
             relevant |= bishop_attacks(blockers, square, self.slider_tag);
         }
-        for square in self.colored_orth_sliders(them) {
+        for square in self.colored_orth_sliders(color) {
             relevant |= rook_attacks(blockers, square, self.slider_tag);
         }
         if CastlingDirection::ALL
             .iter()
-            .any(|&dir| self.castling_rights(them).get(dir).is_some())
+            .any(|&dir| self.castling_rights(color).get(dir).is_some())
         {
-            relevant |= Rank::First.relative_to(them);
+            relevant |= Rank::First.relative_to(color);
         }
         !relevant
+    }
+
+    #[inline]
+    pub fn true_neutral_ducks(&self) -> Bitboard {
+        self.neutral_ducks(Color::White) & self.neutral_ducks(Color::Black)
     }
 
     #[inline]
