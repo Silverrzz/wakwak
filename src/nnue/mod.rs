@@ -44,9 +44,16 @@ pub const HM: bool = true;
 
 #[inline]
 pub fn input_bucket(king: Square, perspective: Color) -> usize {
+    #[rustfmt::skip]
     const BUCKETS: [usize; Square::COUNT / 2] = [
-        0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-        3, 3,
+        0, 0, 1, 1,
+        2, 2, 2, 2,
+        3, 3, 3, 3,
+        3, 3, 3, 3,
+        3, 3, 3, 3,
+        3, 3, 3, 3,
+        3, 3, 3, 3,
+        3, 3, 3, 3,
     ];
 
     let mut king = king.relative_to(perspective);
