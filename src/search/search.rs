@@ -847,7 +847,7 @@ fn qsearch<Node: NodeType>(
         }
 
         // Duck Count Pruning (DCP)
-        if !Node::PV && duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
+        if duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
             continue;
         }
 
