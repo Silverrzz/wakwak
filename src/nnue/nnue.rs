@@ -1,6 +1,8 @@
 use crate::board::Board;
 use crate::common::{Color, Move, MoveFlag, Piece, Rank, Square};
-use crate::nnue::{Accumulator, FeatureUpdates, HM, PieceFeature, feed_forward, should_mirror};
+use crate::nnue::{
+    Accumulator, FeatureUpdates, HM, PieceFeature, feed_forward, input_bucket, should_mirror,
+};
 use crate::score::Score;
 use crate::search::MAX_PLY;
 use enum_map::enum_map;
@@ -131,7 +133,10 @@ impl Nnue {
         self.stack[self.cursor].dirty = enum_map! { _ => true };
         self.stack[self.cursor].needs_refresh = self.stack[self.cursor - 1].needs_refresh;
 
-        if piece == Piece::King && (HM && should_mirror(src) != should_mirror(dest)) {
+        if piece == Piece::King
+            && ((HM && should_mirror(src) != should_mirror(dest))
+                || input_bucket(src, stm) != input_bucket(dest, stm))
+        {
             self.stack[self.cursor].needs_refresh[stm] = true;
         }
     }

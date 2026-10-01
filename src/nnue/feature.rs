@@ -1,5 +1,5 @@
 use crate::common::{Color, Piece, Square};
-use crate::nnue::{HM, should_mirror};
+use crate::nnue::{HM, input_bucket, should_mirror};
 use arrayvec::ArrayVec;
 
 #[derive(Debug, Copy, Clone)]
@@ -24,7 +24,9 @@ impl PieceFeature {
             sq = sq.flip_file();
         }
 
-        color as usize * Square::COUNT * Piece::COUNT
+        (input_bucket(king, perspective) * Color::COUNT + color as usize)
+            * Square::COUNT
+            * Piece::COUNT
             + self.piece as usize * Square::COUNT
             + sq as usize
     }

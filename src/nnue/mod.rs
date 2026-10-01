@@ -9,7 +9,7 @@ pub use feature::*;
 pub use inference::*;
 pub use nnue::*;
 
-use crate::common::{File, Square};
+use crate::common::{Color, File, Square};
 
 cfg_select! {
     target_feature = "avx512bw" => {
@@ -38,9 +38,24 @@ pub const EVAL_SCALE: i32 = 400;
 pub const QA: i16 = 255;
 pub const QB: i16 = 64;
 
-pub const INPUT: usize = 768;
+pub const INPUT: usize = 768 * 4;
 pub const L1: usize = 512;
 pub const HM: bool = true;
+
+#[inline]
+pub fn input_bucket(king: Square, perspective: Color) -> usize {
+    const BUCKETS: [usize; Square::COUNT / 2] = [
+        0, 0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+        3, 3,
+    ];
+
+    let mut king = king.relative_to(perspective);
+    if should_mirror(king) {
+        king = king.flip_file();
+    }
+
+    BUCKETS[king.rank() as usize * 4 + king.file() as usize]
+}
 
 #[inline]
 pub fn should_mirror(sq: Square) -> bool {
