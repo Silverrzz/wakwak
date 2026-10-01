@@ -248,9 +248,10 @@ impl Move {
                 {
                     let rook_src = Square::new(rook_src, rank);
                     let blockers = board.occupied() ^ src ^ rook_src ^ *dest ^ rook_dest;
+                    *dest = rook_src;
 
                     return if !blockers.has(duck) {
-                        Some(MoveFlag::ShortCastling)
+                        Some(MoveFlag::new_castling(dir))
                     } else {
                         None
                     };
