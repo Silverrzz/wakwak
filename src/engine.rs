@@ -1,7 +1,6 @@
 use crate::board::Board;
 use crate::common::Move;
 use crate::position::Position;
-#[cfg(feature = "tune")]
 use crate::search::Params;
 use crate::search::{DEFAULT_OVERHEAD, SearchInfo, Searcher, tt};
 use crate::uci::{GENFENS_USAGE, SearchLimit, UciCommand, UciParseError};
@@ -80,6 +79,7 @@ impl Engine {
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
             UciCommand::Eval => self.eval(),
+            UciCommand::Spsa => Params::print_spsa(),
             UciCommand::Bench { depth } => self.bench(depth),
             UciCommand::GenFens {
                 count,
@@ -127,6 +127,8 @@ impl Engine {
         println!("option name UseDumbInterface type check default true");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
+        #[cfg(feature = "tune")]
+        Params::print_uci_options();
         println!("uciok");
     }
 

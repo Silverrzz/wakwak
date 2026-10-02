@@ -12,7 +12,7 @@ pub struct SyncUnsafeCell<T>(pub UnsafeCell<T>);
 unsafe impl<T: Sync> Sync for SyncUnsafeCell<T> {}
 
 macro_rules! params {
-    ($($name:ident : $ty:ty => $default:literal;)*) => {
+    ($($name:ident : $ty:ty => $default:literal, $min:literal, $max:literal, $step:literal;)*) => {
         pub struct Params;
 
         $(
@@ -22,6 +22,21 @@ macro_rules! params {
         )*
 
         impl Params {
+            pub fn print_spsa() {
+                $(
+                    println!("{}, int, {}, {}, {}, {}, 0.002",
+                        stringify!($name), Self::$name(), $min, $max, $step);
+                )*
+            }
+
+            #[cfg(feature = "tune")]
+            pub fn print_uci_options() {
+                $(
+                    println!("option name {} type spin default {} min {} max {}",
+                        stringify!($name), $default, $min, $max);
+                )*
+            }
+
             $(
                 #[cfg(feature = "tune")]
                 pub const fn $name() -> $ty { unsafe { *$name.0.get() } }
@@ -43,6 +58,12 @@ macro_rules! params {
                                 }
                             };
 
+                            if !($min..=$max).contains(&value) {
+                                eprintln!("info string {} must be between {} and {}",
+                                    name, $min, $max);
+                                return;
+                            }
+
                             unsafe { *$name.0.get() = value };
                         },
                     )*
@@ -62,202 +83,202 @@ macro_rules! params {
 }
 
 params! {
-    pawn_corr:        i32 => 64;
-    minor_corr:       i32 => 64;
-    major_corr:       i32 => 64;
-    nonpawn_corr:     i32 => 64;
-    cont1_corr:       i32 => 64;
-    cont2_corr:       i32 => 64;
-    corr_bonus_scale: i64 => 128;
+    pawn_corr:        i32 => 64, 0, 128, 1.6;
+    minor_corr:       i32 => 64, 0, 128, 1.6;
+    major_corr:       i32 => 64, 0, 128, 1.6;
+    nonpawn_corr:     i32 => 64, 0, 128, 1.6;
+    cont1_corr:       i32 => 64, 0, 128, 1.6;
+    cont2_corr:       i32 => 64, 0, 128, 1.6;
+    corr_bonus_scale: i64 => 128, 0, 256, 3.2;
 
-    quiet_bonus_base:  i32 => 128;
-    quiet_bonus_scale: i32 => 128;
-    quiet_bonus_max:   i32 => 2048;
-    quiet_malus_base:  i32 => 128;
-    quiet_malus_scale: i32 => 128;
-    quiet_malus_max:   i32 => 2048;
+    quiet_bonus_base:  i32 => 128, 0, 256, 3.2;
+    quiet_bonus_scale: i32 => 128, 0, 256, 3.2;
+    quiet_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    quiet_malus_base:  i32 => 128, 0, 256, 3.2;
+    quiet_malus_scale: i32 => 128, 0, 256, 3.2;
+    quiet_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    noisy_bonus_base:  i32 => 128;
-    noisy_bonus_scale: i32 => 128;
-    noisy_bonus_max:   i32 => 2048;
-    noisy_malus_base:  i32 => 128;
-    noisy_malus_scale: i32 => 128;
-    noisy_malus_max:   i32 => 2048;
+    noisy_bonus_base:  i32 => 128, 0, 256, 3.2;
+    noisy_bonus_scale: i32 => 128, 0, 256, 3.2;
+    noisy_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    noisy_malus_base:  i32 => 128, 0, 256, 3.2;
+    noisy_malus_scale: i32 => 128, 0, 256, 3.2;
+    noisy_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    pawn_bonus_base:  i32 => 128;
-    pawn_bonus_scale: i32 => 128;
-    pawn_bonus_max:   i32 => 2048;
-    pawn_malus_base:  i32 => 128;
-    pawn_malus_scale: i32 => 128;
-    pawn_malus_max:   i32 => 2048;
+    pawn_bonus_base:  i32 => 128, 0, 256, 3.2;
+    pawn_bonus_scale: i32 => 128, 0, 256, 3.2;
+    pawn_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    pawn_malus_base:  i32 => 128, 0, 256, 3.2;
+    pawn_malus_scale: i32 => 128, 0, 256, 3.2;
+    pawn_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    duck_bonus_base:  i32 => 128;
-    duck_bonus_scale: i32 => 128;
-    duck_bonus_max:   i32 => 2048;
-    duck_malus_base:  i32 => 128;
-    duck_malus_scale: i32 => 128;
-    duck_malus_max:   i32 => 2048;
+    duck_bonus_base:  i32 => 128, 0, 256, 3.2;
+    duck_bonus_scale: i32 => 128, 0, 256, 3.2;
+    duck_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    duck_malus_base:  i32 => 128, 0, 256, 3.2;
+    duck_malus_scale: i32 => 128, 0, 256, 3.2;
+    duck_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    quiet_duck_bonus_base:  i32 => 128;
-    quiet_duck_bonus_scale: i32 => 128;
-    quiet_duck_bonus_max:   i32 => 2048;
-    quiet_duck_malus_base:  i32 => 128;
-    quiet_duck_malus_scale: i32 => 128;
-    quiet_duck_malus_max:   i32 => 2048;
+    quiet_duck_bonus_base:  i32 => 128, 0, 256, 3.2;
+    quiet_duck_bonus_scale: i32 => 128, 0, 256, 3.2;
+    quiet_duck_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    quiet_duck_malus_base:  i32 => 128, 0, 256, 3.2;
+    quiet_duck_malus_scale: i32 => 128, 0, 256, 3.2;
+    quiet_duck_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    cont1_bonus_base:  i32 => 128;
-    cont1_bonus_scale: i32 => 128;
-    cont1_bonus_max:   i32 => 2048;
-    cont1_malus_base:  i32 => 128;
-    cont1_malus_scale: i32 => 128;
-    cont1_malus_max:   i32 => 2048;
+    cont1_bonus_base:  i32 => 128, 0, 256, 3.2;
+    cont1_bonus_scale: i32 => 128, 0, 256, 3.2;
+    cont1_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    cont1_malus_base:  i32 => 128, 0, 256, 3.2;
+    cont1_malus_scale: i32 => 128, 0, 256, 3.2;
+    cont1_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    cont2_bonus_base:  i32 => 128;
-    cont2_bonus_scale: i32 => 128;
-    cont2_bonus_max:   i32 => 2048;
-    cont2_malus_base:  i32 => 128;
-    cont2_malus_scale: i32 => 128;
-    cont2_malus_max:   i32 => 2048;
+    cont2_bonus_base:  i32 => 128, 0, 256, 3.2;
+    cont2_bonus_scale: i32 => 128, 0, 256, 3.2;
+    cont2_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    cont2_malus_base:  i32 => 128, 0, 256, 3.2;
+    cont2_malus_scale: i32 => 128, 0, 256, 3.2;
+    cont2_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    cont4_bonus_base:  i32 => 128;
-    cont4_bonus_scale: i32 => 128;
-    cont4_bonus_max:   i32 => 2048;
-    cont4_malus_base:  i32 => 128;
-    cont4_malus_scale: i32 => 128;
-    cont4_malus_max:   i32 => 2048;
+    cont4_bonus_base:  i32 => 128, 0, 256, 3.2;
+    cont4_bonus_scale: i32 => 128, 0, 256, 3.2;
+    cont4_bonus_max:   i32 => 2048, 0, 4096, 51.2;
+    cont4_malus_base:  i32 => 128, 0, 256, 3.2;
+    cont4_malus_scale: i32 => 128, 0, 256, 3.2;
+    cont4_malus_max:   i32 => 2048, 0, 4096, 51.2;
 
-    rfp_base:      i32 => 0;
-    rfp_scale:     i32 => 50;
-    rfp_imp_base:  i32 => -50;
-    rfp_imp_scale: i32 => 50;
-    rfp_lerp:      i32 => 512;
+    rfp_base:      i32 => 0, -100, 100, 10;
+    rfp_scale:     i32 => 50, 0, 100, 1.3;
+    rfp_imp_base:  i32 => -50, -100, 0, 1.3;
+    rfp_imp_scale: i32 => 50, 0, 100, 1.3;
+    rfp_lerp:      i32 => 512, 0, 1024, 12.8;
 
-    razor_base:  i32 => 320;
-    razor_scale: i32 => 250;
+    razor_base:  i32 => 320, 0, 640, 8;
+    razor_scale: i32 => 250, 0, 500, 6.3;
 
-    nmr_margin:          i32 => 20;
-    nmr_reduction_base:  i32 => 5120;
-    nmr_reduction_scale: i32 => 341;
+    nmr_margin:          i32 => 20, 0, 40, 0.5;
+    nmr_reduction_base:  i32 => 5120, 1024, 10240, 128;
+    nmr_reduction_scale: i32 => 341, 0, 682, 8.6;
 
-    iid_depth_scale:     i32 => 768;
-    iid_depth_reduction: i32 => 1536;
+    iid_depth_scale:     i32 => 768, 384, 1024, 19.2;
+    iid_depth_reduction: i32 => 1536, 1024, 3072, 38.4;
 
-    mvv_pawn:   i32 => 100;
-    mvv_knight: i32 => 320;
-    mvv_bishop: i32 => 330;
-    mvv_rook:   i32 => 500;
-    mvv_queen:  i32 => 900;
+    mvv_pawn:   i32 => 100, 50, 200, 2.5;
+    mvv_knight: i32 => 320, 160, 640, 8;
+    mvv_bishop: i32 => 330, 165, 660, 8.3;
+    mvv_rook:   i32 => 500, 250, 1000, 12.5;
+    mvv_queen:  i32 => 900, 450, 1800, 22.5;
 
-    see_pawn:   i32 => 100;
-    see_knight: i32 => 320;
-    see_bishop: i32 => 330;
-    see_rook:   i32 => 500;
-    see_queen:  i32 => 900;
+    see_pawn:   i32 => 100, 50, 200, 2.5;
+    see_knight: i32 => 320, 160, 640, 8;
+    see_bishop: i32 => 330, 165, 660, 8.3;
+    see_rook:   i32 => 500, 250, 1000, 12.5;
+    see_queen:  i32 => 900, 450, 1800, 22.5;
 
-    quiet_hp_base:  i32 => 0;
-    quiet_hp_scale: i32 => -2500;
+    quiet_hp_base:  i32 => 0, -4000, 4000, 10;
+    quiet_hp_scale: i32 => -2500, -5000, 0, 62.5;
 
-    quiet_ldp_imp_threshold_base:  i32 => 2;
-    quiet_ldp_imp_threshold_scale: i32 => 2;
-    quiet_ldp_threshold_base:      i32 => 1;
-    quiet_ldp_threshold_scale:     i32 => 1;
-    quiet_ldp_history_offset:      i32 => -4000;
-    quiet_ldp_history_div:         i32 => 4000;
-    quiet_ldp_history_min:         i32 => -2;
-    quiet_ldp_history_max:         i32 => 2;
+    quiet_ldp_imp_threshold_base:  i32 => 2, 0, 4, 0.1;
+    quiet_ldp_imp_threshold_scale: i32 => 2, 0, 4, 0.1;
+    quiet_ldp_threshold_base:      i32 => 1, 0, 2, 0.05;
+    quiet_ldp_threshold_scale:     i32 => 1, 0, 2, 0.05;
+    quiet_ldp_history_offset:      i32 => -4000, -8000, 0, 100;
+    quiet_ldp_history_div:         i32 => 4000, 2000, 8000, 100;
+    quiet_ldp_history_min:         i32 => -2, -4, 0, 0.1;
+    quiet_ldp_history_max:         i32 => 2, 0, 4, 0.1;
 
-    noisy_ldp_imp_threshold_base:  i32 => 4;
-    noisy_ldp_imp_threshold_scale: i32 => 4;
-    noisy_ldp_threshold_base:      i32 => 4;
-    noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_imp_threshold_base:  i32 => 4, 0, 8, 0.1;
+    noisy_ldp_imp_threshold_scale: i32 => 4, 0, 8, 0.1;
+    noisy_ldp_threshold_base:      i32 => 4, 0, 8, 0.1;
+    noisy_ldp_threshold_scale:     i32 => 4, 0, 8, 0.1;
 
-    dcp_threshold_imp_base:  i32 => 2;
-    dcp_threshold_imp_scale: i32 => 1;
-    dcp_threshold_base:      i32 => 4;
-    dcp_threshold_scale:     i32 => 2;
-    dcp_history_offset:      i32 => -4000;
-    dcp_history_div:         i32 => 4000;
-    dcp_history_min:         i32 => -2;
-    dcp_history_max:         i32 => 2;
+    dcp_threshold_imp_base:  i32 => 2, 0, 4, 0.1;
+    dcp_threshold_imp_scale: i32 => 1, 0, 2, 0.05;
+    dcp_threshold_base:      i32 => 4, 0, 8, 0.1;
+    dcp_threshold_scale:     i32 => 2, 0, 4, 0.1;
+    dcp_history_offset:      i32 => -4000, -8000, 0, 100;
+    dcp_history_div:         i32 => 4000, 2000, 8000, 100;
+    dcp_history_min:         i32 => -2, -4, 0, 0.1;
+    dcp_history_max:         i32 => 2, 0, 4, 0.1;
 
-    udp_threshold_base:  i32 => 10;
-    udp_threshold_scale: i32 => 4;
-    udp_history_offset:  i32 => -4000;
-    udp_history_div:     i32 => 4000;
-    udp_history_min:     i32 => -2;
-    udp_history_max:     i32 => 2;
+    udp_threshold_base:  i32 => 10, 0, 20, 0.3;
+    udp_threshold_scale: i32 => 4, 0, 8, 0.1;
+    udp_history_offset:  i32 => -4000, -8000, 0, 100;
+    udp_history_div:     i32 => 4000, 2000, 8000, 100;
+    udp_history_min:     i32 => -2, -4, 0, 0.1;
+    udp_history_max:     i32 => 2, 0, 4, 0.1;
 
-    ump_threshold_base:         i32 => 4;
-    ump_threshold_numerator:    i32 => 3;
-    ump_threshold_denominator:  i32 => 2;
+    ump_threshold_base:         i32 => 4, 0, 8, 0.1;
+    ump_threshold_numerator:    i32 => 3, 0, 6, 0.1;
+    ump_threshold_denominator:  i32 => 2, 1, 4, 0.1;
 
-    quiet_see_base:  i32 => 0;
-    quiet_see_scale: i32 => -80;
-    noisy_see_base:  i32 => 0;
-    noisy_see_scale: i32 => -80;
+    quiet_see_base:  i32 => 0, -100, 100, 10;
+    quiet_see_scale: i32 => -80, -160, 0, 2;
+    noisy_see_base:  i32 => 0, -100, 100, 10;
+    noisy_see_scale: i32 => -80, -160, 0, 2;
 
-    se_beta:       i32 => 128;
-    se_depth_lerp: i32 => 512;
+    se_beta:       i32 => 128, 0, 256, 3.2;
+    se_depth_lerp: i32 => 512, 256, 768, 12.8;
 
-    mp_see_threshold: i32 => 0;
-    mp_qs_see_threshold: i32 => 0;
-    mp_quiet_neutral_malus: i32 => 5000;
+    mp_see_threshold: i32 => 0, -100, 100, 10;
+    mp_qs_see_threshold: i32 => 0, -100, 100, 10;
+    mp_quiet_neutral_malus: i32 => 5000, 0, 10000, 125;
 
-    qsldp_threshold: i32 => 2;
-    qsdcp_threshold: i32 => 2;
+    qsldp_threshold: i32 => 2, 0, 4, 0.1;
+    qsdcp_threshold: i32 => 2, 0, 4, 0.1;
 
-    asp_delta:       i32 => 20;
-    asp_beta_lerp:   i32 => 512;
-    asp_widen_scale: i32 => 128;
+    asp_delta:       i32 => 20, 1, 40, 0.5;
+    asp_beta_lerp:   i32 => 512, 0, 1024, 12.8;
+    asp_widen_scale: i32 => 128, 64, 256, 3.2;
 
-    soft_time_div: u64 => 98304;
-    soft_time_inc: u64 => 2048;
-    hard_time_div: u64 => 12288;
-    hard_time_inc: u64 => 4096;
+    soft_time_div: u64 => 98304, 49152, 196608, 2457.6;
+    soft_time_inc: u64 => 2048, 0, 4096, 51.2;
+    hard_time_div: u64 => 12288, 6144, 24576, 307.2;
+    hard_time_inc: u64 => 4096, 0, 8192, 102.4;
 
-    duck_stability_base:  u128 => 5325;
-    duck_stability_scale: u128 => 410;
-    duck_stability_min:   u128 => 2867;
+    duck_stability_base:  u128 => 5325, 2662, 10650, 133.2;
+    duck_stability_scale: u128 => 410, 0, 820, 10.3;
+    duck_stability_min:   u128 => 2867, 1433, 5734, 71.7;
 
-    move_stability_base:  u128 => 5325;
-    move_stability_scale: u128 => 410;
-    move_stability_min:   u128 => 2867;
+    move_stability_base:  u128 => 5325, 2662, 10650, 133.2;
+    move_stability_scale: u128 => 410, 0, 820, 10.3;
+    move_stability_min:   u128 => 2867, 1433, 5734, 71.7;
 
-    quiet_lmr_base:  i32 => 1024;
-    quiet_lmr_scale: i32 => 96;
-    lmr_exact:       i32 => 1024;
-    lmr_imp:         i32 => 1024;
-    lmr_pv:          i32 => 1024;
-    lmr_in_check:    i32 => 512;
-    lmr_history:     i32 => 64;
-    lmr_corr:        i32 => 3072;
+    quiet_lmr_base:  i32 => 1024, 0, 2048, 25.6;
+    quiet_lmr_scale: i32 => 96, 0, 192, 2.4;
+    lmr_exact:       i32 => 1024, 0, 2048, 25.6;
+    lmr_imp:         i32 => 1024, 0, 2048, 25.6;
+    lmr_pv:          i32 => 1024, 0, 2048, 25.6;
+    lmr_in_check:    i32 => 512, 0, 1024, 12.8;
+    lmr_history:     i32 => 64, 0, 128, 1.6;
+    lmr_corr:        i32 => 3072, 0, 6144, 76.8;
 
-    fp_base:  i32 => 256;
-    fp_scale: i32 => 128;
+    fp_base:  i32 => 256, 0, 512, 6.4;
+    fp_scale: i32 => 128, 0, 256, 3.2;
 
-    noisy_lmr_noisy_scale: i32 => 128;
-    noisy_lmr_duck_scale:  i32 => 128;
+    noisy_lmr_noisy_scale: i32 => 128, 0, 256, 3.2;
+    noisy_lmr_duck_scale:  i32 => 128, 0, 256, 3.2;
 
-    quiet_lmr_quiet_scale: i32 => 1024;
-    quiet_lmr_duck_scale:  i32 => 1024;
-    quiet_lmr_cont1_scale: i32 => 1024;
-    quiet_lmr_cont2_scale: i32 => 1024;
+    quiet_lmr_quiet_scale: i32 => 1024, 0, 2048, 25.6;
+    quiet_lmr_duck_scale:  i32 => 1024, 0, 2048, 25.6;
+    quiet_lmr_cont1_scale: i32 => 1024, 0, 2048, 25.6;
+    quiet_lmr_cont2_scale: i32 => 1024, 0, 2048, 25.6;
 
-    quiet_mp_quiet_scale:       i32 => 1024;
-    quiet_mp_duck_scale:        i32 => 1024;
-    quiet_mp_pawn_scale:        i32 => 1024;
-    quiet_mp_quiet_duck_scale:  i32 => 1024;
-    quiet_mp_cont1_scale:       i32 => 1024;
-    quiet_mp_cont2_scale:       i32 => 1024;
-    quiet_mp_cont4_scale:       i32 => 1024;
+    quiet_mp_quiet_scale:       i32 => 1024, 0, 2048, 25.6;
+    quiet_mp_duck_scale:        i32 => 1024, 0, 2048, 25.6;
+    quiet_mp_pawn_scale:        i32 => 1024, 0, 2048, 25.6;
+    quiet_mp_quiet_duck_scale:  i32 => 1024, 0, 2048, 25.6;
+    quiet_mp_cont1_scale:       i32 => 1024, 0, 2048, 25.6;
+    quiet_mp_cont2_scale:       i32 => 1024, 0, 2048, 25.6;
+    quiet_mp_cont4_scale:       i32 => 1024, 0, 2048, 25.6;
 
-    noisy_mp_noisy_scale: i32 => 128;
-    noisy_mp_duck_scale:  i32 => 128;
+    noisy_mp_noisy_scale: i32 => 128, 0, 256, 3.2;
+    noisy_mp_duck_scale:  i32 => 128, 0, 256, 3.2;
 
-    quiet_hp_quiet_scale: i32 => 1024;
-    quiet_hp_duck_scale:  i32 => 1024;
-    quiet_hp_cont1_scale: i32 => 1024;
-    quiet_hp_cont2_scale: i32 => 1024;
+    quiet_hp_quiet_scale: i32 => 1024, 0, 2048, 25.6;
+    quiet_hp_duck_scale:  i32 => 1024, 0, 2048, 25.6;
+    quiet_hp_cont1_scale: i32 => 1024, 0, 2048, 25.6;
+    quiet_hp_cont2_scale: i32 => 1024, 0, 2048, 25.6;
 }
 
 impl Params {

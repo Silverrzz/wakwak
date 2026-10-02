@@ -13,6 +13,7 @@ pub enum UciCommand {
     IsReady,
     Display,
     Eval,
+    Spsa,
     Bench {
         depth: u8,
     },
@@ -63,6 +64,7 @@ impl UciCommand {
             "isready" => Ok(IsReady),
             "display" | "d" => Ok(Display),
             "eval" => Ok(Eval),
+            "spsa" => Ok(Spsa),
             "genfens" => parse_genfens_cmd(reader),
             "bench" => {
                 let depth = reader.next().map_or(Ok(DEFAULT_BENCH_DEPTH), str::parse)?;
