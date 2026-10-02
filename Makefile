@@ -12,4 +12,4 @@ native:
 ifndef EVALFILE
 	$(PYTHON) ./download_net.py
 endif
-	cargo rustc --release -- --emit link=$(NAME) --features tune
+	cargo rustc --release --features tune -- --emit link=$(NAME)
