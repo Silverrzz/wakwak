@@ -75,6 +75,7 @@ pub fn iterative_deepening(
             }
 
             let bound = if new_score <= alpha {
+                beta = (alpha + beta) / 2;
                 alpha = (new_score - delta).max(-Score::INFINITE);
                 delta += delta * Params::asp_widen_scale() / 64;
                 Bound::Upper
