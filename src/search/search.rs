@@ -75,7 +75,7 @@ pub fn iterative_deepening(
             }
 
             let bound = if new_score <= alpha {
-                beta = (alpha + beta) / 2;
+                beta = Score(Params::lerp(alpha.0, beta.0, Params::asp_beta_lerp()));
                 alpha = (new_score - delta).max(-Score::INFINITE);
                 delta += delta * Params::asp_widen_scale() / 64;
                 Bound::Upper
