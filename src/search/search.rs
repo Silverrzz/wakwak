@@ -50,7 +50,16 @@ pub fn iterative_deepening(
         'asp: loop {
             thread.sel_depth = 0;
             thread.nmr_ply = None;
-            let new_score = search::<Root>(&mut pos, thread, shared, alpha, beta, depth as i32, 0);
+            let new_score = search::<Root>(
+                &mut pos,
+                thread,
+                shared,
+                alpha,
+                beta,
+                depth as i32,
+                0,
+                false,
+            );
             thread.nodes.flush();
 
             if depth > 1 && thread.stop {
@@ -201,6 +210,7 @@ fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
     parent.pv.extend(child.pv.iter().copied());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn search<Node: NodeType>(
     pos: &mut Position,
     thread: &mut ThreadData,
@@ -209,6 +219,7 @@ fn search<Node: NodeType>(
     beta: Score,
     depth: i32,
     ply: usize,
+    cut_node: bool,
 ) -> Score {
     if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
         shared.time_man.set_stop(true);
@@ -370,7 +381,16 @@ fn search<Node: NodeType>(
     {
         let r = Params::nmr_reduction(depth);
         pos.make_null_move();
-        let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
+        let score = -search::<NonPV>(
+            pos,
+            thread,
+            shared,
+            -beta,
+            -beta + 1,
+            depth - r,
+            ply + 1,
+            !cut_node,
+        );
         pos.unmake_null_move();
 
         if thread.stop {
@@ -382,7 +402,7 @@ fn search<Node: NodeType>(
                 return score;
             } else {
                 thread.nmr_ply = Some(ply);
-                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
+                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply, true);
                 thread.nmr_ply = None;
                 if score >= beta {
                     return score;
@@ -402,7 +422,7 @@ fn search<Node: NodeType>(
         let iid_depth = Params::iid_depth(depth);
 
         thread.iid_iteration += 1;
-        _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
+        _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply, cut_node);
         thread.iid_iteration -= 1;
 
         let entry = shared.tt.probe(pos.board().hash());
@@ -564,7 +584,16 @@ fn search<Node: NodeType>(
             let s_depth = Params::lerp(0, depth, Params::se_depth_lerp());
 
             thread.stack[ply].skip_move = Some(mv);
-            let s_score = search::<NonPV>(pos, thread, shared, s_beta - 1, s_beta, s_depth, ply);
+            let s_score = search::<NonPV>(
+                pos,
+                thread,
+                shared,
+                s_beta - 1,
+                s_beta,
+                s_depth,
+                ply,
+                cut_node,
+            );
             thread.stack[ply].skip_move = None;
 
             if s_score < s_beta {
@@ -601,9 +630,10 @@ fn search<Node: NodeType>(
             if !Node::PV || legal_moves > 1 {
                 let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
                     let mut r = base_reduction;
-                    r += Params::lmr_exact() * (bound == Bound::Exact) as i32;
-                    r += Params::lmr_imp() * !improving as i32;
                     r += Params::lmr_pv() * !Node::PV as i32;
+                    r += Params::lmr_cut() * cut_node as i32;
+                    r += Params::lmr_imp() * !improving as i32;
+                    r += Params::lmr_exact() * (bound == Bound::Exact) as i32;
                     r -= Params::lmr_in_check() * pos.board().in_check() as i32;
                     r -= Params::lmr_history() * lmr_history / 1024;
                     r -= Params::lmr_corr() * corr.abs() / 1024;
@@ -615,8 +645,16 @@ fn search<Node: NodeType>(
                 let lmr_depth = (new_depth - lmr).max(1).min(new_depth);
                 move_depth = (new_depth + 1 - lmr).max(0);
 
-                score =
-                    -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, lmr_depth, ply + 1);
+                score = -search::<NonPV>(
+                    pos,
+                    thread,
+                    shared,
+                    -alpha - 1,
+                    -alpha,
+                    lmr_depth,
+                    ply + 1,
+                    true,
+                );
 
                 if score > alpha && lmr > 0 {
                     move_depth = new_depth + 1;
@@ -628,12 +666,22 @@ fn search<Node: NodeType>(
                         -alpha,
                         new_depth,
                         ply + 1,
+                        !cut_node,
                     );
                 }
             }
             if Node::PV && (legal_moves == 1 || score > alpha) {
                 move_depth = new_depth + 1;
-                score = -search::<PV>(pos, thread, shared, -beta, -alpha, new_depth, ply + 1);
+                score = -search::<PV>(
+                    pos,
+                    thread,
+                    shared,
+                    -beta,
+                    -alpha,
+                    new_depth,
+                    ply + 1,
+                    false,
+                );
             }
             score
         };
