@@ -130,7 +130,7 @@ params! {
     rfp_scale:      i32 => 50;
     rfp_imp_base:   i32 => -50;
     rfp_imp_scale:  i32 => 50;
-    rfp_corr_scale: i32 => 512;
+    rfp_corr_scale: i32 => 256;
     rfp_lerp:       i32 => 512;
 
     razor_base:  i32 => 320;
