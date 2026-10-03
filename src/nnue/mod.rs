@@ -40,6 +40,8 @@ pub const QB: i16 = 64;
 
 pub const INPUT: usize = 768;
 pub const L1: usize = 512;
+pub const L2: usize = 16;
+pub const L3: usize = 32;
 pub const HM: bool = true;
 
 #[inline]
@@ -49,8 +51,12 @@ pub fn should_mirror(sq: Square) -> bool {
 
 #[repr(C, align(64))]
 pub struct Network {
-    pub ft_weights: [[i16; L1]; INPUT],
-    pub ft_bias: [i16; L1],
-    pub out_weights: [i16; L1 * 2],
-    pub out_bias: i16,
+    pub l0w: [[i16; L1]; INPUT],
+    pub l0b: [i16; L1],
+    pub l1w: [[i8; L2 * 4]; L1 / 4],
+    pub l1b: [i32; L2],
+    pub l2w: [[i32; L3]; L2],
+    pub l2b: [i32; L3],
+    pub l3w: [i32; L3],
+    pub l3b: i32,
 }

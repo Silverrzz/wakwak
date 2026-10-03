@@ -1,41 +1,153 @@
-use crate::nnue::{EVAL_SCALE, L1, NET, QA, QB};
+#![allow(clippy::needless_range_loop)]
 
-#[inline]
-pub fn feed_forward(stm: &[i16; L1], ntm: &[i16; L1]) -> i32 {
-    let mut output;
+use std::mem::MaybeUninit;
+
+use crate::nnue::{L1, L2, L3, NET, simd};
+
+const Q0: i16 = 255;
+const _Q1: i16 = 128;
+const Q: i32 = 64;
+const SCALE: i32 = 400;
+
+#[inline(always)]
+fn activate_ft(us: &[i16; L1], them: &[i16; L1]) -> [i8; L1] {
+    let mut out = [const { MaybeUninit::<i8>::uninit() }; L1];
+
+    const { assert!((L1 / 2).is_multiple_of(2 * simd::i16s::LANES)) };
 
     unsafe {
-        use super::simd::{i16s, i32s};
+        for i in (0..L1 / 2).step_by(2 * simd::i16s::LANES) {
+            use simd::i16s::{LANES, load, max, min, mulhi_shl7, packus, splat};
 
-        let mut sums = i32s::splat(0);
+            let mut us1 = load(us.as_ptr().add(i));
+            let mut us2 = load(us.as_ptr().add(i + L1 / 2));
+            let mut us3 = load(us.as_ptr().add(i + LANES));
+            let mut us4 = load(us.as_ptr().add(i + L1 / 2 + LANES));
 
-        let zero = i16s::splat(0);
-        let qa = i16s::splat(QA);
+            let mut them1 = load(them.as_ptr().add(i));
+            let mut them2 = load(them.as_ptr().add(i + L1 / 2));
+            let mut them3 = load(them.as_ptr().add(i + LANES));
+            let mut them4 = load(them.as_ptr().add(i + L1 / 2 + LANES));
 
-        for i in (0..L1).step_by(i16s::LANES) {
-            let us = i16s::load(stm.as_ptr().add(i));
-            let them = i16s::load(ntm.as_ptr().add(i));
+            us1 = min(max(us1, splat(0)), splat(Q0));
+            us2 = min(max(us2, splat(0)), splat(Q0));
+            us3 = min(max(us3, splat(0)), splat(Q0));
+            us4 = min(max(us4, splat(0)), splat(Q0));
 
-            let us_weights = i16s::load(NET.out_weights.as_ptr().add(i));
-            let them_weights = i16s::load(NET.out_weights.as_ptr().add(i + L1));
+            them1 = min(max(them1, splat(0)), splat(Q0));
+            them2 = min(max(them2, splat(0)), splat(Q0));
+            them3 = min(max(them3, splat(0)), splat(Q0));
+            them4 = min(max(them4, splat(0)), splat(Q0));
 
-            let us_clamped = i16s::min(i16s::max(us, zero), qa);
-            let them_clamped = i16s::min(i16s::max(them, zero), qa);
+            let us_pair1 = mulhi_shl7(us1, us2);
+            let us_pair2 = mulhi_shl7(us3, us4);
 
-            let us_results = i16s::madd(i16s::mul(us_weights, us_clamped), us_clamped);
-            let them_results = i16s::madd(i16s::mul(them_weights, them_clamped), them_clamped);
+            let them_pair1 = mulhi_shl7(them1, them2);
+            let them_pair2 = mulhi_shl7(them3, them4);
 
-            sums = i32s::add(sums, us_results);
-            sums = i32s::add(sums, them_results);
+            let p1 = packus(us_pair1, us_pair2);
+            let p2 = packus(them_pair1, them_pair2);
+
+            simd::i8s::store(out.as_mut_ptr().add(i).cast(), p1);
+            simd::i8s::store(out.as_mut_ptr().add(i + L1 / 2).cast(), p2);
         }
 
-        output = i32s::reduce_add(sums);
+        MaybeUninit::assume_init(out.into())
     }
+}
 
-    output /= QA as i32;
-    output += NET.out_bias as i32;
-    output *= EVAL_SCALE;
-    output /= QA as i32 * QB as i32;
+#[inline(always)]
+fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2] {
+    const UNROLL: usize = 4;
+    const { assert!(L2.is_multiple_of(simd::i32s::LANES)) };
+    const { assert!((L1 / 4).is_multiple_of(UNROLL)) };
 
-    output
+    unsafe {
+        // in [0, Q0^2 * Q1 / 2^9]
+        let mut intermediate = [[simd::i32s::splat(0); UNROLL]; { L2 / simd::i32s::LANES }];
+        let ft_32 = act_ft.as_chunks::<4>().0;
+
+        for i_outer in (0..L1 / 4).step_by(UNROLL) {
+            for j in 0..(L2 / simd::i32s::LANES) {
+                for i_inner in 0..UNROLL {
+                    let i = i_outer + i_inner;
+                    let ft_vec = simd::i32s::splat(zerocopy::transmute!(ft_32[i]));
+                    intermediate[j][i_inner] = simd::i8s::dpbusd(
+                        intermediate[j][i_inner],
+                        simd::i32s::reinterpret_i8(ft_vec),
+                        simd::i8s::load(NET.l1w[i].as_ptr().add(j * simd::i8s::LANES)),
+                    );
+                }
+            }
+        }
+
+        let mut out = [0; L2];
+        for i in 0..L2 / simd::i32s::LANES {
+            use simd::i32s::*;
+
+            let bias = load(NET.l1b.as_ptr().add(i * LANES));
+
+            let mut sum = splat(0);
+            for partial_sum in intermediate[i] {
+                sum = add(sum, partial_sum);
+            }
+
+            let shifted = shr_const::<8>(add(bias, sum));
+            let clamped = min(max(shifted, splat(0)), splat(Q));
+            let activated = mul(clamped, clamped);
+            store(out.as_mut_ptr().add(i * LANES), activated);
+        }
+        out
+    }
+}
+
+fn propagate_l2(act_l1: &[i32; L2]) -> [i32; L3] {
+    use simd::{I32Vec, i32s::*};
+    unsafe {
+        let mut sums: [I32Vec; L3 / LANES] =
+            std::array::from_fn(|i| load(NET.l2b.as_ptr().add(i * LANES)));
+
+        for i in 0..L2 {
+            let r = splat(act_l1[i]);
+            for j in 0..L3 / LANES {
+                let l = load(NET.l2w[i].as_ptr().add(j * LANES));
+                sums[j] = add(sums[j], mul(l, r));
+            }
+        }
+
+        let mut out = [0i32; L3];
+        for (i, sum) in sums.iter().enumerate() {
+            let clamped = min(max(*sum, splat(0)), splat(Q.pow(3)));
+            store(out.as_mut_ptr().add(i * LANES), clamped);
+        }
+
+        out
+    }
+}
+
+fn propagate_l3(act_l2: &[i32; L3]) -> i32 {
+    use simd::i32s::*;
+    unsafe {
+        let mut sum = splat(0);
+        for i in (0..L3).step_by(LANES) {
+            let l = load(act_l2.as_ptr().add(i));
+            let r = load(NET.l3w.as_ptr().add(i));
+            sum = add(sum, mul(l, r));
+        }
+
+        reduce_add(sum) + NET.l3b
+    }
+}
+
+pub fn feed_forward(us: &[i16; L1], them: &[i16; L1]) -> i32 {
+    // in [0, Q1]
+    let act_ft = activate_ft(us, them);
+    // in [0, Q^2]
+    let act_l1 = propagate_l1(&act_ft);
+    // in [0, Q^3]
+    let act_l2 = propagate_l2(&act_l1);
+    // in [0, SCALE * Q^4]
+    let scaled = propagate_l3(&act_l2) as i64 * SCALE as i64;
+
+    (scaled / (Q.pow(4) as i64)) as i32
 }
