@@ -40,7 +40,7 @@ pub const Q: i32 = 64;
 pub const EVAL_SCALE: i64 = 400;
 
 pub const INPUT: usize = 768;
-pub const L1: usize = 512;
+pub const L1: usize = 768;
 pub const L2: usize = 16;
 pub const L3: usize = 32;
 pub const HM: bool = true;
