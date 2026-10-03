@@ -144,6 +144,7 @@ pub struct MovePicker {
     prune_noisy_neutrals: bool,
     bad_noisy_count: usize,
     cursor: usize,
+    sort_start: usize,
     sorted_end: usize,
 }
 
@@ -167,6 +168,7 @@ impl MovePicker {
             prune_noisy_neutrals,
             bad_noisy_count: 0,
             cursor: 0,
+            sort_start: 0,
             sorted_end: 0,
         }
     }
@@ -225,6 +227,7 @@ impl MovePicker {
             if self.skip_quiets {
                 self.stage = Stage::YieldBadNoisies;
                 self.cursor = 0;
+                self.sorted_end = self.bad_noisy_count;
             } else {
                 let start = thread.move_stack.add_moves::<Quiet>(
                     board,
@@ -233,6 +236,8 @@ impl MovePicker {
                     &thread.history,
                 );
                 self.score_quiets(board, thread, indices, start);
+                self.sort_start = start;
+                self.sorted_end = start;
                 self.stage = Stage::YieldQuiets;
             }
         }
@@ -246,6 +251,7 @@ impl MovePicker {
 
             self.stage = Stage::YieldBadNoisies;
             self.cursor = 0;
+            self.sorted_end = self.bad_noisy_count;
         }
 
         if self.stage == Stage::YieldBadNoisies {
@@ -307,7 +313,9 @@ impl MovePicker {
     #[inline]
     fn sort_next(&mut self, moves: &mut [ScoredMove], end: usize) {
         if self.cursor == self.sorted_end {
-            let batch = self.cursor.max(64).min(end - self.cursor);
+            let batch = (self.cursor - self.sort_start)
+                .max(64)
+                .min(end - self.cursor);
             let remaining = &mut moves[self.cursor..end];
             if batch < remaining.len() {
                 remaining.select_nth_unstable_by_key(batch, |m| Reverse(m.1));
