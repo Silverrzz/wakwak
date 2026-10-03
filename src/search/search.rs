@@ -455,7 +455,7 @@ fn search<Node: NodeType>(
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
         let piece_move = Some((src, mv.flag()));
         let is_quiet = mv.flag().is_quiet();
-        let base_reduction = Params::lmr(depth, unique_moves);
+        let base_reduction = Params::lmr(is_quiet, depth, unique_moves);
         let lmr_depth = depth.saturating_sub(base_reduction / 1024);
 
         let lmr_history = if is_quiet {
@@ -604,14 +604,17 @@ fn search<Node: NodeType>(
 
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
-                let lmr = if depth >= 3 && searched_moves > 6 && is_quiet {
+                let lmr = if depth >= 3 && searched_moves > 6 {
                     let mut r = base_reduction;
-                    r += Params::lmr_exact() * (bound == Bound::Exact) as i32;
-                    r += Params::lmr_imp() * !improving as i32;
-                    r += Params::lmr_pv() * !Node::PV as i32;
-                    r -= Params::lmr_in_check() * pos.board().in_check() as i32;
-                    r -= Params::lmr_history() * lmr_history / 1024;
-                    r -= Params::lmr_corr() * corr.abs() / 1024;
+                    if is_quiet {
+                        r += Params::lmr_pv() * !Node::PV as i32;
+                        r += Params::lmr_imp() * !improving as i32;
+                        r += Params::lmr_exact() * (bound == Bound::Exact) as i32;
+                        r -= Params::lmr_in_check() * pos.board().in_check() as i32;
+                        r -= Params::lmr_history() * lmr_history / 1024;
+                        r -= Params::lmr_corr() * corr.abs() / 1024;
+                    }
+
                     r / 1024
                 } else {
                     0
