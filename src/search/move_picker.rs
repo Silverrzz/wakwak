@@ -143,9 +143,9 @@ pub struct MovePicker {
     prune_quiet_neutrals: bool,
     prune_noisy_neutrals: bool,
     bad_noisy_count: usize,
-    cursor: usize,
     sort_start: usize,
     sorted_end: usize,
+    cursor: usize,
 }
 
 impl MovePicker {
@@ -167,9 +167,9 @@ impl MovePicker {
             prune_quiet_neutrals,
             prune_noisy_neutrals,
             bad_noisy_count: 0,
-            cursor: 0,
             sort_start: 0,
             sorted_end: 0,
+            cursor: 0,
         }
     }
 
@@ -226,8 +226,8 @@ impl MovePicker {
         if self.stage == Stage::GenerateQuiets {
             if self.skip_quiets {
                 self.stage = Stage::YieldBadNoisies;
-                self.cursor = 0;
                 self.sorted_end = self.bad_noisy_count;
+                self.cursor = 0;
             } else {
                 let start = thread.move_stack.add_moves::<Quiet>(
                     board,
@@ -236,9 +236,9 @@ impl MovePicker {
                     &thread.history,
                 );
                 self.score_quiets(board, thread, indices, start);
+                self.stage = Stage::YieldQuiets;
                 self.sort_start = start;
                 self.sorted_end = start;
-                self.stage = Stage::YieldQuiets;
             }
         }
 
@@ -250,8 +250,8 @@ impl MovePicker {
             }
 
             self.stage = Stage::YieldBadNoisies;
-            self.cursor = 0;
             self.sorted_end = self.bad_noisy_count;
+            self.cursor = 0;
         }
 
         if self.stage == Stage::YieldBadNoisies {
