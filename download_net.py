@@ -6,7 +6,7 @@ import os
 
 def main():
     name = "barbari"
-    hash = "f52fc3845def476e4351b1e5331bcf665979e6d8e1d34194495c246910865c6e"
+    hash = "8ac7979d43695ce8482c333f7663ceb39869a7b173af523137a0833f781f95f2"
     path = "./nets/wakwak.nnue"
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
