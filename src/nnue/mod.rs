@@ -34,9 +34,10 @@ cfg_select! {
 pub static NET: Network =
     unsafe { std::mem::transmute(*include_bytes!(concat!(env!("OUT_DIR"), "/wakwak.nnue"))) };
 
-pub const EVAL_SCALE: i32 = 400;
-pub const QA: i16 = 255;
-pub const QB: i16 = 64;
+pub const Q0: i16 = 255;
+pub const _Q1: i16 = 128;
+pub const Q: i32 = 64;
+pub const EVAL_SCALE: i64 = 400;
 
 pub const INPUT: usize = 768;
 pub const L1: usize = 512;

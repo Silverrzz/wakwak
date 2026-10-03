@@ -2,12 +2,7 @@
 
 use std::mem::MaybeUninit;
 
-use crate::nnue::{L1, L2, L3, NET, simd};
-
-const Q0: i16 = 255;
-const _Q1: i16 = 128;
-const Q: i32 = 64;
-const SCALE: i32 = 400;
+use crate::nnue::{EVAL_SCALE, L1, L2, L3, NET, Q, Q0, simd};
 
 #[inline(always)]
 fn activate_ft(us: &[i16; L1], them: &[i16; L1]) -> [i8; L1] {
@@ -147,7 +142,7 @@ pub fn feed_forward(us: &[i16; L1], them: &[i16; L1]) -> i32 {
     // in [0, Q^3]
     let act_l2 = propagate_l2(&act_l1);
     // in [0, SCALE * Q^4]
-    let scaled = propagate_l3(&act_l2) as i64 * SCALE as i64;
+    let scaled = propagate_l3(&act_l2) as i64 * EVAL_SCALE;
 
     (scaled / (Q.pow(4) as i64)) as i32
 }
