@@ -338,7 +338,7 @@ fn search<Node: NodeType>(
     if !Node::PV
         && depth <= 8
         && skip_move.is_none()
-        && estimated_score - Params::rfp_margin(depth, improving) >= beta
+        && estimated_score - Params::rfp_margin(depth, corr, improving) >= beta
         && !estimated_score.is_win()
         && !beta.is_loss()
     {

@@ -126,11 +126,12 @@ params! {
     cont4_malus_scale: i32 => 128;
     cont4_malus_max:   i32 => 2048;
 
-    rfp_base:      i32 => 0;
-    rfp_scale:     i32 => 50;
-    rfp_imp_base:  i32 => -50;
-    rfp_imp_scale: i32 => 50;
-    rfp_lerp:      i32 => 512;
+    rfp_base:       i32 => 0;
+    rfp_scale:      i32 => 50;
+    rfp_imp_base:   i32 => -50;
+    rfp_imp_scale:  i32 => 50;
+    rfp_corr_scale: i32 => 256;
+    rfp_lerp:       i32 => 512;
 
     razor_base:  i32 => 320;
     razor_scale: i32 => 250;
@@ -367,14 +368,14 @@ impl Params {
     }
 
     #[inline]
-    pub const fn rfp_margin(depth: i32, improving: bool) -> i32 {
+    pub const fn rfp_margin(depth: i32, corr: i32, improving: bool) -> i32 {
         let (base, scale) = if improving {
             (Self::rfp_imp_base(), Self::rfp_imp_scale())
         } else {
             (Self::rfp_base(), Self::rfp_scale())
         };
 
-        base + scale * depth
+        base + scale * depth + Self::rfp_corr_scale() * corr / 1024
     }
 
     #[inline]
