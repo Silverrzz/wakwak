@@ -234,8 +234,16 @@ params! {
     lmr_history:     i32 => 64;
     lmr_corr:        i32 => 3072;
 
-    fp_base:  i32 => 256;
-    fp_scale: i32 => 128;
+    fp_base:             i32 => 256;
+    fp_scale:            i32 => 128;
+    fp_hist_offset:      i32 => 4000;
+    fp_hist_div:         i32 => 64;
+    fp_hist_min:         i32 => -384;
+    fp_hist_max:         i32 => 384;
+    fp_hist_quiet_scale: i32 => 1024;
+    fp_hist_duck_scale:  i32 => 1024;
+    fp_hist_cont1_scale: i32 => 1024;
+    fp_hist_cont2_scale: i32 => 1024;
 
     noisy_lmr_noisy_scale: i32 => 128;
     noisy_lmr_duck_scale:  i32 => 128;
@@ -597,6 +605,19 @@ impl Params {
     }
 
     #[inline]
+    pub fn fp_history(thread: &ThreadData, pos: &Position, indices: ContIndices, mv: Move) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        history += thread.history.quiet(board, mv) * Self::fp_hist_quiet_scale();
+        history += thread.history.duck(board, mv) * Self::fp_hist_duck_scale();
+        history += thread.history.cont1(board, indices, mv) * Self::fp_hist_cont1_scale();
+        history += thread.history.cont2(board, indices, mv) * Self::fp_hist_cont2_scale();
+
+        history / 1024
+    }
+
+    #[inline]
     pub fn iid_depth(depth: i32) -> i32 {
         (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024
     }
@@ -607,8 +628,16 @@ impl Params {
     }
 
     #[inline]
-    pub fn fp_margin(depth: i32) -> i32 {
-        Params::fp_base() + Params::fp_scale() * depth
+    pub fn fp_margin(depth: i32, history: i32) -> i32 {
+        Self::fp_base()
+            + Self::fp_scale() * depth
+            + Self::history_adjustment(
+                history,
+                Self::fp_hist_offset(),
+                Self::fp_hist_div(),
+                Self::fp_hist_min(),
+                Self::fp_hist_max(),
+            )
     }
 
     #[inline]

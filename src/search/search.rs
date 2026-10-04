@@ -481,7 +481,11 @@ fn search<Node: NodeType>(
             Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
             quiet moves.
             */
-            if is_quiet && lmr_depth <= 5 && static_eval + Params::fp_margin(lmr_depth) <= alpha {
+            let fp_history = Params::fp_history(thread, pos, cont_indices, mv);
+            if is_quiet
+                && lmr_depth <= 5
+                && static_eval + Params::fp_margin(lmr_depth, fp_history) <= alpha
+            {
                 move_picker.skip_quiets();
                 continue;
             }
