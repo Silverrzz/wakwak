@@ -4,7 +4,7 @@ rustflags = ["-Ctarget-cpu=native"]
 [target.'cfg(target_os = "emscripten")']
 linker = "emcc"
 rustflags = [
-    "-Ctarget-feature=+atomics,+bulk-memory,+mutable-globals,+simd128",
+    "-Ctarget-feature=+atomics,+bulk-memory,+mutable-globals,+simd128,+relaxed-simd",
     "-Cpanic=abort",
     "-Clink-arg=-sALLOW_MEMORY_GROWTH=1",
     "-Clink-arg=-pthread",

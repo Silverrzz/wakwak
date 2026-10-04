@@ -22,18 +22,9 @@ pub mod i8s {
         unsafe { v128_store(ptr.cast(), v) }
     }
 
-    #[target_feature(enable = "simd128")]
+    #[target_feature(enable = "relaxed-simd")]
     pub fn dpbusd(acc: I32Vec, l: I8Vec, r: I8Vec) -> I32Vec {
-        // for whatever reason i32x4_relaxed_dot_i8x16_i7x16_add(l, r, acc) just doesn't work :(
-        let lo = i16x8_extmul_low_i8x16(l, r);
-        let hi = i16x8_extmul_high_i8x16(l, r);
-        i32x4_add(
-            acc,
-            i32x4_extadd_pairwise_i16x8(i16x8_narrow_i32x4(
-                i32x4_extadd_pairwise_i16x8(lo),
-                i32x4_extadd_pairwise_i16x8(hi),
-            )),
-        )
+        i32x4_relaxed_dot_i8x16_i7x16_add(r, l, acc)
     }
 }
 
