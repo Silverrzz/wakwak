@@ -54,7 +54,7 @@ pub mod i16s {
     }
     #[target_feature(enable = "avx2")]
     pub fn packus(l: I16Vec, r: I16Vec) -> I8Vec {
-        _mm256_permute4x64_epi64(_mm256_packs_epi16(l, r), 0xd8)
+        _mm256_permute4x64_epi64(_mm256_packus_epi16(l, r), 0xd8)
     }
 }
 
