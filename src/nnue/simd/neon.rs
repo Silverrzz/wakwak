@@ -18,15 +18,7 @@ pub mod i8s {
     pub fn dpbusd(acc: I32Vec, l: I8Vec, r: I8Vec) -> I32Vec {
         cfg_select! {
             target_feature = "dotprod" => unsafe {
-                let mut acc = acc;
-                std::arch::asm!(
-                    "sdot {acc:v}.4s, {l:v}.16b, {r:v}.16b",
-                    acc = inlateout(vreg) acc,
-                    l = in(vreg) l,
-                    r = in(vreg) r,
-                    options(pure, nostack, nomem, preserves_flags)
-                );
-                acc
+                vdotq_s32(acc, l, r)
             },
             _ => {
                 let lo = vmull_s8(vget_low_s8(l), vget_low_s8(r));
