@@ -39,6 +39,18 @@ and is exclusively trained on self-generated training data.
 | 0.1.0 | - |
 | 0.0.0 | 0 |
 
+## UCI Options
+
+| Name             | Type    | Default | Valid Values      | Description                                                                                        |
+|------------------|---------|---------|-------------------|----------------------------------------------------------------------------------------------------|
+| Threads          | Integer | 1       | `1..=1024`        | Number of search threads                                                                           |
+| Hash             | Integer | 64      | `1..=16777216`    | Size of the Transposition Table (in MiB)                                                           |
+| MoveOverhead     | Integer | 50      | `0..=5000`        | Time (in ms) used to compensate for the delay between engine and interface communication           |
+| Minimal          | Boolean | `false` | `true` or `false` | When enabled, wakwak outputs only the final info line and best move                                |
+| SoftTarget       | Boolean | `false` | `true` or `false` | When enabled, `go nodes <n>` and `go movetime <ms>` can only stop after a completed depth          |
+| UseDumbInterface | Boolean | `true`  | `true` or `false` | When enabled, wakwak outputs moves in the format used by Fairy Stockfish                           |
+| UCI_Chess960     | Boolean | `false` | `true` or `false` | Whether to output moves using standard notation (e1g1/e1c1) or Chess960 notation (e.g. e1h1, e1a1) |
+
 ## External stuff
 
 You can...
