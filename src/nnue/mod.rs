@@ -24,7 +24,7 @@ cfg_select! {
         #[path = "simd/neon.rs"]
         pub mod simd;
     }
-    all(target_os = "emscripten", target_feature = "simd128") => {
+    all(target_os = "emscripten", target_feature = "relaxed-simd") => {
         #[path = "simd/wasm32.rs"]
         pub mod simd;
     }

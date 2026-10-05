@@ -53,7 +53,7 @@ pub mod i16s {
         let r = i16x8_shl(r, 7);
         let lo = u32x4_shr(i32x4_extmul_low_i16x8(l, r), 16);
         let hi = u32x4_shr(i32x4_extmul_high_i16x8(l, r), 16);
-        i16x8_narrow_i32x4(lo, hi)
+        u16x8_narrow_i32x4(lo, hi)
     }
 }
 
