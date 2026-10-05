@@ -114,7 +114,7 @@ impl Engine {
     fn uci() {
         println!("id name wakwak v{ENGINE_VERSION}");
         println!(
-            "id author 87flowers, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph and Tecci"
+            "id author 87flowers, amberg12, Ciekce, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph, Tecci and Yoshie2000"
         );
         println!("option name Threads type spin default 1 min 1 max 1024");
         println!(

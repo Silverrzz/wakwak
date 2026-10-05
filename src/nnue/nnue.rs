@@ -5,10 +5,19 @@ use crate::score::Score;
 use crate::search::MAX_PLY;
 use enum_map::enum_map;
 
-#[derive(Clone)]
 pub struct Nnue {
     pub stack: Box<[Accumulator; MAX_PLY + 1]>,
     pub cursor: usize,
+}
+
+impl Clone for Nnue {
+    fn clone(&self) -> Self {
+        let stack = Box::<[_]>::from(&self.stack[..]).try_into().unwrap();
+        Self {
+            stack,
+            cursor: self.cursor,
+        }
+    }
 }
 
 impl Nnue {

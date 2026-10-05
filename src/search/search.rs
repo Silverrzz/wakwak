@@ -481,7 +481,11 @@ fn search<Node: NodeType>(
             Futility Pruning: If we are unlikely to raise alpha with a quiet move, we do skip
             quiet moves.
             */
-            if is_quiet && lmr_depth <= 5 && static_eval + Params::fp_margin(lmr_depth) <= alpha {
+            let fp_history = Params::fp_history(thread, pos, cont_indices, mv);
+            if is_quiet
+                && lmr_depth <= 5
+                && static_eval + Params::fp_margin(lmr_depth, fp_history) <= alpha
+            {
                 move_picker.skip_quiets();
                 continue;
             }
@@ -574,6 +578,10 @@ fn search<Node: NodeType>(
 
             if s_score < s_beta {
                 ext = 1;
+
+                if !Node::PV && s_score + Params::se_dext() < s_beta {
+                    ext = 2;
+                }
             }
         }
 
@@ -854,6 +862,7 @@ fn qsearch<Node: NodeType>(
         prune_noisy_neutrals,
     );
     move_picker.skip_quiets();
+    move_picker.skip_bad_noisies();
     let mut best_move = None;
     let mut bound = Bound::Upper;
 

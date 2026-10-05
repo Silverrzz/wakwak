@@ -24,15 +24,21 @@ fn activate_ft(us: &[i16; L1], them: &[i16; L1]) -> [i8; L1] {
             let mut them3 = load(them.as_ptr().add(i + LANES));
             let mut them4 = load(them.as_ptr().add(i + L1 / 2 + LANES));
 
-            us1 = min(max(us1, splat(0)), splat(Q0));
-            us2 = min(max(us2, splat(0)), splat(Q0));
-            us3 = min(max(us3, splat(0)), splat(Q0));
-            us4 = min(max(us4, splat(0)), splat(Q0));
+            us2 = max(us2, splat(0));
+            us4 = max(us4, splat(0));
 
-            them1 = min(max(them1, splat(0)), splat(Q0));
-            them2 = min(max(them2, splat(0)), splat(Q0));
-            them3 = min(max(them3, splat(0)), splat(Q0));
-            them4 = min(max(them4, splat(0)), splat(Q0));
+            them2 = max(them2, splat(0));
+            them4 = max(them4, splat(0));
+
+            us1 = min(us1, splat(Q0));
+            us2 = min(us2, splat(Q0));
+            us3 = min(us3, splat(Q0));
+            us4 = min(us4, splat(Q0));
+
+            them1 = min(them1, splat(Q0));
+            them2 = min(them2, splat(Q0));
+            them3 = min(them3, splat(Q0));
+            them4 = min(them4, splat(Q0));
 
             let us_pair1 = mulhi_shl7(us1, us2);
             let us_pair2 = mulhi_shl7(us3, us4);
