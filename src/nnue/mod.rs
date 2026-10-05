@@ -41,7 +41,7 @@ pub static NET: Network =
 pub const Q0: i16 = 255;
 pub const _Q1: i16 = 128;
 pub const Q: i32 = 64;
-pub const EVAL_SCALE: i64 = 300;
+pub const EVAL_SCALE: i64 = 400;
 
 pub const INPUT: usize = 768;
 pub const L1: usize = 1024;
