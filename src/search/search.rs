@@ -482,7 +482,7 @@ fn search<Node: NodeType>(
             */
             let fp_history = Params::fp_history(thread, pos, cont_indices, mv);
             if is_quiet
-                && lmr_depth <= 5
+                && lmr_depth <= 8
                 && static_eval + Params::fp_margin(lmr_depth, fp_history) <= alpha
             {
                 move_picker.skip_quiets();
