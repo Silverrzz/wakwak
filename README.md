@@ -51,6 +51,23 @@ and is exclusively trained on self-generated training data.
 | UseDumbInterface | Boolean | `true`  | `true` or `false` | When enabled, wakwak outputs moves in the format used by Fairy Stockfish                           |
 | UCI_Chess960     | Boolean | `false` | `true` or `false` | Whether to output moves using standard notation (e1g1/e1c1) or Chess960 notation (e.g. e1h1, e1a1) |
 
+## Building
+If your device can't run the latest release of WakWak, you want to use the latest development version,
+or you otherwise want to compile WakWak yourself, you can build it from source.
+
+WakWak requires Make and any version of Rust.
+The required toolchain and version will be automatically installed.
+
+```bash
+> make EXE=<NAME>
+```
+- Replace `<NAME>` with the desired name for the binary. The default name is `WakWak`.
+- `EVALFILE=<FILE>` can also be passed in to build a binary with a specific neural network embedded, though the code must be changed to reflect this network's architecture.
+
+Since neural networks are extremely large files, WakWak's neural networks are stored in
+[a separate repository][wakwak-nets] to avoid bloating this repository's size. Because of this,
+you need to run `make` **at least once** before you can use `cargo` to build and run WakWak.
+
 ## External stuff
 
 You can...
@@ -86,3 +103,4 @@ We also welcome hardware contributions to our OpenBench instance, MattBench. You
 [trans-rights-badge]: https://pride-badges.pony.workers.dev/static/v1?label=trans%20rights&stripeWidth=6&stripeColors=5BCEFA,F5A9B8,FFFFFF,F5A9B8,5BCEFA
 
 [dfrc]: https://en.wikipedia.org/wiki/Chess960
+[wakwak-nets]: https://github.com/Silverrzz/wakwak-nets
