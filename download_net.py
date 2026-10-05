@@ -5,8 +5,8 @@ import hashlib
 import os
 
 def main():
-    name = "shokupan_5"
-    hash = "651cdb062e5ea58c5ec0df63f385db3c85a9ff9bd34ba4b909e8f58ba97acaf3"
+    name = "challah"
+    hash = "c959cf5b6863ceccd0846cd6169c9659304c9bde0130996b4b590d9f00194ccf"
     path = "./nets/wakwak.nnue"
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
