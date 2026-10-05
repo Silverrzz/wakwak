@@ -55,7 +55,7 @@ and is exclusively trained on self-generated training data.
 If your device can't run the latest release of WakWak, you want to use the latest development version,
 or you otherwise want to compile WakWak yourself, you can build it from source.
 
-WakWak requires Make and any version of Rust.
+WakWak requires Make and any version of rustup.
 The required toolchain and version will be automatically installed.
 
 ```bash
