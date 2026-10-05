@@ -22,15 +22,6 @@ pub mod util;
 
 #[cfg(not(target_os = "emscripten"))]
 fn main() -> std::io::Result<()> {
-    if std::env::args().nth(1).as_deref() == Some("serve") {
-        let status = std::process::Command::new("node")
-            .arg(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/scripts/serve-browser.mjs"
-            ))
-            .status()?;
-        std::process::exit(status.code().unwrap_or(1));
-    }
     Engine::new().run();
     Ok(())
 }
