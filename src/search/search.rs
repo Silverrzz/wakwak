@@ -329,67 +329,65 @@ fn search<Node: NodeType>(
     thread.stack[ply].raw_eval = Some(raw_eval);
     thread.stack[ply].static_eval = Some(static_eval);
 
-    /*
-    Reverse Futility Pruning: If our evaluation of the position is already
-    so high that even a pessimistic estimate is still above beta, we can
-    be reasonably confident that a further search will also fail high.
-    */
-    if !Node::PV
-        && depth <= 8
-        && skip_move.is_none()
-        && estimated_score - Params::rfp_margin(depth, corr, improving) >= beta
-        && !estimated_score.is_win()
-        && !beta.is_loss()
-    {
-        return Score(Params::lerp(estimated_score.0, beta.0, Params::rfp_lerp()));
-    }
-
-    /*
-    Razoring: If our evaluation of the position is so far below alpha
-    that it seems hopeless, we can be reasonably confident that a further
-    search won't make a difference and will cuase a fail low.
-    */
-    if !Node::ROOT && skip_move.is_none() && static_eval + Params::razor_margin(depth) <= alpha {
-        let score = qsearch::<NonPV>(pos, thread, shared, alpha, alpha + 1, ply);
-        if score <= alpha {
-            return score;
-        }
-    }
-
-    /*
-    Null Move Reductions: There is almost always a better alternative to
-    doing nothing; if fail high despite giving our opponent a move, our best
-    legal move will likely also fail high. However, due to the prevalance of
-    duckzwang, we trial a large reduction instead of doing a full prune.
-    A prune is done only after a second null move passes in an NMR subtree.
-    The duck is taken off the board for the null move to allow opponent to
-    put it wherever they want.
-    */
-    if !Node::PV
-        && depth >= 4
-        && skip_move.is_none()
-        && thread.nmr_ply != Some(ply)
-        && thread.stack[ply - 1].mv.is_some()
-        && estimated_score >= beta + Params::nmr_margin()
-    {
-        let r = Params::nmr_reduction(depth);
-        pos.make_null_move();
-        let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
-        pos.unmake_null_move();
-
-        if thread.stop {
-            return Score::ZERO;
+    if !Node::PV && skip_move.is_none() {
+        /*
+        Reverse Futility Pruning: If our evaluation of the position is already
+        so high that even a pessimistic estimate is still above beta, we can
+        be reasonably confident that a further search will also fail high.
+        */
+        if depth <= 8
+            && estimated_score - Params::rfp_margin(depth, corr, improving) >= beta
+            && !estimated_score.is_win()
+            && !beta.is_loss()
+        {
+            return Score(Params::lerp(estimated_score.0, beta.0, Params::rfp_lerp()));
         }
 
-        if score >= beta {
-            if thread.nmr_ply.is_some() {
+        /*
+        Razoring: If our evaluation of the position is so far below alpha
+        that it seems hopeless, we can be reasonably confident that a further
+        search won't make a difference and will cause a fail low.
+        */
+        if static_eval + Params::razor_margin(depth) <= alpha {
+            let score = qsearch::<NonPV>(pos, thread, shared, alpha, alpha + 1, ply);
+            if score <= alpha {
                 return score;
-            } else {
-                thread.nmr_ply = Some(ply);
-                let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
-                thread.nmr_ply = None;
-                if score >= beta {
+            }
+        }
+
+        /*
+        Null Move Reductions: There is almost always a better alternative to
+        doing nothing; if fail high despite giving our opponent a move, our best
+        legal move will likely also fail high. However, due to the prevalence of
+        duckzwang, we trial a large reduction instead of doing a full prune.
+        A prune is done only after a second null move passes in an NMR subtree.
+        The duck is taken off the board for the null move to allow opponent to
+        put it wherever they want.
+        */
+        if depth >= 4
+            && thread.nmr_ply != Some(ply)
+            && thread.stack[ply - 1].mv.is_some()
+            && estimated_score >= beta + Params::nmr_margin()
+        {
+            let r = Params::nmr_reduction(depth);
+            pos.make_null_move();
+            let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
+            pos.unmake_null_move();
+
+            if thread.stop {
+                return Score::ZERO;
+            }
+
+            if score >= beta {
+                if thread.nmr_ply.is_some() {
                     return score;
+                } else {
+                    thread.nmr_ply = Some(ply);
+                    let score = search::<NonPV>(pos, thread, shared, alpha, beta, depth / 2, ply);
+                    thread.nmr_ply = None;
+                    if score >= beta {
+                        return score;
+                    }
                 }
             }
         }
