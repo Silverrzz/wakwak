@@ -186,7 +186,7 @@ impl Board {
         if unblockable.is_nonempty() {
             return Bitboard::EMPTY;
         }
-        let blockers = self.colors(color) | self.colors(!color);
+        let blockers = self.occupied_duckless();
         let sliders = (bishop_attacks(blockers, king, self.slider_tag)
             & self.colored_diag_sliders(!color))
             | (rook_attacks(blockers, king, self.slider_tag) & self.colored_orth_sliders(!color));
