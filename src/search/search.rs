@@ -260,7 +260,7 @@ fn search<Node: NodeType>(
     let tt_entry = shared.tt.probe(pos.board().hash());
     let mut tt_move = tt_entry.and_then(|e| e.best_move());
 
-    if !Node::ROOT
+    if !Node::PV
         && skip_move.is_none()
         && let Some(entry) = tt_entry
     {
