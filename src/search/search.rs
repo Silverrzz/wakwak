@@ -273,9 +273,8 @@ fn search<Node: NodeType>(
         }
     }
 
-    if depth > 0
+    if (!Node::PV || tt_move.is_none())
         && skip_move.is_none()
-        && (!Node::PV || tt_move.is_none())
         && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
         && entry.bound() == Bound::Lower
         && !entry.score().is_mate()
@@ -483,7 +482,7 @@ fn search<Node: NodeType>(
             */
             let fp_history = Params::fp_history(thread, pos, cont_indices, mv);
             if is_quiet
-                && lmr_depth <= 5
+                && lmr_depth <= 8
                 && static_eval + Params::fp_margin(lmr_depth, fp_history) <= alpha
             {
                 move_picker.skip_quiets();
