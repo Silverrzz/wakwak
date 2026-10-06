@@ -2,7 +2,7 @@ use crate::board::{Board, MoveFilter, Noisy, Quiet};
 use crate::common::{Bitboard, Move, MoveFlag, Piece};
 use crate::position::Position;
 use crate::search::cont::ContIndices;
-use crate::search::{History, MAX_PLY, Params, ThreadData};
+use crate::search::{MAX_PLY, Params, ThreadData};
 use crate::util::Abort;
 use std::cmp::Reverse;
 
@@ -29,24 +29,11 @@ impl MoveStack {
     }
 
     #[inline]
-    pub fn add_moves<F: MoveFilter>(
-        &mut self,
-        board: &Board,
-        neutral_ducks: Bitboard,
-        prune_neutral_ducks: bool,
-        history: &History,
-    ) -> usize {
+    pub fn add_moves<F: MoveFilter>(&mut self, board: &Board) -> usize {
         let start = self.start[self.ply - 1];
         let old_len = self.stack.len();
 
-        board.gen_moves::<F, _>(|mut moves| {
-            if prune_neutral_ducks
-                && let Some(duck) = (moves.duck & neutral_ducks).iter().max_by_key(|&duck| {
-                    history.duck(board, Move::new(moves.src, moves.dest, duck, moves.flag))
-                })
-            {
-                moves.duck &= !neutral_ducks | duck;
-            }
+        board.gen_moves::<F, _>(|moves| {
             self.stack.extend(moves.iter().map(|w| ScoredMove(w, 0)));
             Abort::No
         });
@@ -140,8 +127,6 @@ pub struct MovePicker {
     skip_quiets: bool,
     skip_bad_noisies: bool,
     neutral_ducks: Bitboard,
-    prune_quiet_neutrals: bool,
-    prune_noisy_neutrals: bool,
     bad_noisy_count: usize,
     sort_start: usize,
     sorted_end: usize,
@@ -150,13 +135,7 @@ pub struct MovePicker {
 
 impl MovePicker {
     #[inline]
-    pub fn new(
-        tt_move: Option<Move>,
-        see_threshold: i32,
-        neutral_ducks: Bitboard,
-        prune_quiet_neutrals: bool,
-        prune_noisy_neutrals: bool,
-    ) -> Self {
+    pub fn new(tt_move: Option<Move>, neutral_ducks: Bitboard, see_threshold: i32) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
@@ -164,8 +143,6 @@ impl MovePicker {
             skip_quiets: false,
             skip_bad_noisies: false,
             neutral_ducks,
-            prune_quiet_neutrals,
-            prune_noisy_neutrals,
             bad_noisy_count: 0,
             sort_start: 0,
             sorted_end: 0,
@@ -205,12 +182,7 @@ impl MovePicker {
         }
 
         if self.stage == Stage::GenerateNoisies {
-            let start = thread.move_stack.add_moves::<Noisy>(
-                board,
-                self.neutral_ducks,
-                self.prune_noisy_neutrals,
-                &thread.history,
-            );
+            let start = thread.move_stack.add_moves::<Noisy>(board);
             self.score_noisies(board, thread, start);
             self.stage = Stage::YieldGoodNoisies;
         }
@@ -229,12 +201,7 @@ impl MovePicker {
                 self.sorted_end = self.bad_noisy_count;
                 self.cursor = 0;
             } else {
-                let start = thread.move_stack.add_moves::<Quiet>(
-                    board,
-                    self.neutral_ducks,
-                    self.prune_quiet_neutrals,
-                    &thread.history,
-                );
+                let start = thread.move_stack.add_moves::<Quiet>(board);
                 self.score_quiets(board, thread, indices, start);
                 self.stage = Stage::YieldQuiets;
                 self.sort_start = start;

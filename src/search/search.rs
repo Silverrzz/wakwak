@@ -428,14 +428,10 @@ fn search<Node: NodeType>(
     let mut searched_moves = 0;
     let mut failed_quiets = Vec::new();
     let mut failed_noisies = Vec::new();
-    let neutral_ducks = pos.board().neutral_ducks();
-    let prune_neutrals = !Node::PV && depth <= 8 && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(
         tt_move,
+        pos.board().neutral_ducks(),
         Params::mp_see_threshold(),
-        neutral_ducks,
-        prune_neutrals,
-        prune_neutrals,
     );
     let mut move_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
@@ -851,20 +847,15 @@ fn qsearch<Node: NodeType>(
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
     let mut duck_refutations = [Bitboard::EMPTY; Square::COUNT];
     let mut duck_safety = [(None, Bitboard::FULL); Square::COUNT];
-    let neutral_ducks = pos.board().neutral_ducks();
-    let prune_noisy_neutrals = !Node::PV && !alpha.is_mate() && !beta.is_mate();
     let mut move_picker = MovePicker::new(
         tt_move,
+        pos.board().neutral_ducks(),
         Params::mp_qs_see_threshold(),
-        neutral_ducks,
-        false,
-        prune_noisy_neutrals,
     );
     move_picker.skip_quiets();
     move_picker.skip_bad_noisies();
     let mut best_move = None;
     let mut bound = Bound::Upper;
-
     let cont_indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, cont_indices) {
         let (src, dest, duck) = (mv.src(), mv.dest(), mv.duck());
@@ -891,7 +882,6 @@ fn qsearch<Node: NodeType>(
 
         move_counts[src][dest] += 1;
         duck_counts[duck] += 1;
-
         pos.make_move(mv);
 
         // Duck or Die Pruning
