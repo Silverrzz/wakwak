@@ -7,10 +7,15 @@ pub type I8Vec = v128;
 pub type I16Vec = v128;
 pub type I32Vec = v128;
 
+#[path = "nnz_table.rs"]
+mod nnz_table;
+
 pub mod i8s {
     use super::*;
 
     pub const LANES: usize = size_of::<I8Vec>() / size_of::<i8>();
+
+    pub use std::convert::identity as reinterpret_i32;
 
     #[target_feature(enable = "simd128")]
     pub unsafe fn load(ptr: *const i8) -> I8Vec {
@@ -34,8 +39,8 @@ pub mod i16s {
     pub const LANES: usize = size_of::<I16Vec>() / size_of::<i16>();
 
     pub use std::arch::wasm32::{
-        i16x8_max as max, i16x8_min as min, i16x8_mul as mul, i16x8_splat as splat,
-        u8x16_narrow_i16x8 as packus,
+        i16x8_add as add, i16x8_max as max, i16x8_min as min, i16x8_mul as mul,
+        i16x8_splat as splat, u8x16_narrow_i16x8 as packus,
     };
 
     #[target_feature(enable = "simd128")]
@@ -90,5 +95,12 @@ pub mod i32s {
     #[target_feature(enable = "simd128")]
     pub fn shr_const<const SHIFT: u32>(v: I32Vec) -> I32Vec {
         i32x4_shr(v, SHIFT)
+    }
+
+    #[target_feature(enable = "simd128")]
+    pub fn nnz_indices(v: I32Vec) -> (I16Vec, u16) {
+        let mask = i32x4_bitmask(i32x4_ne(v, i32x4_splat(0)));
+        let idxs = unsafe { v128_load(nnz_table::NNZ_TABLE[mask as usize].as_ptr().cast()) };
+        (idxs, mask.count_ones() as u16)
     }
 }

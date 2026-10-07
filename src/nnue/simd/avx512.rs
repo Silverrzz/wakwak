@@ -24,6 +24,11 @@ pub mod i8s {
             ),
         }
     }
+
+    #[target_feature(enable = "avx512f")]
+    pub fn reinterpret_i32(v: I8Vec) -> I32Vec {
+        v
+    }
 }
 
 pub mod i16s {
@@ -35,6 +40,11 @@ pub mod i16s {
         _mm512_loadu_epi16 as load, _mm512_max_epi16 as max, _mm512_min_epi16 as min,
         _mm512_mullo_epi16 as mul, _mm512_set1_epi16 as splat, _mm512_storeu_epi16 as store,
     };
+
+    #[target_feature(enable = "avx512bw")]
+    pub fn add(l: I16Vec, r: I16Vec) -> I16Vec {
+        _mm512_add_epi16(l, r)
+    }
 
     #[target_feature(enable = "avx512bw")]
     pub fn mulhi_shl7(l: I16Vec, r: I16Vec) -> I16Vec {
@@ -63,4 +73,15 @@ pub mod i32s {
         },
         convert::identity as reinterpret_i8,
     };
+
+    #[target_feature(enable = "avx512vbmi2,avx512vl")]
+    pub fn nnz_indices(v: I32Vec) -> (I16Vec, u16) {
+        let nnz_mask = _mm512_test_epi32_mask(v, v);
+        let idxs: [i16; 16] = std::array::from_fn(|i| i as i16);
+        let idxs = unsafe { _mm256_loadu_si256(idxs.as_ptr().cast()) };
+        (
+            _mm512_castsi256_si512(_mm256_maskz_compress_epi16(nnz_mask, idxs)),
+            nnz_mask.count_ones() as u16,
+        )
+    }
 }

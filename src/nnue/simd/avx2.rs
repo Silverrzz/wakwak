@@ -7,6 +7,10 @@ pub type I8Vec = __m256i;
 pub type I16Vec = __m256i;
 pub type I32Vec = __m256i;
 
+#[cfg(not(all(feature = "use-bmi2", target_feature = "bmi2")))]
+#[path = "nnz_table.rs"]
+mod nnz_table;
+
 pub mod i8s {
     use super::*;
 
@@ -32,6 +36,11 @@ pub mod i8s {
             ),
         }
     }
+
+    #[target_feature(enable = "avx2")]
+    pub fn reinterpret_i32(v: I8Vec) -> I32Vec {
+        v
+    }
 }
 
 pub mod i16s {
@@ -46,6 +55,16 @@ pub mod i16s {
     #[target_feature(enable = "avx2")]
     pub unsafe fn load(ptr: *const i16) -> I16Vec {
         unsafe { _mm256_loadu_si256(ptr.cast()) }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub unsafe fn store(ptr: *mut i16, v: I16Vec) {
+        unsafe { _mm256_storeu_si256(ptr.cast(), v) }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub fn add(l: I16Vec, r: I16Vec) -> I16Vec {
+        _mm256_add_epi16(l, r)
     }
 
     #[target_feature(enable = "avx2")]
@@ -87,5 +106,22 @@ pub mod i32s {
     #[target_feature(enable = "avx2")]
     pub unsafe fn store(ptr: *mut i32, v: I32Vec) {
         unsafe { _mm256_storeu_si256(ptr.cast(), v) }
+    }
+
+    #[target_feature(enable = "avx2")]
+    pub fn nnz_indices(v: I32Vec) -> (I16Vec, u16) {
+        let nnz_mask = _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(v, splat(0))));
+
+        let idxs = cfg_select! {
+            all(feature = "use-bmi2", target_feature = "bmi2") => unsafe {
+                let mask = _pdep_u64(nnz_mask as u64, 0x0101010101010101) * 255;
+                let idxs = _pext_u64(0x0706050403020100, mask);
+                _mm_cvtepi8_epi16(_mm_cvtsi64_si128(idxs as i64))
+            }
+            _ => unsafe { _mm_loadu_si128(nnz_table::NNZ_TABLE[nnz_mask as usize].as_ptr().cast()) }
+        };
+
+        let count = nnz_mask.count_ones();
+        (_mm256_castsi128_si256(idxs), count as u16)
     }
 }

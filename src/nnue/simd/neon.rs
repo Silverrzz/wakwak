@@ -7,6 +7,9 @@ pub type I8Vec = int8x16_t;
 pub type I16Vec = int16x8_t;
 pub type I32Vec = int32x4_t;
 
+#[path = "nnz_table.rs"]
+mod nnz_table;
+
 pub mod i8s {
     use super::*;
 
@@ -36,6 +39,11 @@ pub mod i8s {
             }
         }
     }
+
+    #[target_feature(enable = "neon")]
+    pub fn reinterpret_i32(v: I8Vec) -> I32Vec {
+        vreinterpretq_s32_s8(v)
+    }
 }
 
 pub mod i16s {
@@ -47,6 +55,11 @@ pub mod i16s {
         vdupq_n_s16 as splat, vld1q_s16 as load, vmaxq_s16 as max, vminq_s16 as min,
         vmulq_s16 as mul, vst1q_s16 as store,
     };
+
+    #[target_feature(enable = "neon")]
+    pub fn add(l: I16Vec, r: I16Vec) -> I16Vec {
+        vaddq_s16(l, r)
+    }
 
     #[target_feature(enable = "neon")]
     pub fn mulhi_shl7(l: I16Vec, r: I16Vec) -> I16Vec {
@@ -69,4 +82,12 @@ pub mod i32s {
         vmaxq_s32 as max, vminq_s32 as min, vmulq_s32 as mul,
         vreinterpretq_s8_s32 as reinterpret_i8, vshrq_n_s32 as shr_const, vst1q_s32 as store,
     };
+
+    #[target_feature(enable = "neon")]
+    pub fn nnz_indices(v: I32Vec) -> (I16Vec, u16) {
+        let mask = vtstq_s32(v, v);
+        let bitmask = vaddvq_u32(vandq_u32(mask, unsafe { vld1q_u32([1, 2, 4, 8].as_ptr()) }));
+        let idxs = unsafe { vld1q_s16(nnz_table::NNZ_TABLE[bitmask as usize].as_ptr()) };
+        (idxs, bitmask.count_ones() as u16)
+    }
 }

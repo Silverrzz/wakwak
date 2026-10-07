@@ -4,6 +4,8 @@ version = "0.16.0"
 edition = "2024"
 
 [features]
+default = ["use-bmi2"]
+use-bmi2 = []
 tune = []
 stat = ["dep:dashmap"]
 

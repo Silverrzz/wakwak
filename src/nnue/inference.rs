@@ -64,14 +64,32 @@ fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2 * 2] {
     const { assert!((L1 / 4).is_multiple_of(UNROLL)) };
 
     unsafe {
+        let mut nnz_idxs = [const { MaybeUninit::<i16>::uninit() }; L1 / 4 + simd::i16s::LANES];
+        let mut nnz_count = 0;
+        {
+            let mut base = simd::i16s::splat(0);
+            for i in (0..L1).step_by(simd::i8s::LANES) {
+                let chunk = simd::i8s::reinterpret_i32(simd::i8s::load(act_ft.as_ptr().add(i)));
+                let (idxs, cnt) = simd::i32s::nnz_indices(chunk);
+                simd::i16s::store(
+                    nnz_idxs.as_mut_ptr().add(nnz_count).cast(),
+                    simd::i16s::add(base, idxs),
+                );
+                nnz_count += cnt as usize;
+                base = simd::i16s::add(base, simd::i16s::splat(simd::i32s::LANES as i16));
+            }
+        }
+
         // in [0, Q0^2 * Q1 / 2^9]
         let mut intermediate = [[simd::i32s::splat(0); UNROLL]; { L2 / simd::i32s::LANES }];
         let ft_32 = act_ft.as_chunks::<4>().0;
 
-        for i_outer in (0..L1 / 4).step_by(UNROLL) {
+        let mut i_outer = 0;
+
+        while i_outer + UNROLL <= nnz_count {
             for j in 0..(L2 / simd::i32s::LANES) {
                 for i_inner in 0..UNROLL {
-                    let i = i_outer + i_inner;
+                    let i = nnz_idxs[i_outer + i_inner].assume_init() as usize;
                     let ft_vec = simd::i32s::splat(zerocopy::transmute!(ft_32[i]));
                     intermediate[j][i_inner] = simd::i8s::dpbusd(
                         intermediate[j][i_inner],
@@ -80,6 +98,21 @@ fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2 * 2] {
                     );
                 }
             }
+
+            i_outer += UNROLL;
+        }
+
+        while i_outer < nnz_count {
+            let i = nnz_idxs[i_outer].assume_init() as usize;
+            let ft_vec = simd::i32s::splat(zerocopy::transmute!(ft_32[i]));
+            for j in 0..(L2 / simd::i32s::LANES) {
+                intermediate[j][0] = simd::i8s::dpbusd(
+                    intermediate[j][0],
+                    simd::i32s::reinterpret_i8(ft_vec),
+                    simd::i8s::load(NET.l1w[i].as_ptr().add(j * simd::i8s::LANES)),
+                )
+            }
+            i_outer += 1;
         }
 
         let mut out = [0; L2 * 2];
