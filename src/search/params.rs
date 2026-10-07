@@ -192,10 +192,16 @@ params! {
     ump_threshold_numerator:    i32 => 3;
     ump_threshold_denominator:  i32 => 2;
 
-    quiet_see_base:  i32 => 0;
-    quiet_see_scale: i32 => -80;
-    noisy_see_base:  i32 => 0;
-    noisy_see_scale: i32 => -80;
+    quiet_see_base:             i32 => 0;
+    quiet_see_scale:            i32 => -80;
+    noisy_see_base:             i32 => 0;
+    noisy_see_scale:            i32 => -80;
+    noisy_see_hist_offset:      i32 => 0;
+    noisy_see_hist_div:         i32 => 64;
+    noisy_see_hist_min:         i32 => -512;
+    noisy_see_hist_max:         i32 => 512;
+    noisy_see_hist_noisy_scale: i32 => 1024;
+    noisy_see_hist_duck_scale:  i32 => 1024;
 
     se_beta:       i32 => 128;
     se_depth_lerp: i32 => 512;
@@ -473,11 +479,18 @@ impl Params {
     }
 
     #[inline]
-    pub fn see_margin(depth: i32, is_quiet: bool) -> i32 {
+    pub fn see_margin(depth: i32, history: i32, is_quiet: bool) -> i32 {
         if is_quiet {
             Self::quiet_see_base() + Self::quiet_see_scale() * depth
         } else {
             Self::noisy_see_base() + Self::noisy_see_scale() * depth
+                - Self::history_adjustment(
+                    history,
+                    Self::noisy_see_hist_offset(),
+                    Self::noisy_see_hist_div(),
+                    Self::noisy_see_hist_min(),
+                    Self::noisy_see_hist_max(),
+                )
         }
     }
 
@@ -600,6 +613,24 @@ impl Params {
         history += thread.history.duck(board, mv) * Self::quiet_hp_duck_scale();
         history += thread.history.cont1(board, indices, mv) * Self::quiet_hp_cont1_scale();
         history += thread.history.cont2(board, indices, mv) * Self::quiet_hp_cont2_scale();
+
+        history / 1024
+    }
+
+    #[inline]
+    pub fn see_history(
+        thread: &ThreadData,
+        pos: &Position,
+        _indices: ContIndices,
+        mv: Move,
+    ) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        if mv.flag().is_noisy() {
+            history += thread.history.noisy(board, mv) * Self::noisy_see_hist_noisy_scale();
+            history += thread.history.duck(board, mv) * Self::noisy_see_hist_duck_scale();
+        }
 
         history / 1024
     }
