@@ -191,9 +191,10 @@ params! {
     udp_history_min:     i32 => -2;
     udp_history_max:     i32 => 2;
 
-    ump_threshold_base:         i32 => 4;
-    ump_threshold_numerator:    i32 => 3;
-    ump_threshold_denominator:  i32 => 2;
+    ump_threshold_imp_base:  i32 => 2048;
+    ump_threshold_imp_scale: i32 => 1024;
+    ump_threshold_base:      i32 => 4096;
+    ump_threshold_scale:     i32 => 1536;
 
     quiet_see_base:             i32 => 0;
     quiet_see_scale:            i32 => -80;
@@ -476,9 +477,18 @@ impl Params {
     }
 
     #[inline]
-    pub fn ump_threshold(depth: i32) -> i32 {
-        Self::ump_threshold_base()
-            + Self::ump_threshold_numerator() * depth * depth / Self::ump_threshold_denominator()
+    pub fn ump_threshold(depth: i32, improving: bool) -> i32 {
+        let (base, scale) = if improving {
+            (
+                Self::ump_threshold_imp_base(),
+                Self::ump_threshold_imp_scale(),
+            )
+        } else {
+            (Self::ump_threshold_base(), Self::ump_threshold_scale())
+        };
+
+        let threshold = base + scale * depth * depth;
+        threshold / 1024
     }
 
     #[inline]
