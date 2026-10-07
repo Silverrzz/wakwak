@@ -339,11 +339,21 @@ fn search<Node: NodeType>(
         this node.
         */
         let prev_stack = &thread.stack[ply - 1];
-        if prev_stack.reduction >= Params::hindsight_ext_red()
-            && let Some(prev_eval) = prev_stack.static_eval
-            && static_eval + prev_eval < Params::hindsight_ext_eval()
-        {
-            depth = (depth + 1).min(MAX_DEPTH as i32);
+        if let Some(prev_eval) = prev_stack.static_eval {
+            let eval_delta = static_eval + prev_eval;
+            let reduction = prev_stack.reduction;
+
+            if reduction >= Params::hindsight_ext_red() && eval_delta < Params::hindsight_ext_eval()
+            {
+                depth = (depth + 1).min(MAX_DEPTH as i32);
+            }
+
+            if depth >= 2
+                && reduction > Params::hindsight_red_red()
+                && eval_delta > Params::hindsight_red_eval()
+            {
+                depth -= 1; // depth >= 2
+            }
         }
 
         /*

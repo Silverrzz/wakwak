@@ -128,6 +128,8 @@ params! {
 
     hindsight_ext_red:  i32 => 3072;
     hindsight_ext_eval: i32 => 0;
+    hindsight_red_red:  i32 => 2048;
+    hindsight_red_eval: i32 => 200;
 
     rfp_base:       i32 => 0;
     rfp_scale:      i32 => 50;
