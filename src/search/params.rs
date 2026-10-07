@@ -126,6 +126,9 @@ params! {
     cont4_malus_scale: i32 => 128;
     cont4_malus_max:   i32 => 2048;
 
+    hindsight_ext_red:  i32 => 3072;
+    hindsight_ext_eval: i32 => 0;
+
     rfp_base:       i32 => 0;
     rfp_scale:      i32 => 50;
     rfp_imp_base:   i32 => -50;
