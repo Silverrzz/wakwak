@@ -170,8 +170,7 @@ impl Board {
     pub fn in_check(&self) -> bool {
         // TODO: maybe make it incremental (?) idk
         let blocks = self.king_capture_blocks(self.stm);
-
-        blocks != Bitboard::FULL && self.duck.is_none_or(|sq| !blocks.has(sq))
+        blocks != Bitboard::FULL
     }
 
     #[inline]
