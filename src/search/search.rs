@@ -14,6 +14,7 @@ pub struct SearchStack {
     raw_eval: Option<Score>,
     static_eval: Option<Score>,
     skip_move: Option<Move>,
+    reduction: i32,
     mv: Option<Move>,
 }
 
@@ -212,7 +213,7 @@ fn search<Node: NodeType>(
     shared: &SharedData,
     mut alpha: Score,
     beta: Score,
-    depth: i32,
+    mut depth: i32,
     ply: usize,
 ) -> Score {
     if !Node::ROOT && (thread.stop || shared.time_man.stop_search(thread)) {
@@ -328,8 +329,23 @@ fn search<Node: NodeType>(
 
     thread.stack[ply].raw_eval = Some(raw_eval);
     thread.stack[ply].static_eval = Some(static_eval);
+    thread.stack[ply].reduction = 0;
 
     if !Node::PV && skip_move.is_none() {
+        /*
+        Hindsight Extension:
+        If this node was heavily reduced by the parent,
+        but the node is improving static eval, then extend
+        this node.
+        */
+        let prev_stack = &thread.stack[ply - 1];
+        if prev_stack.reduction >= Params::hindsight_ext_red()
+            && let Some(prev_eval) = prev_stack.static_eval
+            && static_eval + prev_eval < Params::hindsight_ext_eval()
+        {
+            depth = (depth + 1).min(MAX_DEPTH as i32);
+        }
+
         /*
         Reverse Futility Pruning: If our evaluation of the position is already
         so high that even a pessimistic estimate is still above beta, we can
@@ -620,16 +636,18 @@ fn search<Node: NodeType>(
                     r -= Params::lmr_in_check() * pos.board().in_check() as i32;
                     r -= Params::lmr_history() * lmr_history / 1024;
                     r -= Params::lmr_corr() * corr.abs() / 1024;
-                    r / 1024
+                    r
                 } else {
                     0
                 };
 
-                let lmr_depth = (new_depth - lmr).max(1).min(new_depth);
-                move_depth = (new_depth + 1 - lmr).max(0);
+                let lmr_depth = (new_depth - lmr / 1024).max(1).min(new_depth);
+                move_depth = (new_depth + 1 - lmr / 1024).max(0);
 
+                thread.stack[ply].reduction = lmr;
                 score =
                     -search::<NonPV>(pos, thread, shared, -alpha - 1, -alpha, lmr_depth, ply + 1);
+                thread.stack[ply].reduction = 0;
 
                 if score > alpha && lmr > 0 {
                     move_depth = new_depth + 1;
