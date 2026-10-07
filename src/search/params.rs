@@ -189,7 +189,7 @@ params! {
     udp_history_max:     i32 => 2;
 
     ump_threshold_base:  i32 => 4096;
-    ump_threshold_scale: i32 => 1536;
+    ump_threshold_scale: i32 => 2048;
 
     quiet_see_base:  i32 => 0;
     quiet_see_scale: i32 => -80;
