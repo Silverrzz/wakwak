@@ -80,6 +80,7 @@ pub fn iterative_deepening(
                 delta += delta * Params::asp_widen_scale() / 64;
                 Bound::Upper
             } else if new_score >= beta {
+                alpha = Score(Params::lerp(alpha.0, beta.0, Params::asp_alpha_lerp()));
                 beta = (new_score + delta).min(Score::INFINITE);
                 delta += delta * Params::asp_widen_scale() / 64;
                 Bound::Lower
