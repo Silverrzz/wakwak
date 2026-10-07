@@ -544,9 +544,12 @@ fn search<Node: NodeType>(
             /*
             SEE Pruning: Prune moves that have bad SEE score idk
             */
+            let see_history = Params::see_history(thread, pos, cont_indices, mv);
             if depth <= 10
                 && move_picker.stage() >= Stage::YieldQuiets
-                && !pos.board().cmp_see(mv, Params::see_margin(depth, is_quiet))
+                && !pos
+                    .board()
+                    .cmp_see(mv, Params::see_margin(depth, see_history, is_quiet))
             {
                 continue;
             }
