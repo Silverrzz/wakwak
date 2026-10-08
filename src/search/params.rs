@@ -175,14 +175,14 @@ params! {
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
 
-    dcp_threshold_imp_base:  i32 => 2;
-    dcp_threshold_imp_scale: i32 => 1;
-    dcp_threshold_base:      i32 => 4;
-    dcp_threshold_scale:     i32 => 2;
+    dcp_threshold_imp_base:  i32 => 2048;
+    dcp_threshold_imp_scale: i32 => 1024;
+    dcp_threshold_base:      i32 => 4096;
+    dcp_threshold_scale:     i32 => 2048;
     dcp_hist_offset:      i32 => -4000;
     dcp_hist_div:         i32 => 4000;
-    dcp_hist_min:         i32 => -2;
-    dcp_hist_max:         i32 => 2;
+    dcp_hist_min:         i32 => -2048;
+    dcp_hist_max:         i32 => 2048;
     dcp_hist_quiet_scale: i32 => 1024;
     dcp_hist_duck_scale:  i32 => 1024;
     dcp_hist_cont1_scale: i32 => 1024;
@@ -445,7 +445,7 @@ impl Params {
     }
 
     #[inline]
-    pub fn dcp_threshold(depth: i32, improving: bool, history: i32) -> i32 {
+    pub fn dcp_threshold(depth: i32, improving: bool, hist: i32) -> i32 {
         let (base, scale) = if improving {
             (
                 Self::dcp_threshold_imp_base(),
@@ -455,15 +455,16 @@ impl Params {
             (Self::dcp_threshold_base(), Self::dcp_threshold_scale())
         };
 
-        let history_adjustment = Self::history_adjustment(
-            history,
+        let mut threshold = base + scale * depth;
+        threshold += Self::frac_hist_adjustment(
+            hist,
             Params::dcp_hist_offset(),
             Params::dcp_hist_div(),
             Params::dcp_hist_min(),
             Params::dcp_hist_max(),
         );
 
-        base + scale * depth + history_adjustment
+        threshold / 1024
     }
 
     #[inline]
@@ -698,6 +699,11 @@ impl Params {
         let t = t as i64;
 
         ((a * (1024 - t) + b * t) / 1024) as i32
+    }
+
+    #[inline]
+    fn frac_hist_adjustment(history: i32, offset: i32, divisor: i32, min: i32, max: i32) -> i32 {
+        ((history + offset) * 1024 / divisor).clamp(min, max)
     }
 
     #[inline]
