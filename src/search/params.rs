@@ -236,6 +236,8 @@ params! {
 
     quiet_lmr_base:  i32 => 1024;
     quiet_lmr_scale: i32 => 96;
+    noisy_lmr_base:  i32 => 768;
+    noisy_lmr_scale: i32 => 384;
     lmr_exact:       i32 => 1024;
     lmr_imp:         i32 => 1024;
     lmr_pv:          i32 => 1024;
@@ -536,11 +538,15 @@ impl Params {
     }
 
     #[inline]
-    pub fn lmr(depth: i32, unique_moves: i32) -> i32 {
+    pub fn lmr(is_quiet: bool, depth: i32, unique_moves: i32) -> i32 {
         let log_depth = depth.ilog2() as i32;
         let log_moves = (unique_moves + 1).ilog2() as i32;
 
-        Self::quiet_lmr_base() + Self::quiet_lmr_scale() * log_depth * log_moves
+        if is_quiet {
+            Self::quiet_lmr_base() + Self::quiet_lmr_scale() * log_depth * log_moves
+        } else {
+            Self::noisy_lmr_base() + Self::noisy_lmr_scale() * log_depth
+        }
     }
 
     #[inline]
