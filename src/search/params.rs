@@ -161,19 +161,23 @@ params! {
     quiet_hp_base:  i32 => 0;
     quiet_hp_scale: i32 => -2500;
 
-    quiet_ldp_imp_threshold_base:  i32 => 2;
-    quiet_ldp_imp_threshold_scale: i32 => 2;
-    quiet_ldp_threshold_base:      i32 => 1;
-    quiet_ldp_threshold_scale:     i32 => 1;
-    quiet_ldp_history_offset:      i32 => -4000;
-    quiet_ldp_history_div:         i32 => 4000;
-    quiet_ldp_history_min:         i32 => -2;
-    quiet_ldp_history_max:         i32 => 2;
+    quiet_ldp_imp_threshold_base:  i32 => 2048;
+    quiet_ldp_imp_threshold_scale: i32 => 2048;
+    quiet_ldp_threshold_base:      i32 => 1024;
+    quiet_ldp_threshold_scale:     i32 => 1024;
+    quiet_ldp_hist_offset:      i32 => -4000;
+    quiet_ldp_hist_div:         i32 => 4000;
+    quiet_ldp_hist_min:         i32 => -2048;
+    quiet_ldp_hist_max:         i32 => 2048;
+    quiet_ldp_hist_quiet_scale: i32 => 1024;
+    quiet_ldp_hist_duck_scale:  i32 => 1024;
+    quiet_ldp_hist_cont1_scale: i32 => 1024;
+    quiet_ldp_hist_cont2_scale: i32 => 1024;
 
-    noisy_ldp_imp_threshold_base:  i32 => 4;
-    noisy_ldp_imp_threshold_scale: i32 => 4;
-    noisy_ldp_threshold_base:      i32 => 4;
-    noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_imp_threshold_base:  i32 => 4096;
+    noisy_ldp_imp_threshold_scale: i32 => 4096;
+    noisy_ldp_threshold_base:      i32 => 4096;
+    noisy_ldp_threshold_scale:     i32 => 4096;
 
     dcp_threshold_imp_base:  i32 => 2;
     dcp_threshold_imp_scale: i32 => 1;
@@ -407,7 +411,7 @@ impl Params {
     }
 
     #[inline]
-    pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
+    pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, hist: i32) -> i32 {
         let (base, scale) = match (is_quiet, improving) {
             (true, true) => (
                 Self::quiet_ldp_imp_threshold_base(),
@@ -429,15 +433,15 @@ impl Params {
 
         let mut threshold = base + scale * depth;
         if is_quiet {
-            threshold += Self::history_adjustment(
-                duck_history,
-                Params::quiet_ldp_history_offset(),
-                Params::quiet_ldp_history_div(),
-                Params::quiet_ldp_history_min(),
-                Params::quiet_ldp_history_max(),
+            threshold += Self::frac_hist_adjustment(
+                hist,
+                Params::quiet_ldp_hist_offset(),
+                Params::quiet_ldp_hist_div(),
+                Params::quiet_ldp_hist_min(),
+                Params::quiet_ldp_hist_max(),
             );
         }
-        threshold
+        threshold / 1024
     }
 
     #[inline]
@@ -652,6 +656,19 @@ impl Params {
     }
 
     #[inline]
+    pub fn ldp_history(thread: &ThreadData, pos: &Position, indices: ContIndices, mv: Move) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        history += thread.history.quiet(board, mv) * Self::quiet_ldp_hist_quiet_scale();
+        history += thread.history.duck(board, mv) * Self::quiet_ldp_hist_duck_scale();
+        history += thread.history.cont1(board, indices, mv) * Self::quiet_ldp_hist_cont1_scale();
+        history += thread.history.cont2(board, indices, mv) * Self::quiet_ldp_hist_cont2_scale();
+
+        history / 1024
+    }
+
+    #[inline]
     pub fn iid_depth(depth: i32) -> i32 {
         (Params::iid_depth_scale() * depth - Params::iid_depth_reduction()) / 1024
     }
@@ -681,6 +698,11 @@ impl Params {
         let t = t as i64;
 
         ((a * (1024 - t) + b * t) / 1024) as i32
+    }
+
+    #[inline]
+    fn frac_hist_adjustment(history: i32, offset: i32, divisor: i32, min: i32, max: i32) -> i32 {
+        ((history + offset) * 1024 / divisor).clamp(min, max)
     }
 
     #[inline]
