@@ -184,12 +184,14 @@ params! {
     dcp_history_min:         i32 => -2;
     dcp_history_max:         i32 => 2;
 
-    udp_threshold_base:  i32 => 10;
-    udp_threshold_scale: i32 => 4;
-    udp_history_offset:  i32 => -4000;
-    udp_history_div:     i32 => 4000;
-    udp_history_min:     i32 => -2;
-    udp_history_max:     i32 => 2;
+    udp_threshold_imp_base:  i32 => 5120;
+    udp_threshold_imp_scale: i32 => 2048;
+    udp_threshold_base:      i32 => 10240;
+    udp_threshold_scale:     i32 => 4096;
+    udp_history_offset:      i32 => -4000;
+    udp_history_div:         i32 => 4000;
+    udp_history_min:         i32 => -2048;
+    udp_history_max:         i32 => 2048;
 
     ump_threshold_base:         i32 => 4;
     ump_threshold_numerator:    i32 => 3;
@@ -463,16 +465,26 @@ impl Params {
     }
 
     #[inline]
-    pub fn udp_threshold(depth: i32, duck_history: i32) -> i32 {
-        Self::udp_threshold_base()
-            + Self::udp_threshold_scale() * depth
-            + Self::history_adjustment(
-                duck_history,
-                Self::udp_history_offset(),
-                Self::udp_history_div(),
-                Self::udp_history_min(),
-                Self::udp_history_max(),
+    pub fn udp_threshold(depth: i32, improving: bool, duck_history: i32) -> i32 {
+        let (base, scale) = if improving {
+            (
+                Self::udp_threshold_imp_base(),
+                Self::udp_threshold_imp_scale(),
             )
+        } else {
+            (Self::udp_threshold_base(), Self::udp_threshold_scale())
+        };
+
+        let mut threshold = base + scale * depth;
+        threshold += Self::frac_history_adjustment(
+            duck_history,
+            Self::udp_history_offset(),
+            Self::udp_history_div(),
+            Self::udp_history_min(),
+            Self::udp_history_max(),
+        );
+
+        threshold / 1024
     }
 
     #[inline]
@@ -681,6 +693,11 @@ impl Params {
         let t = t as i64;
 
         ((a * (1024 - t) + b * t) / 1024) as i32
+    }
+
+    #[inline]
+    fn frac_history_adjustment(history: i32, offset: i32, divisor: i32, min: i32, max: i32) -> i32 {
+        ((history + offset) * 1024 / divisor).clamp(min, max)
     }
 
     #[inline]

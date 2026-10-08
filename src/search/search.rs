@@ -544,7 +544,7 @@ fn search<Node: NodeType>(
              */
             if is_quiet
                 && duck_counts[duck] == 0
-                && unique_ducks > Params::udp_threshold(depth, duck_history)
+                && unique_ducks > Params::udp_threshold(depth, improving, duck_history)
             {
                 continue;
             }
