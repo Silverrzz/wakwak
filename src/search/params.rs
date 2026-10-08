@@ -179,10 +179,14 @@ params! {
     dcp_threshold_imp_scale: i32 => 1;
     dcp_threshold_base:      i32 => 4;
     dcp_threshold_scale:     i32 => 2;
-    dcp_history_offset:      i32 => -4000;
-    dcp_history_div:         i32 => 4000;
-    dcp_history_min:         i32 => -2;
-    dcp_history_max:         i32 => 2;
+    dcp_hist_offset:      i32 => -4000;
+    dcp_hist_div:         i32 => 4000;
+    dcp_hist_min:         i32 => -2;
+    dcp_hist_max:         i32 => 2;
+    dcp_hist_quiet_scale: i32 => 1024;
+    dcp_hist_duck_scale:  i32 => 1024;
+    dcp_hist_cont1_scale: i32 => 1024;
+    dcp_hist_cont2_scale: i32 => 1024;
 
     udp_threshold_base:  i32 => 10;
     udp_threshold_scale: i32 => 4;
@@ -441,7 +445,7 @@ impl Params {
     }
 
     #[inline]
-    pub fn dcp_threshold(depth: i32, improving: bool, duck_history: i32) -> i32 {
+    pub fn dcp_threshold(depth: i32, improving: bool, history: i32) -> i32 {
         let (base, scale) = if improving {
             (
                 Self::dcp_threshold_imp_base(),
@@ -452,11 +456,11 @@ impl Params {
         };
 
         let history_adjustment = Self::history_adjustment(
-            duck_history,
-            Params::dcp_history_offset(),
-            Params::dcp_history_div(),
-            Params::dcp_history_min(),
-            Params::dcp_history_max(),
+            history,
+            Params::dcp_hist_offset(),
+            Params::dcp_hist_div(),
+            Params::dcp_hist_min(),
+            Params::dcp_hist_max(),
         );
 
         base + scale * depth + history_adjustment
@@ -647,6 +651,19 @@ impl Params {
         history += thread.history.duck(board, mv) * Self::fp_hist_duck_scale();
         history += thread.history.cont1(board, indices, mv) * Self::fp_hist_cont1_scale();
         history += thread.history.cont2(board, indices, mv) * Self::fp_hist_cont2_scale();
+
+        history / 1024
+    }
+
+    #[inline]
+    pub fn dcp_history(thread: &ThreadData, pos: &Position, indices: ContIndices, mv: Move) -> i32 {
+        let board = pos.board();
+        let mut history = 0;
+
+        history += thread.history.quiet(board, mv) * Self::dcp_hist_quiet_scale();
+        history += thread.history.duck(board, mv) * Self::dcp_hist_duck_scale();
+        history += thread.history.cont1(board, indices, mv) * Self::dcp_hist_cont1_scale();
+        history += thread.history.cont2(board, indices, mv) * Self::dcp_hist_cont2_scale();
 
         history / 1024
     }
