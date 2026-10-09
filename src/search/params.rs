@@ -200,7 +200,7 @@ params! {
     noisy_see_base:             i32 => 0;
     noisy_see_scale:            i32 => -80;
     quiet_see_hist_offset:      i32 => 0;
-    quiet_see_hist_div:         i32 => 64;
+    quiet_see_hist_div:         i32 => 128;
     quiet_see_hist_min:         i32 => -512;
     quiet_see_hist_max:         i32 => 512;
     quiet_see_hist_quiet_scale: i32 => 1024;
@@ -208,7 +208,7 @@ params! {
     quiet_see_hist_cont1_scale: i32 => 1024;
     quiet_see_hist_cont2_scale: i32 => 1024;
     noisy_see_hist_offset:      i32 => 0;
-    noisy_see_hist_div:         i32 => 32;
+    noisy_see_hist_div:         i32 => 64;
     noisy_see_hist_min:         i32 => -512;
     noisy_see_hist_max:         i32 => 512;
     noisy_see_hist_noisy_scale: i32 => 1024;
