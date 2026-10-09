@@ -214,9 +214,6 @@ params! {
     mp_qs_see_threshold: i32 => 0;
     mp_quiet_neutral_malus: i32 => 5000;
 
-    qsldp_threshold: i32 => 2;
-    qsdcp_threshold: i32 => 2;
-
     asp_delta:       i32 => 20;
     asp_beta_lerp:   i32 => 512;
     asp_widen_scale: i32 => 128;
