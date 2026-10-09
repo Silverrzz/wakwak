@@ -7,6 +7,7 @@ use crate::search::{
     PrincipalVariation, SearchInfo, SharedData, Stage, ThreadData,
 };
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Default)]
 pub struct SearchStack {
@@ -26,98 +27,125 @@ pub fn iterative_deepening(
     info: SearchInfo,
 ) {
     let mut depth = 1;
-    let mut completed_depth = 0;
-    let mut pv = PrincipalVariation::default();
-    let mut score: Option<Score> = None;
 
     // Time management stuff
     let mut duck_stability = 0;
     let mut move_stability = 0;
     let mut best_move = None;
-    let mut prev_move;
+    let mut prev_move = None;
 
     'id: loop {
-        let mut delta = Params::asp_delta();
-        let mut alpha = -Score::INFINITE;
-        let mut beta = Score::INFINITE;
-
-        if depth >= 4
-            && let Some(score) = score
-        {
-            alpha = (score - delta).max(-Score::INFINITE);
-            beta = (score + delta).min(Score::INFINITE);
+        for root_move in thread.root_moves.iter_mut() {
+            root_move.previous_score = root_move.score;
+            root_move.score = -Score::INFINITE;
         }
 
-        'asp: loop {
-            thread.sel_depth = 0;
-            thread.nmr_ply = None;
-            let new_score = search::<Root>(&mut pos, thread, shared, alpha, beta, depth as i32, 0);
-            thread.nodes.flush();
+        thread.root_depth = depth as usize;
+        thread.pv_idx = 0;
 
-            if depth > 1 && thread.stop {
+        while thread.pv_idx < thread.multipv {
+            let root_move = &thread.root_moves[thread.pv_idx];
+
+            let mut delta = Params::asp_delta();
+            let mut alpha = -Score::INFINITE;
+            let mut beta = Score::INFINITE;
+
+            if depth >= 4 {
+                let score = root_move.window_score;
+                alpha = (score - delta).max(-Score::INFINITE);
+                beta = (score + delta).min(Score::INFINITE);
+            }
+
+            'asp: loop {
+                thread.sel_depth = 0;
+                thread.nmr_ply = None;
+                let score = search::<Root>(&mut pos, thread, shared, alpha, beta, depth as i32, 0);
+                thread.nodes.flush();
+
+                thread.sort_remaining_root_moves();
+
+                if depth > 1 && thread.stop {
+                    break 'asp;
+                }
+
+                let bound = if score <= alpha {
+                    beta = Score(Params::lerp(alpha.0, beta.0, Params::asp_beta_lerp()));
+                    alpha = (score - delta).max(-Score::INFINITE);
+                    delta += delta * Params::asp_widen_scale() / 64;
+                    Bound::Upper
+                } else if score >= beta {
+                    beta = (score + delta).min(Score::INFINITE);
+                    delta += delta * Params::asp_widen_scale() / 64;
+                    Bound::Lower
+                } else {
+                    Bound::Exact
+                };
+
+                if bound == Bound::Exact {
+                    break 'asp;
+                }
+
+                if thread.id == 0 && info == SearchInfo::Full && options.multipv == 1 {
+                    info.depth(thread, shared, options);
+                }
+            }
+
+            thread.sort_searched_root_moves();
+
+            if depth == MAX_DEPTH {
+                thread.stop = true;
+            }
+
+            let last_pv = thread.pv_idx + 1 == thread.multipv;
+
+            if last_pv && !thread.stop {
+                let pv_move = thread.pv_move();
+
+                prev_move = best_move;
+                best_move = Some(pv_move.pv[0]);
+            }
+
+            if thread.id == 0 {
+                const VERBOSE_MULTIPV_DELAY: Duration = Duration::from_millis(1000);
+
+                if last_pv && !thread.stop {
+                    duck_stability += 1;
+                    if best_move.map(|mv| mv.duck()) != prev_move.map(|mv| mv.duck()) {
+                        duck_stability = 0;
+                    }
+
+                    move_stability += 1;
+                    if best_move != prev_move {
+                        move_stability = 0;
+                    }
+
+                    if shared.time_man.stop_id(depth, thread.nodes.global()) {
+                        shared.time_man.set_stop(true);
+                        thread.stop = true;
+                    }
+
+                    shared
+                        .time_man
+                        .deepen(depth, duck_stability, move_stability);
+                }
+
+                if info != SearchInfo::None
+                    && (thread.stop
+                        || (info != SearchInfo::Minimal
+                            && (last_pv || shared.time_man.elapsed() >= VERBOSE_MULTIPV_DELAY)))
+                {
+                    info.depth(thread, shared, options);
+                }
+            }
+
+            if thread.stop {
                 break 'id;
             }
 
-            if new_score > alpha && new_score < beta {
-                score = Some(new_score);
-                pv = thread.stack[0].pv.clone();
-                prev_move = best_move;
-                best_move = Some(pv[0]);
-
-                duck_stability += 1;
-                if best_move.map(|mv| mv.duck()) != prev_move.map(|mv| mv.duck()) {
-                    duck_stability = 0;
-                }
-
-                move_stability += 1;
-                if best_move != prev_move {
-                    move_stability = 0;
-                }
-            }
-
-            let bound = if new_score <= alpha {
-                beta = Score(Params::lerp(alpha.0, beta.0, Params::asp_beta_lerp()));
-                alpha = (new_score - delta).max(-Score::INFINITE);
-                delta += delta * Params::asp_widen_scale() / 64;
-                Bound::Upper
-            } else if new_score >= beta {
-                beta = (new_score + delta).min(Score::INFINITE);
-                delta += delta * Params::asp_widen_scale() / 64;
-                Bound::Lower
-            } else {
-                Bound::Exact
-            };
-
-            if thread.id == 0 && info == SearchInfo::Full {
-                info.depth(thread, shared, options, depth, new_score, bound, &pv);
-            }
-
-            if bound == Bound::Exact {
-                break 'asp;
-            }
+            thread.pv_idx += 1;
         }
 
         depth += 1;
-        completed_depth += 1;
-
-        if thread.id == 0 {
-            if shared
-                .time_man
-                .stop_id(completed_depth, thread.nodes.global())
-            {
-                shared.time_man.set_stop(true);
-                thread.stop = true;
-                break 'id;
-            }
-
-            shared
-                .time_man
-                .deepen(depth, duck_stability, move_stability);
-        }
-
-        if completed_depth == MAX_DEPTH {
-            break 'id;
-        }
     }
 
     // Wait for `stop` command if search is infinite
@@ -143,23 +171,16 @@ pub fn iterative_deepening(
         }
 
         // All search threads have finished, we are ready for new commands.
-        shared.best_score.store(score.unwrap().0, Ordering::Relaxed);
+        shared
+            .best_score
+            .store(thread.pv_move().score.0, Ordering::Relaxed);
         shared.num_searching.store(0, Ordering::Release);
     }
 
     if thread.id == 0 && info != SearchInfo::None {
-        info.depth(
-            thread,
-            shared,
-            options,
-            completed_depth,
-            score.unwrap(),
-            Bound::Exact,
-            &pv,
-        );
         println!(
             "bestmove {}",
-            pv[0].display(options.dumb_interface, options.frc)
+            thread.pv_move().pv[0].display(options.dumb_interface, options.frc)
         );
     }
 
@@ -201,10 +222,7 @@ fn adjust_eval(eval: Score, corr: i32) -> Score {
 #[inline]
 fn update_pv(thread: &mut ThreadData, mv: Move, ply: usize) {
     let [parent, child] = thread.stack.get_disjoint_mut([ply, ply + 1]).unwrap();
-
-    parent.pv.clear();
-    parent.pv.push(mv);
-    parent.pv.extend(child.pv.iter().copied());
+    parent.pv.update(mv, &child.pv);
 }
 
 fn search<Node: NodeType>(
@@ -259,7 +277,11 @@ fn search<Node: NodeType>(
     */
     let skip_move = thread.stack[ply].skip_move;
     let tt_entry = shared.tt.probe(pos.board().hash());
-    let mut tt_move = tt_entry.and_then(|e| e.best_move());
+    let mut tt_move = if Node::ROOT && thread.root_depth > 1 {
+        Some(thread.root_moves[thread.pv_idx].pv[0])
+    } else {
+        tt_entry.and_then(|e| e.best_move())
+    };
 
     if !Node::PV
         && skip_move.is_none()
@@ -461,6 +483,10 @@ fn search<Node: NodeType>(
 
     let cont_indices = ContIndices::new(pos);
     while let Some(mv) = move_picker.next(pos, thread, cont_indices) {
+        if Node::ROOT && !thread.is_legal_root_move(mv) {
+            continue;
+        }
+
         if skip_move == Some(mv) {
             continue;
         }
@@ -673,13 +699,38 @@ fn search<Node: NodeType>(
         };
         pos.unmake_move();
 
-        if Node::ROOT && searched_moves == 0 {
-            update_pv(thread, mv, ply);
-        }
-
         if thread.stop {
             thread.move_stack.pop_ply();
             return Score::ZERO;
+        }
+
+        if Node::ROOT {
+            let root_move_idx = thread.get_root_move_idx(mv);
+            let root_move = &mut thread.root_moves[root_move_idx];
+
+            root_move.window_score = score;
+
+            if searched_moves == 0 || score > alpha {
+                root_move.searched_depth = thread.root_depth;
+                root_move.sel_depth = thread.sel_depth;
+
+                root_move.display_score = score;
+                root_move.score = score;
+
+                root_move.bound = Bound::Exact;
+
+                if score <= alpha {
+                    root_move.display_score = alpha;
+                    root_move.bound = Bound::Upper;
+                } else if score >= beta {
+                    root_move.display_score = beta;
+                    root_move.bound = Bound::Lower;
+                }
+
+                root_move.pv.update(mv, &thread.stack[1].pv);
+            } else {
+                root_move.score = -Score::INFINITE;
+            }
         }
 
         // Duck Refutations
@@ -760,7 +811,7 @@ fn search<Node: NodeType>(
         );
     }
 
-    if skip_move.is_none() {
+    if skip_move.is_none() && !Node::ROOT || thread.pv_idx == 0 {
         shared.tt.insert(
             pos.board().hash(),
             best_move,

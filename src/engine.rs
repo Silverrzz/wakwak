@@ -126,6 +126,7 @@ impl Engine {
         println!("option name Minimal type check default false");
         println!("option name SoftTarget type check default false");
         println!("option name UseDumbInterface type check default true");
+        println!("option name MultiPV type spin default 1 min 1 max 16384");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
         println!("uciok");
@@ -326,6 +327,18 @@ impl Engine {
                 self.options.dumb_interface = value;
                 println!("info string Set UseDumbInterface to {value}");
             }
+            "MultiPV" => {
+                let value = match value.parse::<usize>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.options.multipv = value;
+                println!("info string Set MultiPV to {value}");
+            }
             "UCI_Chess960" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
@@ -385,6 +398,7 @@ pub struct EngineOptions {
     pub minimal: bool,
     pub soft_target: bool,
     pub dumb_interface: bool,
+    pub multipv: usize,
     pub frc: bool,
     pub variant: Variant,
 }
@@ -402,6 +416,7 @@ impl Default for EngineOptions {
             minimal: false,
             soft_target: false,
             dumb_interface: true,
+            multipv: 1,
             frc: false,
             variant: Variant::Duck,
         }
