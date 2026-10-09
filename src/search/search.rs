@@ -258,15 +258,15 @@ fn search<Node: NodeType>(
     that stored result instead of wasting time searching it again.
     */
     let skip_move = thread.stack[ply].skip_move;
-    let tt_entry = shared.tt.probe(pos.board().hash());
-    let mut tt_move = tt_entry.and_then(|e| e.best_move());
+    let tt_entry = shared.tt.probe(pos.board().hash(), ply);
+    let mut tt_move = tt_entry.and_then(|e| e.best_move);
 
     if !Node::PV
         && skip_move.is_none()
         && let Some(entry) = tt_entry
     {
-        let score = entry.score();
-        if entry.depth() >= depth && entry.bound().matches(score, alpha, beta) {
+        let score = entry.score;
+        if entry.depth >= depth && entry.bound.matches(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
@@ -276,18 +276,18 @@ fn search<Node: NodeType>(
 
     if (!Node::PV || tt_move.is_none())
         && skip_move.is_none()
-        && let Some(entry) = shared.tt.probe(pos.board().duckless_hash())
-        && entry.bound() == Bound::Lower
-        && !entry.score().is_mate()
+        && let Some(entry) = shared.tt.probe(pos.board().duckless_hash(), ply)
+        && entry.bound == Bound::Lower
+        && !entry.score.is_mate()
     {
-        let cutoff = !Node::PV && entry.depth() >= depth && entry.score() >= beta;
+        let cutoff = !Node::PV && entry.depth >= depth && entry.score >= beta;
         if (cutoff || tt_move.is_none())
-            && let Some(mv) = entry.best_move()
+            && let Some(mv) = entry.best_move
             && pos.board().is_legal(mv)
         {
             if cutoff {
                 thread.stack[ply].mv = Some(mv);
-                return entry.score();
+                return entry.score;
             }
             tt_move = Some(mv);
         }
@@ -303,13 +303,11 @@ fn search<Node: NodeType>(
     let static_eval = adjust_eval(raw_eval, corr);
 
     let estimated_score = if let Some(entry) = tt_entry
-        && !entry.score().is_mate()
+        && !entry.score.is_mate()
         && skip_move.is_none()
-        && entry
-            .bound()
-            .matches(entry.score(), static_eval, static_eval)
+        && entry.bound.matches(entry.score, static_eval, static_eval)
     {
-        entry.score()
+        entry.score
     } else {
         static_eval
     };
@@ -423,14 +421,14 @@ fn search<Node: NodeType>(
         _ = search::<PV>(pos, thread, shared, alpha, beta, iid_depth, ply);
         thread.iid_iteration -= 1;
 
-        let entry = shared.tt.probe(pos.board().hash());
+        let entry = shared.tt.probe(pos.board().hash(), ply);
         if thread.iid_iteration > 0
             && let Some(entry) = entry
-            && entry.depth() >= depth
+            && entry.depth >= depth
         {
-            return entry.score();
+            return entry.score;
         }
-        tt_move = entry.and_then(|e| e.best_move());
+        tt_move = entry.and_then(|e| e.best_move);
     }
 
     thread.move_stack.push_ply();
@@ -542,7 +540,10 @@ fn search<Node: NodeType>(
             Unique Duck Pruning (UDP) After we have encountered enough duck placements, we can be
             reasonably confident that no future duck will improve our position, so we skip it.
              */
-            if is_quiet && unique_ducks > Params::udp_threshold(depth, duck_history) {
+            if is_quiet
+                && duck_counts[duck] == 0
+                && unique_ducks > Params::udp_threshold(depth, duck_history)
+            {
                 continue;
             }
 
@@ -580,12 +581,12 @@ fn search<Node: NodeType>(
             && depth >= 6
             && skip_move.is_none()
             && let Some(entry) = tt_entry
-            && entry.best_move() == Some(mv)
-            && entry.depth() + 3 >= depth
-            && entry.bound() != Bound::Upper
-            && !entry.score().is_mate()
+            && entry.best_move == Some(mv)
+            && entry.depth + 3 >= depth
+            && entry.bound != Bound::Upper
+            && !entry.score.is_mate()
         {
-            let s_beta = entry.score() - depth * Params::se_beta() / 64;
+            let s_beta = entry.score - depth * Params::se_beta() / 64;
             let s_depth = Params::lerp(0, depth, Params::se_depth_lerp());
 
             thread.stack[ply].skip_move = Some(mv);
@@ -753,6 +754,7 @@ fn search<Node: NodeType>(
             best_move,
             best_score,
             best_move_depth,
+            ply,
             Bound::Lower,
         );
     }
@@ -763,6 +765,7 @@ fn search<Node: NodeType>(
             best_move,
             best_score,
             best_move_depth,
+            ply,
             bound,
         );
     }
@@ -831,16 +834,16 @@ fn qsearch<Node: NodeType>(
     }
 
     // Transposition Table Cutoffs
-    let tt_entry = shared.tt.probe(pos.board().hash());
+    let tt_entry = shared.tt.probe(pos.board().hash(), ply);
 
     // Only use noisy TT moves
     let tt_move = tt_entry
-        .and_then(|e| e.best_move())
+        .and_then(|e| e.best_move)
         .filter(|mv| mv.flag().is_noisy());
 
     if let Some(entry) = tt_entry {
-        let score = entry.score();
-        if entry.bound().matches(score, alpha, beta) {
+        let score = entry.score;
+        if entry.bound.matches(score, alpha, beta) {
             if tt_move.is_some() {
                 thread.stack[ply].mv = tt_move;
             }
@@ -960,7 +963,7 @@ fn qsearch<Node: NodeType>(
 
     shared
         .tt
-        .insert(pos.board().hash(), best_move, best_score, 0, bound);
+        .insert(pos.board().hash(), best_move, best_score, 0, ply, bound);
 
     best_score
 }

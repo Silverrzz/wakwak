@@ -247,7 +247,7 @@ params! {
     lmr_exact:       i32 => 1024;
     lmr_imp:         i32 => 1024;
     lmr_pv:          i32 => 1024;
-    lmr_in_check:    i32 => 512;
+    lmr_in_check:    i32 => 1024;
     lmr_history:     i32 => 64;
     lmr_corr:        i32 => 3072;
 
