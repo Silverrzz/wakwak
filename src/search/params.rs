@@ -175,14 +175,19 @@ params! {
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
 
-    dcp_threshold_imp_base:  i32 => 2;
-    dcp_threshold_imp_scale: i32 => 1;
-    dcp_threshold_base:      i32 => 4;
-    dcp_threshold_scale:     i32 => 2;
-    dcp_history_offset:      i32 => -4000;
-    dcp_history_div:         i32 => 4000;
-    dcp_history_min:         i32 => -2;
-    dcp_history_max:         i32 => 2;
+    quiet_dcp_threshold_imp_base:  i32 => 2048;
+    quiet_dcp_threshold_imp_scale: i32 => 1024;
+    quiet_dcp_threshold_base:      i32 => 4096;
+    quiet_dcp_threshold_scale:     i32 => 2048;
+    quiet_dcp_hist_offset:      i32 => -4000;
+    quiet_dcp_hist_div:         i32 => 4000;
+    quiet_dcp_hist_min:         i32 => -2048;
+    quiet_dcp_hist_max:         i32 => 2048;
+
+    noisy_dcp_threshold_imp_base:  i32 => 4096;
+    noisy_dcp_threshold_imp_scale: i32 => 4096;
+    noisy_dcp_threshold_base:      i32 => 4096;
+    noisy_dcp_threshold_scale:     i32 => 4096;
 
     udp_threshold_base:  i32 => 10;
     udp_threshold_scale: i32 => 4;
@@ -441,25 +446,38 @@ impl Params {
     }
 
     #[inline]
-    pub fn dcp_threshold(depth: i32, improving: bool, duck_history: i32) -> i32 {
-        let (base, scale) = if improving {
-            (
-                Self::dcp_threshold_imp_base(),
-                Self::dcp_threshold_imp_scale(),
-            )
-        } else {
-            (Self::dcp_threshold_base(), Self::dcp_threshold_scale())
+    pub fn dcp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
+        let (base, scale) = match (is_quiet, improving) {
+            (true, true) => (
+                Self::quiet_dcp_threshold_imp_base(),
+                Self::quiet_dcp_threshold_imp_scale(),
+            ),
+            (true, false) => (
+                Self::quiet_dcp_threshold_base(),
+                Self::quiet_dcp_threshold_scale(),
+            ),
+            (false, true) => (
+                Self::noisy_dcp_threshold_imp_base(),
+                Self::noisy_dcp_threshold_imp_scale(),
+            ),
+            (false, false) => (
+                Self::noisy_dcp_threshold_base(),
+                Self::noisy_dcp_threshold_scale(),
+            ),
         };
 
-        let history_adjustment = Self::history_adjustment(
-            duck_history,
-            Params::dcp_history_offset(),
-            Params::dcp_history_div(),
-            Params::dcp_history_min(),
-            Params::dcp_history_max(),
-        );
+        let mut threshold = base + scale * depth;
+        if is_quiet {
+            threshold += Self::frac_hist_adjustment(
+                duck_history,
+                Params::quiet_dcp_hist_offset(),
+                Params::quiet_dcp_hist_div(),
+                Params::quiet_dcp_hist_min(),
+                Params::quiet_dcp_hist_max(),
+            );
+        }
 
-        base + scale * depth + history_adjustment
+        threshold / 1024
     }
 
     #[inline]
@@ -681,6 +699,11 @@ impl Params {
         let t = t as i64;
 
         ((a * (1024 - t) + b * t) / 1024) as i32
+    }
+
+    #[inline]
+    fn frac_hist_adjustment(history: i32, offset: i32, divisor: i32, min: i32, max: i32) -> i32 {
+        ((history + offset) * 1024 / divisor).clamp(min, max)
     }
 
     #[inline]
