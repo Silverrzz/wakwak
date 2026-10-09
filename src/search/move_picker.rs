@@ -146,6 +146,7 @@ pub struct MovePicker {
     sort_start: usize,
     sorted_end: usize,
     cursor: usize,
+    ply: usize,
 }
 
 impl MovePicker {
@@ -156,10 +157,12 @@ impl MovePicker {
         neutral_ducks: Bitboard,
         prune_quiet_neutrals: bool,
         prune_noisy_neutrals: bool,
+        ply: usize,
     ) -> Self {
         Self {
             stage: Stage::TTMove,
             tt_move,
+            ply,
             see_threshold,
             skip_quiets: false,
             skip_bad_noisies: false,
@@ -356,9 +359,12 @@ impl MovePicker {
                 continue;
             }
             let is_neutral = self.neutral_ducks.has(mv.duck());
+            let is_duckzwang_candidate =
+                Some(mv.duck()) == thread.stack[self.ply + 1].killer_duck();
 
             scored.1 = Params::quiet_mp_history(thread.history.as_ref(), board, indices, mv)
-                - Params::mp_quiet_neutral_malus() * is_neutral as i32;
+                - Params::mp_quiet_neutral_malus() * is_neutral as i32
+                + Params::mp_quiet_duckzwang_candidate() * is_duckzwang_candidate as i32;
         }
     }
 }

@@ -16,6 +16,14 @@ pub struct SearchStack {
     skip_move: Option<Move>,
     reduction: i32,
     mv: Option<Move>,
+    killer_duck: Option<Square>,
+}
+
+impl SearchStack {
+    #[inline]
+    pub fn killer_duck(&self) -> Option<Square> {
+        self.killer_duck
+    }
 }
 
 pub fn iterative_deepening(
@@ -448,6 +456,7 @@ fn search<Node: NodeType>(
         neutral_ducks,
         prune_neutrals,
         prune_neutrals,
+        ply,
     );
     let mut move_counts: [[u8; Square::COUNT]; Square::COUNT] = [[0; Square::COUNT]; Square::COUNT];
     let mut duck_counts: [u8; Square::COUNT] = [0; Square::COUNT];
@@ -709,6 +718,7 @@ fn search<Node: NodeType>(
 
             if score >= beta {
                 bound = Bound::Lower;
+                thread.stack[ply].killer_duck = Some(duck);
                 thread.history.update(
                     pos.board(),
                     cont_indices,
@@ -881,6 +891,7 @@ fn qsearch<Node: NodeType>(
         neutral_ducks,
         false,
         prune_noisy_neutrals,
+        ply,
     );
     move_picker.skip_quiets();
     move_picker.skip_bad_noisies();

@@ -213,6 +213,7 @@ params! {
     mp_see_threshold: i32 => 0;
     mp_qs_see_threshold: i32 => 0;
     mp_quiet_neutral_malus: i32 => 5000;
+    mp_quiet_duckzwang_candidate: i32 => 5000;
 
     qsldp_threshold: i32 => 2;
     qsdcp_threshold: i32 => 2;
