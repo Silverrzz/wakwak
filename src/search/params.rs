@@ -175,14 +175,18 @@ params! {
     noisy_ldp_threshold_base:      i32 => 4;
     noisy_ldp_threshold_scale:     i32 => 4;
 
-    dcp_threshold_imp_base:  i32 => 2;
-    dcp_threshold_imp_scale: i32 => 1;
-    dcp_threshold_base:      i32 => 4;
-    dcp_threshold_scale:     i32 => 2;
-    dcp_history_offset:      i32 => -4000;
-    dcp_history_div:         i32 => 4000;
-    dcp_history_min:         i32 => -2;
-    dcp_history_max:         i32 => 2;
+    dcp_threshold_imp_base:     i32 => 2;
+    dcp_threshold_imp_scale:    i32 => 1;
+    dcp_threshold_base:         i32 => 4;
+    dcp_threshold_scale:        i32 => 2;
+    dcp_duck_hist_offset:       i32 => -4000;
+    dcp_duck_hist_div:          i32 => 4000;
+    dcp_duck_hist_min:          i32 => -2;
+    dcp_duck_hist_max:          i32 => 2;
+    dcp_quiet_duck_hist_offset: i32 => -4000;
+    dcp_quiet_duck_hist_div:    i32 => 4000;
+    dcp_quiet_duck_hist_min:    i32 => -2;
+    dcp_quiet_duck_hist_max:    i32 => 2;
 
     udp_threshold_base:  i32 => 10;
     udp_threshold_scale: i32 => 4;
@@ -441,7 +445,12 @@ impl Params {
     }
 
     #[inline]
-    pub fn dcp_threshold(depth: i32, improving: bool, duck_history: i32) -> i32 {
+    pub fn dcp_threshold(
+        depth: i32,
+        improving: bool,
+        duck_history: i32,
+        quiet_duck_history: i32,
+    ) -> i32 {
         let (base, scale) = if improving {
             (
                 Self::dcp_threshold_imp_base(),
@@ -451,15 +460,23 @@ impl Params {
             (Self::dcp_threshold_base(), Self::dcp_threshold_scale())
         };
 
-        let history_adjustment = Self::history_adjustment(
+        let duck_hist_adjustment = Self::history_adjustment(
             duck_history,
-            Params::dcp_history_offset(),
-            Params::dcp_history_div(),
-            Params::dcp_history_min(),
-            Params::dcp_history_max(),
+            Params::dcp_duck_hist_offset(),
+            Params::dcp_duck_hist_div(),
+            Params::dcp_duck_hist_min(),
+            Params::dcp_duck_hist_max(),
         );
 
-        base + scale * depth + history_adjustment
+        let quiet_duck_hist_adjustment = Self::history_adjustment(
+            quiet_duck_history,
+            Params::dcp_quiet_duck_hist_offset(),
+            Params::dcp_quiet_duck_hist_div(),
+            Params::dcp_quiet_duck_hist_min(),
+            Params::dcp_quiet_duck_hist_max(),
+        );
+
+        base + scale * depth + duck_hist_adjustment + quiet_duck_hist_adjustment
     }
 
     #[inline]

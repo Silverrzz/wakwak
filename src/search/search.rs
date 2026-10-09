@@ -476,6 +476,11 @@ fn search<Node: NodeType>(
         };
 
         let duck_history = thread.history.duck(pos.board(), mv);
+        let quiet_duck_history = if is_quiet {
+            thread.history.quiet_duck(pos.board(), mv)
+        } else {
+            0
+        };
         legal_moves += 1;
 
         let is_nonmated = best_score.is_some_and(|s: Score| !s.is_loss());
@@ -520,7 +525,9 @@ fn search<Node: NodeType>(
             */
             if !Node::PV
                 && is_quiet
-                && duck_counts[duck] >= Params::dcp_threshold(depth, improving, duck_history) as u8
+                && duck_counts[duck]
+                    >= Params::dcp_threshold(depth, improving, duck_history, quiet_duck_history)
+                        as u8
             {
                 continue;
             }
