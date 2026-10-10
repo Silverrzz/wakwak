@@ -161,39 +161,38 @@ params! {
     quiet_hp_base:  i32 => 0;
     quiet_hp_scale: i32 => -2500;
 
-    quiet_ldp_imp_threshold_base:  i32 => 2;
-    quiet_ldp_imp_threshold_scale: i32 => 2;
-    quiet_ldp_threshold_base:      i32 => 1;
-    quiet_ldp_threshold_scale:     i32 => 1;
+    quiet_ldp_imp_threshold_base:  i32 => 2048;
+    quiet_ldp_imp_threshold_scale: i32 => 2048;
+    quiet_ldp_threshold_base:      i32 => 1024;
+    quiet_ldp_threshold_scale:     i32 => 1024;
     quiet_ldp_history_offset:      i32 => -4000;
     quiet_ldp_history_div:         i32 => 4000;
-    quiet_ldp_history_min:         i32 => -2;
-    quiet_ldp_history_max:         i32 => 2;
+    quiet_ldp_history_min:         i32 => -2048;
+    quiet_ldp_history_max:         i32 => 2048;
 
-    noisy_ldp_imp_threshold_base:  i32 => 4;
-    noisy_ldp_imp_threshold_scale: i32 => 4;
-    noisy_ldp_threshold_base:      i32 => 4;
-    noisy_ldp_threshold_scale:     i32 => 4;
+    noisy_ldp_imp_threshold_base:  i32 => 4096;
+    noisy_ldp_imp_threshold_scale: i32 => 4096;
+    noisy_ldp_threshold_base:      i32 => 4096;
+    noisy_ldp_threshold_scale:     i32 => 4096;
 
-    dcp_threshold_imp_base:  i32 => 2;
-    dcp_threshold_imp_scale: i32 => 1;
-    dcp_threshold_base:      i32 => 4;
-    dcp_threshold_scale:     i32 => 2;
+    dcp_threshold_imp_base:  i32 => 2048;
+    dcp_threshold_imp_scale: i32 => 1024;
+    dcp_threshold_base:      i32 => 4096;
+    dcp_threshold_scale:     i32 => 2048;
     dcp_history_offset:      i32 => -4000;
     dcp_history_div:         i32 => 4000;
-    dcp_history_min:         i32 => -2;
-    dcp_history_max:         i32 => 2;
+    dcp_history_min:         i32 => -2048;
+    dcp_history_max:         i32 => 2048;
 
-    udp_threshold_base:  i32 => 10;
-    udp_threshold_scale: i32 => 4;
+    udp_threshold_base:  i32 => 10240;
+    udp_threshold_scale: i32 => 4096;
     udp_history_offset:  i32 => -4000;
     udp_history_div:     i32 => 4000;
-    udp_history_min:     i32 => -2;
-    udp_history_max:     i32 => 2;
+    udp_history_min:     i32 => -2048;
+    udp_history_max:     i32 => 2048;
 
-    ump_threshold_base:         i32 => 4;
-    ump_threshold_numerator:    i32 => 3;
-    ump_threshold_denominator:  i32 => 2;
+    ump_threshold_base:  i32 => 4096;
+    ump_threshold_scale: i32 => 1536;
 
     quiet_see_base:             i32 => 0;
     quiet_see_scale:            i32 => -80;
@@ -213,9 +212,6 @@ params! {
     mp_see_threshold: i32 => 0;
     mp_qs_see_threshold: i32 => 0;
     mp_quiet_neutral_malus: i32 => 5000;
-
-    qsldp_threshold: i32 => 2;
-    qsdcp_threshold: i32 => 2;
 
     asp_delta:       i32 => 20;
     asp_beta_lerp:   i32 => 512;
@@ -429,7 +425,7 @@ impl Params {
 
         let mut threshold = base + scale * depth;
         if is_quiet {
-            threshold += Self::history_adjustment(
+            threshold += Self::frac_hist_adjustment(
                 duck_history,
                 Params::quiet_ldp_history_offset(),
                 Params::quiet_ldp_history_div(),
@@ -437,7 +433,7 @@ impl Params {
                 Params::quiet_ldp_history_max(),
             );
         }
-        threshold
+        threshold / 1024
     }
 
     #[inline]
@@ -451,7 +447,8 @@ impl Params {
             (Self::dcp_threshold_base(), Self::dcp_threshold_scale())
         };
 
-        let history_adjustment = Self::history_adjustment(
+        let mut threshold = base + scale * depth;
+        threshold += Self::frac_hist_adjustment(
             duck_history,
             Params::dcp_history_offset(),
             Params::dcp_history_div(),
@@ -459,26 +456,27 @@ impl Params {
             Params::dcp_history_max(),
         );
 
-        base + scale * depth + history_adjustment
+        threshold / 1024
     }
 
     #[inline]
     pub fn udp_threshold(depth: i32, duck_history: i32) -> i32 {
-        Self::udp_threshold_base()
-            + Self::udp_threshold_scale() * depth
-            + Self::history_adjustment(
-                duck_history,
-                Self::udp_history_offset(),
-                Self::udp_history_div(),
-                Self::udp_history_min(),
-                Self::udp_history_max(),
-            )
+        let mut threshold = Self::udp_threshold_base() + Self::udp_threshold_scale() * depth;
+        threshold += Self::frac_hist_adjustment(
+            duck_history,
+            Self::udp_history_offset(),
+            Self::udp_history_div(),
+            Self::udp_history_min(),
+            Self::udp_history_max(),
+        );
+
+        threshold / 1024
     }
 
     #[inline]
     pub fn ump_threshold(depth: i32) -> i32 {
-        Self::ump_threshold_base()
-            + Self::ump_threshold_numerator() * depth * depth / Self::ump_threshold_denominator()
+        let threshold = Self::ump_threshold_base() + Self::ump_threshold_scale() * depth * depth;
+        threshold / 1024
     }
 
     #[inline]
@@ -681,6 +679,11 @@ impl Params {
         let t = t as i64;
 
         ((a * (1024 - t) + b * t) / 1024) as i32
+    }
+
+    #[inline]
+    fn frac_hist_adjustment(history: i32, offset: i32, divisor: i32, min: i32, max: i32) -> i32 {
+        ((history + offset) * 1024 / divisor).clamp(min, max)
     }
 
     #[inline]
