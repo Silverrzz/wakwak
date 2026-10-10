@@ -146,6 +146,8 @@ params! {
     iid_depth_scale:     i32 => 768;
     iid_depth_reduction: i32 => 1536;
 
+    mini_pc_beta_margin: i32 => 375;
+
     mvv_pawn:   i32 => 100;
     mvv_knight: i32 => 320;
     mvv_bishop: i32 => 330;

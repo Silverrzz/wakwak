@@ -431,6 +431,24 @@ fn search<Node: NodeType>(
         tt_move = entry.and_then(|e| e.best_move);
     }
 
+    /*
+    Mini ProbCut: Skip nodes where the TT score exceeds beta by some
+    large margin, indicating a likely fail-high.
+     */
+    let probcut_beta = beta + Params::mini_pc_beta_margin();
+    if !Node::PV
+        && skip_move.is_none()
+        && !beta.is_mate()
+        && !probcut_beta.is_mate()
+        && let Some(entry) = tt_entry
+        && (entry.bound == Bound::Lower || entry.bound == Bound::Exact)
+        && !entry.score.is_mate()
+        && entry.score >= probcut_beta
+        && entry.depth >= depth - 2
+    {
+        return entry.score;
+    }
+
     thread.move_stack.push_ply();
 
     let mut best_move = None;
