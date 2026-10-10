@@ -243,8 +243,8 @@ params! {
     lmr_history:     i32 => 64;
     lmr_corr:        i32 => 3072;
 
-    fp_base:             i32 => 256;
-    fp_scale:            i32 => 128;
+    fp_base:             i32 => 100;
+    fp_scale:            i32 => 100;
     fp_hist_offset:      i32 => 4000;
     fp_hist_div:         i32 => 64;
     fp_hist_min:         i32 => -384;
