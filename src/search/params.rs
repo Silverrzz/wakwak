@@ -237,6 +237,7 @@ params! {
     quiet_lmr_base:  i32 => 1024;
     quiet_lmr_scale: i32 => 96;
     lmr_exact:       i32 => 1024;
+    lmr_cutnode:     i32 => 1024;
     lmr_imp:         i32 => 1024;
     lmr_pv:          i32 => 1024;
     lmr_in_check:    i32 => 1024;
