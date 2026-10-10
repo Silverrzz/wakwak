@@ -4,6 +4,17 @@ use std::mem::MaybeUninit;
 
 use crate::nnue::{EVAL_SCALE, L1, L2, L3, NET, Q, Q0, simd};
 
+#[cfg(any(feature = "count-nnz", feature = "count-coact"))]
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+#[cfg(feature = "count-coact")]
+pub static COACT_COUNTS: [[AtomicUsize; L1 / 2]; L1 / 2] =
+    [const { [const { AtomicUsize::new(0) }; L1 / 2] }; L1 / 2];
+
+#[cfg(feature = "count-nnz")]
+pub static NNZ_CNT: AtomicUsize = AtomicUsize::new(0);
+#[cfg(feature = "count-nnz")]
+pub static NNZ_DIV: AtomicUsize = AtomicUsize::new(0);
+
 #[inline(always)]
 fn activate_ft(us: &[i16; L1], them: &[i16; L1]) -> [i8; L1] {
     let mut out = [const { MaybeUninit::<i8>::uninit() }; L1];
@@ -78,6 +89,12 @@ fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2 * 2] {
                 nnz_count += cnt as usize;
                 base = simd::i16s::add(base, simd::i16s::splat(simd::i32s::LANES as i16));
             }
+        }
+
+        #[cfg(feature = "count-nnz")]
+        {
+            NNZ_CNT.fetch_add(nnz_count, Relaxed);
+            NNZ_DIV.fetch_add(L1 / 4, Relaxed);
         }
 
         // in [0, Q0^2 * Q1 / 2^9]
@@ -177,6 +194,17 @@ fn propagate_l3(act_l2: &[i32; L3]) -> i32 {
 pub fn feed_forward(us: &[i16; L1], them: &[i16; L1]) -> i32 {
     // in [0, Q1]
     let act_ft = activate_ft(us, them);
+
+    #[cfg(any(feature = "count-coact"))]
+    {
+        let idxs: arrayvec::ArrayVec<usize, L1> = (0..L1).filter(|&i| act_ft[i] != 0).collect();
+        for &i in &idxs {
+            for &j in &idxs {
+                COACT_COUNTS[i % (L1 / 2)][j % (L1 / 2)].fetch_add(1, Relaxed);
+            }
+        }
+    }
+
     // in [0, Q^2]
     let act_l1 = propagate_l1(&act_ft);
     // in [0, Q^3]

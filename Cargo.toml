@@ -4,10 +4,12 @@ version = "0.16.0"
 edition = "2024"
 
 [features]
-default = ["use-bmi2"]
+default = []
 use-bmi2 = []
 tune = []
 stat = ["dep:dashmap"]
+count-nnz = []
+count-coact = []
 
 [dependencies]
 arrayvec = "0.7.8"
