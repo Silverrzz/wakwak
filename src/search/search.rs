@@ -599,6 +599,8 @@ fn search<Node: NodeType>(
                 if !Node::PV && s_score + Params::se_dext() < s_beta {
                     ext = 2;
                 }
+            } else if entry.score >= beta {
+                ext = -1;
             }
         }
 
