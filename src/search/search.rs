@@ -899,12 +899,12 @@ fn qsearch<Node: NodeType>(
         }
 
         // Duck Count Pruning (DCP)
-        if duck_counts[duck] >= 2 {
+        if duck_counts[duck] >= Params::qsdcp_threshold() as u8 {
             continue;
         }
 
         // Late Duck Pruning (LDP)
-        if move_counts[src][dest] >= 2 {
+        if move_counts[src][dest] >= Params::qsldp_threshold() as u8 {
             continue;
         }
 
