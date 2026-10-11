@@ -339,7 +339,7 @@ fn search<Node: NodeType>(
         let prev_stack = &thread.stack[ply - 1];
         if prev_stack.reduction >= Params::hindsight_ext_red()
             && let Some(prev_eval) = prev_stack.static_eval
-            && static_eval + prev_eval < Params::hindsight_ext_eval()
+            && static_eval + prev_eval < 0
         {
             depth = (depth + 1).min(MAX_DEPTH as i32);
         }
@@ -505,7 +505,6 @@ fn search<Node: NodeType>(
             History Pruning (HP): Prune quiet moves with terrible history scores
             */
             if is_quiet
-                && depth <= 5
                 && Params::quiet_hp_history(thread, pos, cont_indices, mv)
                     < Params::quiet_hp_margin(depth)
             {

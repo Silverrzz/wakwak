@@ -40,6 +40,8 @@ pub enum UciCommand {
         name: String,
         value: String,
     },
+    #[cfg(feature = "tune")]
+    Spsa,
     Stop,
     Wait,
     Quit,
@@ -93,6 +95,8 @@ impl UciCommand {
             "stop" => Ok(Stop),
             "quit" | "q" => Ok(Quit),
             "wait" => Ok(Wait),
+            #[cfg(feature = "tune")]
+            "spsa" => Ok(Spsa),
             "go" => parse_search_cmd(reader),
             "position" | "pos" => parse_position_cmd(reader, dumb_interface, frc),
             "setoption" => {
