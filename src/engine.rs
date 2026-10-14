@@ -102,8 +102,6 @@ impl Engine {
             UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),
             UciCommand::Position { board, moves } => self.set_position(board, moves),
             UciCommand::SetOption { name, value } => self.set_option(name, value),
-            #[cfg(feature = "tune")]
-            UciCommand::Spsa => Self::spsa(),
             UciCommand::Stop => self.stop(),
             UciCommand::Wait => self.searcher.wait(),
             UciCommand::Quit => return self.quit(),
@@ -130,15 +128,7 @@ impl Engine {
         println!("option name UseDumbInterface type check default true");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
-        #[cfg(feature = "tune")]
-        Params::print_uci();
         println!("uciok");
-    }
-
-    #[cfg(feature = "tune")]
-    #[inline]
-    fn spsa() {
-        Params::print_spsa()
     }
 
     #[inline]
