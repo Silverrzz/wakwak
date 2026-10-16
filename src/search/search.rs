@@ -382,6 +382,7 @@ fn search<Node: NodeType>(
             && thread.nmr_ply != Some(ply)
             && thread.stack[ply - 1].mv.is_some()
             && estimated_score >= beta + Params::nmr_margin()
+            && tt_entry.is_none_or(|e| e.bound != Bound::Upper)
         {
             let r = Params::nmr_reduction(depth);
             pos.make_null_move();
