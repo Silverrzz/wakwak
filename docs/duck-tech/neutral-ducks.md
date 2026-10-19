@@ -1,4 +1,4 @@
-A lot of duck placements don't actually get in the opponents way. We call these 'neutral' ducks: Duck placements on squares that don't appear to restrict any of the opponents immediate moves. Their placement can still matter on later turns, but for now they are mostly just sitting there.
+A lot of duck placements don't actually get in the opponent's way. We call these 'neutral' ducks: Duck placements on squares that don't appear to restrict any of the opponent's immediate moves. Their placement can still matter on later turns, but for now they are mostly just sitting there.
 
 The following heuristics use this distinction to avoid spending too much time on neutral ducks.
 
