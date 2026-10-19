@@ -2,6 +2,7 @@ pub mod cont;
 pub mod cont_corr;
 pub mod corr;
 pub mod duck;
+pub mod duck_count;
 pub mod noisy;
 pub mod pawn;
 pub mod quiet;
@@ -11,6 +12,7 @@ use crate::board::Board;
 use crate::common::{Bitboard, Move, Square};
 use crate::score::Score;
 use crate::search::Params;
+use crate::search::duck_count::DuckCountHistory;
 pub use cont::*;
 pub use cont_corr::*;
 pub use corr::*;
@@ -33,6 +35,7 @@ pub struct History {
     pawn: PawnHistory<PAWN_HIST_SIZE>,
     quiet_duck: QuietDuckHistory,
     duck: DuckHistory,
+    duck_count: DuckCountHistory,
     cont_odd: ContHistory,
     cont_even: ContHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
@@ -46,12 +49,14 @@ pub struct History {
 
 impl History {
     #[inline]
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         &mut self,
         board: &Board,
         indices: ContIndices,
         depth: i32,
         best_move: Move,
+        duck_counts: &[u8; 64],
         failed_quiets: &[Move],
         failed_noisies: &[Move],
     ) {
@@ -72,6 +77,9 @@ impl History {
                 }
             }
         }
+
+        self.duck_count
+            .update(board, depth, best_move, duck_counts[best_move.duck()]);
 
         // Always give malus to failed noisies
         for &noisy in failed_noisies {
@@ -211,6 +219,11 @@ impl History {
                 .entry(stm, indices.prev_move, indices.cont2)
                 .unwrap_or_default();
         corr / MAX_CORR
+    }
+
+    #[inline]
+    pub fn duck_count(&self, board: &Board, mv: Move) -> i32 {
+        self.duck_count.entry(board, mv) / Params::duck_count_hist_scale()
     }
 }
 
