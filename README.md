@@ -72,7 +72,7 @@ you need to run `make` **at least once** before you can use `cargo` to build and
 
 You can...
 1. Play against WakWak online at https://play.wakwak.live/.
-2. Download a fully fledged out Duck Chess GUI for analysis and engine games at https://github.com/Silverrzz/pond
+2. Download our Duck Chess GUI for analysis and engine games at https://github.com/Silverrzz/pond
 3. See a rating list of a handful Duck Chess engines at https://cope-chess.live/ratings?rating_list_id=68
 4. View all of our released WakWak neural networks at https://github.com/Silverrzz/wakwak-nets/releases
 5. Run your own Duck Chess engine games, and SPRT tests in a familiar CLI using our fork of fastchess at https://github.com/Silverrzz/fastchess
