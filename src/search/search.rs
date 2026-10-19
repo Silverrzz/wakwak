@@ -1,4 +1,4 @@
-use crate::common::{Bitboard, Move, Square, Piece, between};
+use crate::common::{Bitboard, Move, Piece, Square, between};
 use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
@@ -382,7 +382,8 @@ fn search<Node: NodeType>(
             && thread.nmr_ply != Some(ply)
             && thread.stack[ply - 1].mv.is_some()
             && estimated_score >= beta + Params::nmr_margin()
-            && !(pos.board().pieces(Piece::King) | pos.board().pieces(Piece::Pawn) == pos.board().occupied_duckless())
+            && !(pos.board().pieces(Piece::King) | pos.board().pieces(Piece::Pawn)
+                == pos.board().occupied_duckless())
         {
             let r = Params::nmr_reduction(depth);
             pos.make_null_move();
