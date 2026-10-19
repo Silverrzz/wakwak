@@ -79,9 +79,9 @@ You can...
 6. Process your own Duck Chess datasets using our adaptation of viriformat and pawnocchio tools at https://github.com/Silverrzz/wakformat
 7. Train your own Duck Chess NNUE using our fork of bullet at https://github.com/Silverrzz/bullet
 
-## Duck Tech
+## Features
 WakWak has plenty of novel search features that are unique to a Duck Chess engine.
-...
+Read about them in [Duck Tech](docs/README.md#duck-tech), or see the [known techniques](docs/README.md#known-techniques).
 
 ## Contributing
 Code contributions are welcome to WakWak! Go ahead and fork this repository, and make your patch on a decently well named branch. Test the change using a sufficient SPRT setup, and make a PR to this repository.
