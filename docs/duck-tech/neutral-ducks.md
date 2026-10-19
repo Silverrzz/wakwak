@@ -6,7 +6,7 @@ The following heuristics use this distinction to avoid spending too much time on
 https://github.com/Silverrzz/wakwak/pull/94\
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/move_picker.rs#L31-L54
 
-The premise is as such: If a chess move has several neutral duck placements, we can assume that searching all of them is mostly wasted effort.
+If a chess move has several neutral duck placements, we can assume that searching all of them is mostly wasted effort.
 
 For each chess move, we therefore keep the neutral duck with the highest duck history score and prune the rest of the neutral ducks. Duck placements that could restrict the opponent are kept by this heuristic. So if a chess move has 20 neutral duck placements, we only need to search one of them!
 
