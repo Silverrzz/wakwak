@@ -45,9 +45,21 @@
 - Improving detection
 - Lazy SMP
 - Move stability time management
-- Multilayer NNUE
-- Incremental accumulators
-- Horizontal mirroring
-- SIMD inference
 - Magic bitboards
 - Zobrist hashing
+
+# NNUE features
+
+WakWak's NNUE is trained on nearly two billion self-generated Duck Chess positions. Our released networks are available in [wakwak-nets](https://github.com/Silverrzz/wakwak-nets)
+and our self-gen data at [wakwak-data](https://huggingface.co/datasets/EllieSilverrzz/wakwak-data).
+
+- 768 piece-square inputs,
+- 1024 neuron layer 1, followed by a 16 and 32 neuron multilayer setup
+- Pairwise multiplication
+- Dual activation
+- Horizontal mirroring
+- Lazy incremental accumulators
+- SIMD inference supporting avx512, avx2, NEON and web assembly
+
+We have tried on multiple occasions to add an additional 64 input features for the Duck,
+but doing this has always produced a weaker net so far.
