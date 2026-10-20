@@ -24,22 +24,22 @@ and is exclusively trained on self-generated training data.
 <tr><th width="260">Version</th><th width="140"><a href="https://cope-chess.live/ratings?rating_list_id=68">COPE Elo</a></th></tr>
 </thead>
 <tbody>
-<tr><td>0.16.0</td><td>5,577</td></tr>
-<tr><td>0.15.0</td><td>5,369</td></tr>
-<tr><td>0.14.0</td><td>5,275</td></tr>
-<tr><td>0.13.0</td><td>4,869</td></tr>
-<tr><td>0.12.0</td><td>4,532</td></tr>
-<tr><td>0.11.0</td><td>4,222</td></tr>
-<tr><td>0.10.0</td><td>4,042</td></tr>
-<tr><td>0.9.0</td><td>3,875</td></tr>
-<tr><td>0.8.0</td><td>3,768</td></tr>
-<tr><td>0.7.0</td><td>3,425</td></tr>
-<tr><td>0.6.0</td><td>3,258</td></tr>
-<tr><td>0.5.0</td><td>3,101</td></tr>
-<tr><td>0.4.0</td><td>2,785</td></tr>
-<tr><td>0.3.0</td><td>2,424</td></tr>
-<tr><td>0.2.0</td><td>2,125</td></tr>
-<tr><td>0.1.0</td><td>1,613</td></tr>
+<tr><td>0.16.0</td><td>5,081</td></tr>
+<tr><td>0.15.0</td><td>4,860</td></tr>
+<tr><td>0.14.0</td><td>4,711</td></tr>
+<tr><td>0.13.0</td><td>4,361</td></tr>
+<tr><td>0.12.0</td><td>4,027</td></tr>
+<tr><td>0.11.0</td><td>3,794</td></tr>
+<tr><td>0.10.0</td><td>3,675</td></tr>
+<tr><td>0.9.0</td><td>3,494</td></tr>
+<tr><td>0.8.0</td><td>3,377</td></tr>
+<tr><td>0.7.0</td><td>3,071</td></tr>
+<tr><td>0.6.0</td><td>2,904</td></tr>
+<tr><td>0.5.0</td><td>2,748</td></tr>
+<tr><td>0.4.0</td><td>2,448</td></tr>
+<tr><td>0.3.0</td><td>2,158</td></tr>
+<tr><td>0.2.0</td><td>1,904</td></tr>
+<tr><td>0.1.0</td><td>1,526</td></tr>
 <tr><td>0.0.0</td><td>0</td></tr>
 </tbody>
 </table>
@@ -49,17 +49,17 @@ and is exclusively trained on self-generated training data.
 <tr><th width="260">Engine</th><th width="140"><a href="https://cope-chess.live/ratings?rating_list_id=68">COPE Elo</a></th></tr>
 </thead>
 <tbody>
-<tr><td><strong>wakwak 0.16.0</strong></td><td><strong>5,577</strong></td></tr>
-<tr><td>Fairy-Stockfish</td><td>3,740</td></tr>
-<tr><td>Duckfish 1.0-SNAPSHOT</td><td>3,094</td></tr>
-<tr><td>MayhemDuck 2.4</td><td>2,831</td></tr>
-<tr><td>deep-duck 0.2.0</td><td>2,780</td></tr>
-<tr><td>DuckChess.jl</td><td>2,694</td></tr>
-<tr><td>DuckChessZero 0.1.0</td><td>2,222</td></tr>
-<tr><td>Peter Duck 0.1.0</td><td>1,948</td></tr>
-<tr><td>Harel Duck</td><td>1,567</td></tr>
-<tr><td>Duck Chess Agent</td><td>1,192</td></tr>
-<tr><td>Duck Chess RL</td><td>1,010</td></tr>
+<tr><td><strong>wakwak 0.16.0</strong></td><td><strong>5,081</strong></td></tr>
+<tr><td>Fairy-Stockfish</td><td>3,429</td></tr>
+<tr><td>Duckfish 1.0-SNAPSHOT</td><td>2,741</td></tr>
+<tr><td>MayhemDuck 2.4</td><td>2,480</td></tr>
+<tr><td>deep-duck 0.2.0</td><td>2,423</td></tr>
+<tr><td>DuckChess.jl</td><td>2,312</td></tr>
+<tr><td>DuckChessZero 0.1.0</td><td>2,010</td></tr>
+<tr><td>Peter Duck 0.1.0</td><td>1,754</td></tr>
+<tr><td>Harel Duck</td><td>1,492</td></tr>
+<tr><td>Duck Chess Agent</td><td>1,180</td></tr>
+<tr><td>Duck Chess RL</td><td>1,008</td></tr>
 </tbody>
 </table>
 
