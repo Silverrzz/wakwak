@@ -88,7 +88,7 @@ pub fn iterative_deepening(
                 }
 
                 if thread.id == 0 && info == SearchInfo::Full && options.multipv == 1 {
-                    info.depth(thread, shared, options);
+                    info.depth(thread, shared, options, pos.board());
                 }
             }
 
@@ -136,7 +136,7 @@ pub fn iterative_deepening(
                         || (info != SearchInfo::Minimal
                             && (last_pv || shared.time_man.elapsed() >= VERBOSE_MULTIPV_DELAY)))
                 {
-                    info.depth(thread, shared, options);
+                    info.depth(thread, shared, options, pos.board());
                 }
             }
 

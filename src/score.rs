@@ -1,3 +1,5 @@
+use crate::board::Board;
+use crate::common::Piece;
 use crate::search::MAX_PLY;
 use std::cmp::Ordering;
 use std::fmt;
@@ -58,6 +60,42 @@ impl Score {
     #[inline]
     pub fn is_loss(self) -> bool {
         self <= -Self::MAX_MATE
+    }
+
+    fn wdl_parameters(board: &Board) -> (f64, f64) {
+        let material = board.pieces(Piece::Pawn).popcnt()
+            + 3 * board.pieces(Piece::Knight).popcnt()
+            + 3 * board.pieces(Piece::Bishop).popcnt()
+            + 5 * board.pieces(Piece::Rook).popcnt()
+            + 9 * board.pieces(Piece::Queen).popcnt();
+        let m = material.clamp(17, 78) as f64 / 58.0;
+        let polynomial = |[a, b, c, d]: [f64; 4]| ((a * m + b) * m + c) * m + d;
+        let a = polynomial([-344.95906221, 1131.73994122, -1388.84113274, 833.11411963]);
+        let b = polynomial([-85.36570787, 161.47544470, -87.94435630, 192.19641070]);
+        (a, b)
+    }
+
+    pub fn normalized(self, board: &Board) -> Self {
+        if self.is_mate() {
+            return self;
+        }
+        let (a, _) = Self::wdl_parameters(board);
+        Self((100.0 * f64::from(self.0) / a).round() as i32)
+    }
+
+    pub fn wdl(self, board: &Board) -> [i32; 3] {
+        if self.is_mate() {
+            return if self.0 > 0 {
+                [1000, 0, 0]
+            } else {
+                [0, 0, 1000]
+            };
+        }
+        let (a, b) = Self::wdl_parameters(board);
+        let win_rate = |score: f64| (1000.0 / (1.0 + ((a - score) / b).exp())).round() as i32;
+        let wins = win_rate(f64::from(self.0));
+        let losses = win_rate(-f64::from(self.0));
+        [wins, 1000 - wins - losses, losses]
     }
 
     pub const MIN_MATE: Self = Self(i16::MAX as i32 - MAX_PLY as i32); //Mate in 0

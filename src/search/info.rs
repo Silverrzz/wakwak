@@ -1,3 +1,4 @@
+use crate::board::Board;
 use crate::engine::EngineOptions;
 use crate::score::Score;
 use crate::search::{Bound, SharedData, ThreadData};
@@ -11,7 +12,13 @@ pub enum SearchInfo {
 
 impl SearchInfo {
     #[inline]
-    pub fn depth(self, thread: &ThreadData, shared: &SharedData, options: EngineOptions) {
+    pub fn depth(
+        self,
+        thread: &ThreadData,
+        shared: &SharedData,
+        options: EngineOptions,
+        board: &Board,
+    ) {
         let nodes = thread.nodes.global();
         let time = shared.time_man.elapsed();
         let nps = ((nodes as f64) / (time.as_micros().max(1) as f64) * 1e6) as u64;
@@ -42,11 +49,18 @@ impl SearchInfo {
                 _ => "",
             };
 
+            let wdl = if options.show_wdl {
+                let [wins, draws, losses] = score.wdl(board);
+                format!(" wdl {wins} {draws} {losses}")
+            } else {
+                String::new()
+            };
+
             println!(
-                "info{multipv} depth {} seldepth {} score {}{bound} time {} nodes {nodes} nps {nps} hashfull {hashfull} pv {}",
+                "info{multipv} depth {} seldepth {} score {}{bound}{wdl} time {} nodes {nodes} nps {nps} hashfull {hashfull} pv {}",
                 root_move.searched_depth,
                 root_move.sel_depth,
-                score,
+                score.normalized(board),
                 time.as_millis(),
                 root_move.pv.display(options)
             );
