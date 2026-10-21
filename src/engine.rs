@@ -129,6 +129,7 @@ impl Engine {
         println!("option name MultiPV type spin default 1 min 1 max 16384");
         println!("option name Contempt type spin default 0 min 0 max 200");
         println!("option name UCI_Chess960 type check default false");
+        println!("option name UCI_ShowWDL type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
         println!("uciok");
     }
@@ -369,6 +370,17 @@ impl Engine {
                 self.options.frc = value;
                 println!("info string Set UCI_Chess960 to {value}");
             }
+            "uci_showwdl" => {
+                let value = match value.parse::<bool>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidBoolean(e));
+                        return;
+                    }
+                };
+                self.options.show_wdl = value;
+                println!("info string Set UCI_ShowWDL to {value}");
+            }
             "uci_variant" => {
                 let variant = match value.as_str() {
                     "duck" => Variant::Duck,
@@ -419,6 +431,7 @@ pub struct EngineOptions {
     pub dumb_interface: bool,
     pub multipv: usize,
     pub frc: bool,
+    pub show_wdl: bool,
     pub variant: Variant,
 }
 
@@ -438,6 +451,7 @@ impl Default for EngineOptions {
             dumb_interface: true,
             multipv: 1,
             frc: false,
+            show_wdl: false,
             variant: Variant::Duck,
         }
     }
