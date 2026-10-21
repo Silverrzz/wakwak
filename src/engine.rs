@@ -244,8 +244,8 @@ impl Engine {
 
     #[inline]
     fn set_option(&mut self, name: String, value: String) {
-        match name.as_str() {
-            "Threads" => {
+        match name.to_ascii_lowercase().as_str() {
+            "threads" => {
                 if self.searcher.is_searching() {
                     println!("info string Unable to update Hash while searching");
                     return;
@@ -262,7 +262,7 @@ impl Engine {
                 self.searcher.set_threads(value);
                 println!("info string Set Threads to {value}");
             }
-            "Hash" => {
+            "hash" => {
                 if self.searcher.is_searching() {
                     println!("info string Unable to update Hash while searching");
                     return;
@@ -279,7 +279,7 @@ impl Engine {
                 self.searcher.resize_tt(value as usize);
                 println!("info string Set Hash to {value}");
             }
-            "MoveOverhead" => {
+            "moveoverhead" => {
                 let value = match value.parse::<u64>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -291,7 +291,7 @@ impl Engine {
                 self.options.overhead = value;
                 println!("info string Set MoveOverhead to {value}");
             }
-            "Minimal" => {
+            "minimal" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -303,7 +303,7 @@ impl Engine {
                 self.options.minimal = value;
                 println!("info string Set Minimal to {value}");
             }
-            "SoftTarget" => {
+            "softtarget" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -315,7 +315,7 @@ impl Engine {
                 self.options.soft_target = value;
                 println!("info string Set SoftTarget to {value}");
             }
-            "UseDumbInterface" => {
+            "usedumbinterface" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -327,7 +327,7 @@ impl Engine {
                 self.options.dumb_interface = value;
                 println!("info string Set UseDumbInterface to {value}");
             }
-            "MultiPV" => {
+            "multipv" => {
                 let value = match value.parse::<usize>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -339,7 +339,7 @@ impl Engine {
                 self.options.multipv = value;
                 println!("info string Set MultiPV to {value}");
             }
-            "UCI_Chess960" => {
+            "uci_chess960" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -351,7 +351,7 @@ impl Engine {
                 self.options.frc = value;
                 println!("info string Set UCI_Chess960 to {value}");
             }
-            "UCI_Variant" => {
+            "uci_variant" => {
                 let variant = match value.as_str() {
                     "duck" => Variant::Duck,
                     _ => {
