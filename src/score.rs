@@ -73,8 +73,8 @@ impl Score {
             + 9 * board.pieces(Piece::Queen).popcnt();
         let m = material.clamp(17, 78) as f64 / 58.0;
         let polynomial = |[a, b, c, d]: [f64; 4]| ((a * m + b) * m + c) * m + d;
-        let a = polynomial([-218.40325114, 751.60081808, -1025.44651252, 746.54265415]);
-        let b = polynomial([12.06485395, -79.64734824, 131.01688502, 84.63015106]);
+        let a = polynomial([-344.95906221, 1131.73994122, -1388.84113274, 833.11411963]);
+        let b = polynomial([-85.36570787, 161.47544470, -87.94435630, 192.19641070]);
         (a, b)
     }
 
