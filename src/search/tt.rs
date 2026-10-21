@@ -163,6 +163,15 @@ impl TranspositionTable {
         entry.packed.store(new_entry.pack(), Ordering::Relaxed);
     }
 
+    pub fn hashfull(&self) -> usize {
+        self.table[..1000]
+            .iter()
+            .map(|e| TTEntry::unpack(e.packed.load(Ordering::Relaxed)))
+            // FIXME: add age check when age is added.
+            .filter(|e| e.bound != Bound::None)
+            .count()
+    }
+
     #[inline]
     fn partial_key(hash: u64) -> u16 {
         (hash & 0xFFFF) as u16

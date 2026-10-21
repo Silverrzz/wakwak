@@ -33,9 +33,10 @@ impl SearchInfo {
         };
 
         println!(
-            "info depth {depth} seldepth {} score {score}{bound} time {} nodes {nodes} nps {nps} pv {}",
+            "info depth {depth} seldepth {} score {score}{bound} time {} nodes {nodes} nps {nps} hashfull {} pv {}",
             thread.sel_depth,
             time.as_millis(),
+            shared.tt.hashfull(),
             pv.display(options)
         );
     }
