@@ -93,6 +93,8 @@ impl Position {
             .iter()
             .rev()
             .take(self.current.hmc() as usize)
-            .any(|b| b.duckless_hash() == self.current.duckless_hash())
+            .filter(|b| b.hash() == self.current.hash())
+            .count()
+            >= 2
     }
 }
