@@ -13,7 +13,7 @@ colored = "3.1.1"
 dashmap = { version = "6.2.1", optional = true }
 enum-map = "3.1.0"
 thiserror = "2.0.20"
-zerocopy = "0.8.56"
+zerocopy = { version = "0.8.56", features = ["derive"] }
 
 [target.'cfg(not(target_os = "emscripten"))'.dependencies]
 atomic-wait = "1.1.0"

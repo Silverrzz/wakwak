@@ -267,9 +267,19 @@ fn search<Node: NodeType>(
         return Score::draw();
     }
 
-    // Three-fold repetition detection
-    if !Node::ROOT && pos.repetition(ply) {
-        return Score::draw();
+    if !Node::ROOT {
+        // Three-fold repetition detection
+        if pos.repetition(ply) {
+            return Score::draw();
+        }
+
+        // upcoming repetition detection
+        if alpha < Score::ZERO && pos.upcoming_repetition(ply) {
+            alpha = Score::ZERO;
+            if alpha >= beta {
+                return alpha;
+            }
+        }
     }
 
     /*
@@ -886,6 +896,14 @@ fn qsearch<Node: NodeType>(
     // 50-move-rule + threefold repetition detection
     if pos.board().hmc() >= 100 || pos.repetition(ply) {
         return Score::draw();
+    }
+
+    // upcoming repetition detection
+    if alpha < Score::ZERO && pos.upcoming_repetition(ply) {
+        alpha = Score::ZERO;
+        if alpha >= beta {
+            return alpha;
+        }
     }
 
     if ply >= MAX_PLY {

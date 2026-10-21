@@ -6,7 +6,7 @@ use std::ops::Not;
 use std::str::FromStr;
 
 def_enum! {
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Enum)]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Enum, zerocopy::FromZeros)]
     #[rustfmt::skip]
     pub enum Square : u8 {
         A1, B1, C1, D1, E1, F1, G1, H1,

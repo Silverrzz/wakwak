@@ -1,8 +1,9 @@
-use crate::board::Board;
-use crate::common::{Move, Piece};
+use crate::board::{Board, ZOBRIST};
+use crate::common::{Move, Piece, between};
 use crate::nnue::Nnue;
 use crate::score::Score;
-use crate::search::MAX_PLY;
+use crate::search::cuckoo::{Cuckoo, CuckooTag};
+use crate::search::{MAX_PLY, cuckoo};
 
 #[derive(Clone)]
 pub struct Position {
@@ -10,6 +11,8 @@ pub struct Position {
     previous_boards: Vec<Board>,
     previous_moves: Vec<Option<(Piece, Move)>>,
     nnue: Nnue,
+
+    cuckoo_tag: CuckooTag,
 }
 
 impl Position {
@@ -20,6 +23,7 @@ impl Position {
             previous_boards: Vec::with_capacity(MAX_PLY),
             previous_moves: Vec::with_capacity(MAX_PLY),
             nnue: Nnue::new(&board),
+            cuckoo_tag: Cuckoo::init(),
         }
     }
 
@@ -97,5 +101,59 @@ impl Position {
             .enumerate()
             .filter(|(_, board)| board.hash() == self.current.hash());
         matches.next().is_some_and(|(index, _)| index < ply) || matches.next().is_some()
+    }
+
+    #[inline]
+    pub fn upcoming_repetition(&self, ply: usize) -> bool {
+        let end = self.previous_boards.len().min(self.current.hmc() as usize);
+
+        if end < 3 {
+            return false;
+        }
+
+        let old_key =
+            |i: usize| self.previous_boards[self.previous_boards.len() - i].duckless_hash();
+        let old_duck = |i: usize| self.previous_boards[self.previous_boards.len() - i].duck();
+
+        let occ = self.current.occupied();
+        let orig_key = self.current.duckless_hash();
+
+        let mut other = orig_key ^ old_key(1) ^ ZOBRIST.stm;
+
+        for i in (3..=end).step_by(2) {
+            let curr_key = old_key(i);
+
+            other ^= curr_key ^ old_key(i - 1) ^ ZOBRIST.stm;
+            if other != 0 {
+                continue;
+            }
+
+            let diff = orig_key ^ curr_key;
+
+            let cuckoo = Cuckoo::get(self.cuckoo_tag);
+            let mut slot = cuckoo::h1(diff);
+            if diff != cuckoo.keys[slot] {
+                slot = cuckoo::h2(diff);
+            }
+            if diff != cuckoo.keys[slot] {
+                continue;
+            }
+
+            let (src, dst) = cuckoo.moves[slot];
+
+            if !occ.is_disjoint(between(src, dst)) || old_duck(i) == self.current.duck() {
+                continue;
+            }
+
+            if i <= ply {
+                return true;
+            }
+
+            if (i + 2..=end).step_by(2).any(|j| old_key(j) == curr_key) {
+                return true;
+            }
+        }
+
+        false
     }
 }
