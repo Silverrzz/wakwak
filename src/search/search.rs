@@ -248,7 +248,7 @@ fn search<Node: NodeType>(
     }
 
     // Three-fold repetition detection
-    if !Node::ROOT && pos.repetition() {
+    if !Node::ROOT && pos.repetition(ply) {
         return Score::draw();
     }
 
@@ -621,7 +621,7 @@ fn search<Node: NodeType>(
         the king as instant losses, unless it is a repetition.
         */
         let mut move_depth = depth;
-        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition(ply + 1) {
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
             thread.stack[ply + 1].mv = None;
@@ -830,7 +830,7 @@ fn qsearch<Node: NodeType>(
     }
 
     // 50-move-rule + threefold repetition detection
-    if pos.board().hmc() >= 100 || pos.repetition() {
+    if pos.board().hmc() >= 100 || pos.repetition(ply) {
         return Score::draw();
     }
 
@@ -925,7 +925,7 @@ fn qsearch<Node: NodeType>(
         pos.make_move(mv);
 
         // Duck or Die Pruning
-        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition() {
+        let score = if !safe.has(mv.duck()) && pos.board().hmc() < 100 && !pos.repetition(ply + 1) {
             // Clear the previous child's continuation because this move skips recursive search.
             thread.stack[ply + 1].pv.clear();
             thread.stack[ply + 1].mv = None;
