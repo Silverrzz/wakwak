@@ -264,17 +264,17 @@ fn search<Node: NodeType>(
 
     // 50-move-rule detection
     if pos.board().hmc() >= 100 {
-        return Score::draw(thread.contempt, ply);
+        return Score::draw(ply, thread.nodes.local(), thread.contempt);
     }
 
     if !Node::ROOT {
         // Three-fold repetition detection
         if pos.repetition(ply) {
-            return Score::draw(thread.contempt, ply);
+            return Score::draw(ply, thread.nodes.local(), thread.contempt);
         }
 
         // upcoming repetition detection
-        let draw_score = Score::draw(thread.contempt, ply);
+        let draw_score = Score::draw(ply, thread.nodes.local(), thread.contempt);
         if alpha < draw_score && pos.upcoming_repetition(ply) {
             alpha = draw_score;
             if alpha >= beta {
@@ -897,11 +897,11 @@ fn qsearch<Node: NodeType>(
 
     // 50-move-rule + threefold repetition detection
     if pos.board().hmc() >= 100 || pos.repetition(ply) {
-        return Score::draw(thread.contempt, ply);
+        return Score::draw(ply, thread.nodes.local(), thread.contempt);
     }
 
     // upcoming repetition detection
-    let draw_score = Score::draw(thread.contempt, ply);
+    let draw_score = Score::draw(ply, thread.nodes.local(), thread.contempt);
     if alpha < draw_score && pos.upcoming_repetition(ply) {
         alpha = draw_score;
         if alpha >= beta {

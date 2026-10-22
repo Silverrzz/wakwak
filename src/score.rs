@@ -8,12 +8,15 @@ pub struct Score(pub i32);
 
 impl Score {
     #[inline]
-    pub fn draw(contempt: i32, ply: usize) -> Self {
-        /*
-        TODO: Randomised draw scores e.g. Score((nodes % 5) - 2)
-        it's lowkey yoloable imo but idk if we want to test it
-        */
-        Self(if ply & 1 == 0 { -contempt } else { contempt })
+    pub fn draw(ply: usize, nodes: u64, contempt: i32) -> Self {
+        let base = if ply.is_multiple_of(2) {
+            -contempt
+        } else {
+            contempt
+        };
+        let random = ((nodes % 5) - 2) as i32;
+
+        Self(base + random)
     }
 
     #[inline]
