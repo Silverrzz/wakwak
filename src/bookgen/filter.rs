@@ -114,14 +114,26 @@ fn value(board: &Board, analysis: Option<&Analysis>, name: &str) -> Option<f64> 
 }
 
 impl Filter {
-    pub fn matches(&self, board: &Board, analysis: Option<&Analysis>) -> bool {
-        let ranges = self
-            .ranges
+    fn ranges(&self) -> impl Iterator<Item = (&str, &Range<f64>)> {
+        self.ranges
             .iter()
             .map(|(name, range)| (name.as_str(), range))
             .chain(self.cp.as_ref().map(|range| ("cp", range)))
-            .chain(self.abs_cp.as_ref().map(|range| ("abs_cp", range)));
-        ranges.into_iter().all(|(name, range)| {
+            .chain(self.abs_cp.as_ref().map(|range| ("abs_cp", range)))
+    }
+
+    pub fn matches_early(&self, analysis: &Analysis, margin: i32) -> bool {
+        let margin = f64::from(margin.max(0));
+        self.ranges()
+            .filter(|(name, _)| matches!(*name, "cp" | "abs_cp" | "stm_cp"))
+            .all(|(name, range)| {
+                value(&analysis.board, Some(analysis), name)
+                    .is_some_and(|value| range.min - margin <= value && value <= range.max + margin)
+            })
+    }
+
+    pub fn matches(&self, board: &Board, analysis: Option<&Analysis>) -> bool {
+        self.ranges().all(|(name, range)| {
             value(board, analysis, name).map_or(analysis.is_none(), |value| range.contains(value))
         }) && self
             .side_to_move

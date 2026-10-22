@@ -115,6 +115,7 @@ settings! {
         nodes: Vec<u64> = vec![20000, 200000],
         multipv: usize = 1,
         min_depth: usize = 3,
+        early_cp_margin: Option<i32> = None,
         max_cp_shift: Option<i32> = None,
         min_gap_cp: Option<i32> = None,
         allow_mate: bool = false,
