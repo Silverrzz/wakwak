@@ -1,6 +1,6 @@
 use crate::engine::EngineOptions;
 use crate::score::Score;
-use crate::search::{PrincipalVariation, SharedData, ThreadData};
+use crate::search::{Bound, SharedData, ThreadData};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum SearchInfo {
@@ -11,24 +11,45 @@ pub enum SearchInfo {
 
 impl SearchInfo {
     #[inline]
-    pub fn depth(
-        self,
-        thread: &ThreadData,
-        shared: &SharedData,
-        options: EngineOptions,
-        depth: u8,
-        score: Score,
-        pv: &PrincipalVariation,
-    ) {
+    pub fn depth(self, thread: &ThreadData, shared: &SharedData, options: EngineOptions) {
         let nodes = thread.nodes.global();
         let time = shared.time_man.elapsed();
         let nps = ((nodes as f64) / (time.as_micros().max(1) as f64) * 1e6) as u64;
+        let hashfull = shared.tt.hashfull();
 
-        println!(
-            "info depth {depth} seldepth {} score {score} time {} nodes {nodes} nps {nps} pv {}",
-            thread.sel_depth,
-            time.as_millis(),
-            pv.display(options)
-        );
+        for (pv_idx, root_move) in thread.root_moves[..thread.multipv].iter().enumerate() {
+            let mut score = root_move.display_score;
+            let mut bound = root_move.bound;
+
+            if score == -Score::INFINITE {
+                score = root_move.previous_score;
+                bound = Bound::Exact;
+            }
+
+            if score == -Score::INFINITE {
+                break;
+            }
+
+            let multipv = if options.multipv > 1 {
+                format!(" multipv {}", pv_idx + 1)
+            } else {
+                "".into()
+            };
+
+            let bound = match bound {
+                Bound::Lower => " lowerbound",
+                Bound::Upper => " upperbound",
+                _ => "",
+            };
+
+            println!(
+                "info{multipv} depth {} seldepth {} score {}{bound} time {} nodes {nodes} nps {nps} hashfull {hashfull} pv {}",
+                root_move.searched_depth,
+                root_move.sel_depth,
+                score,
+                time.as_millis(),
+                root_move.pv.display(options)
+            );
+        }
     }
 }

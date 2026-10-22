@@ -1,12 +1,13 @@
 use crate::board::Board;
 use crate::common::{Color, Move, Piece, Square};
 use crate::position::Position;
-use crate::search::{MAX_HISTORY, Params, gravity};
+use crate::search::{MAX_HISTORY, Params, gravity_with_decay};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ContIndices {
     pub cont1: Option<(Piece, Move)>,
     pub cont2: Option<(Piece, Move)>,
+    pub cont4: Option<(Piece, Move)>,
 }
 
 impl ContIndices {
@@ -15,6 +16,7 @@ impl ContIndices {
         Self {
             cont1: pos.prev_move(1),
             cont2: pos.prev_move(2),
+            cont4: pos.prev_move(4),
         }
     }
 }
@@ -58,6 +60,7 @@ impl ContHistory {
         depth: i32,
         mv: Move,
         prev_mv: Option<(Piece, Move)>,
+        total_score: i32,
     ) {
         let amount = if BONUS {
             Params::cont_bonus::<PLY>(depth)
@@ -66,7 +69,7 @@ impl ContHistory {
         };
 
         if let Some(entry) = self.entry_mut(board, mv, prev_mv) {
-            gravity::<MAX_HISTORY, MAX_HISTORY>(entry, amount);
+            gravity_with_decay::<MAX_HISTORY, MAX_HISTORY>(entry, total_score, amount);
         }
     }
 }

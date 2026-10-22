@@ -1,20 +1,29 @@
 pub mod cont;
+pub mod cont_corr;
 pub mod corr;
 pub mod duck;
+pub mod duck_count;
 pub mod noisy;
+pub mod pawn;
 pub mod quiet;
+pub mod quiet_duck;
 
 use crate::board::Board;
 use crate::common::{Bitboard, Move, Square};
 use crate::score::Score;
 use crate::search::Params;
+use crate::search::duck_count::DuckCountHistory;
 pub use cont::*;
+pub use cont_corr::*;
 pub use corr::*;
 pub use duck::*;
 pub use noisy::*;
+pub use pawn::*;
 pub use quiet::*;
+pub use quiet_duck::*;
 
 pub const MAX_HISTORY: i32 = 16384;
+pub const PAWN_HIST_SIZE: usize = 4096;
 pub const PAWN_CORR_SIZE: usize = 4096;
 pub const MINOR_CORR_SIZE: usize = 16384;
 pub const MAJOR_CORR_SIZE: usize = 16384;
@@ -23,7 +32,10 @@ pub const NONPAWN_CORR_SIZE: usize = 16384;
 pub struct History {
     quiet: QuietHistory,
     noisy: NoisyHistory,
+    pawn: PawnHistory<PAWN_HIST_SIZE>,
+    quiet_duck: QuietDuckHistory,
     duck: DuckHistory,
+    duck_count: DuckCountHistory,
     cont_odd: ContHistory,
     cont_even: ContHistory,
     pawn_corr: CorrHistory<PAWN_CORR_SIZE>,
@@ -31,6 +43,8 @@ pub struct History {
     major_corr: CorrHistory<MAJOR_CORR_SIZE>,
     white_corr: CorrHistory<NONPAWN_CORR_SIZE>,
     black_corr: CorrHistory<NONPAWN_CORR_SIZE>,
+    cont_corr_odd: ContCorrHistory,
+    cont_corr_even: ContCorrHistory,
 }
 
 type ThreatBucket<T> = [[T; 2]; 2];
@@ -67,6 +81,7 @@ impl History {
         indices: ContIndices,
         depth: i32,
         best_move: Move,
+        duck_counts: &[u8; 64],
         failed_quiets: &[Move],
         failed_noisies: &[Move],
     ) {
@@ -88,6 +103,9 @@ impl History {
             }
         }
 
+        self.duck_count
+            .update(board, depth, best_move, duck_counts[best_move.duck()]);
+
         // Always give malus to failed noisies
         for &noisy in failed_noisies {
             if !noisies[noisy.src()].has(noisy.dest()) {
@@ -108,7 +126,14 @@ impl History {
     }
 
     #[inline]
-    pub fn update_corr(&mut self, board: &Board, depth: i32, score: Score, static_eval: Score) {
+    pub fn update_corr(
+        &mut self,
+        board: &Board,
+        indices: ContCorrIndices,
+        depth: i32,
+        score: Score,
+        static_eval: Score,
+    ) {
         let stm = board.stm();
         let diff = score.0 as i64 - static_eval.0 as i64;
 
@@ -117,6 +142,10 @@ impl History {
         self.major_corr.update(stm, board.major_hash(), depth, diff);
         self.white_corr.update(stm, board.white_hash(), depth, diff);
         self.black_corr.update(stm, board.black_hash(), depth, diff);
+        self.cont_corr_odd
+            .update(stm, indices.prev_move, indices.cont1, depth, diff);
+        self.cont_corr_even
+            .update(stm, indices.prev_move, indices.cont2, depth, diff);
     }
 
     #[inline]
@@ -129,10 +158,18 @@ impl History {
         mv: Move,
     ) {
         self.quiet.update::<BONUS>(board, threats, depth, mv);
+        self.pawn.update::<BONUS>(board, depth, mv);
+        self.quiet_duck.update::<BONUS>(board, depth, mv);
+
+        let total_cont_score = self.cont1(board, indices, mv)
+            + self.cont2(board, indices, mv)
+            + self.cont4(board, indices, mv);
         self.cont_odd
-            .update::<1, BONUS>(board, depth, mv, indices.cont1);
+            .update::<1, BONUS>(board, depth, mv, indices.cont1, total_cont_score);
         self.cont_even
-            .update::<2, BONUS>(board, depth, mv, indices.cont2);
+            .update::<2, BONUS>(board, depth, mv, indices.cont2, total_cont_score);
+        self.cont_even
+            .update::<4, BONUS>(board, depth, mv, indices.cont4, total_cont_score);
     }
 
     #[inline]
@@ -156,25 +193,43 @@ impl History {
     }
 
     #[inline]
+    pub fn pawn(&self, board: &Board, mv: Move) -> i32 {
+        self.pawn.entry(board, mv)
+    }
+
+    #[inline]
     pub fn duck(&self, board: &Board, mv: Move) -> i32 {
         self.duck.entry(board, mv)
     }
 
     #[inline]
-    pub fn cont(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
-        let mut value = self
-            .cont_odd
-            .entry(board, mv, indices.cont1)
-            .unwrap_or_default();
-        value += self
-            .cont_even
-            .entry(board, mv, indices.cont2)
-            .unwrap_or_default();
-        value
+    pub fn quiet_duck(&self, board: &Board, mv: Move) -> i32 {
+        self.quiet_duck.entry(board, mv)
     }
 
     #[inline]
-    pub fn corr(&self, board: &Board) -> i32 {
+    pub fn cont1(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
+        self.cont_odd
+            .entry(board, mv, indices.cont1)
+            .unwrap_or_default()
+    }
+
+    #[inline]
+    pub fn cont2(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
+        self.cont_even
+            .entry(board, mv, indices.cont2)
+            .unwrap_or_default()
+    }
+
+    #[inline]
+    pub fn cont4(&self, board: &Board, indices: ContIndices, mv: Move) -> i32 {
+        self.cont_even
+            .entry(board, mv, indices.cont4)
+            .unwrap_or_default()
+    }
+
+    #[inline]
+    pub fn corr(&self, board: &Board, indices: ContCorrIndices) -> i32 {
         let stm = board.stm();
         let mut corr = 0;
 
@@ -183,7 +238,22 @@ impl History {
         corr += Params::major_corr() * self.major_corr.entry(stm, board.major_hash());
         corr += Params::nonpawn_corr() * self.white_corr.entry(stm, board.white_hash());
         corr += Params::nonpawn_corr() * self.black_corr.entry(stm, board.black_hash());
+        corr += Params::cont1_corr()
+            * self
+                .cont_corr_odd
+                .entry(stm, indices.prev_move, indices.cont1)
+                .unwrap_or_default();
+        corr += Params::cont2_corr()
+            * self
+                .cont_corr_even
+                .entry(stm, indices.prev_move, indices.cont2)
+                .unwrap_or_default();
         corr / MAX_CORR
+    }
+
+    #[inline]
+    pub fn duck_count(&self, board: &Board, mv: Move) -> i32 {
+        self.duck_count.entry(board, mv) / Params::duck_count_hist_scale()
     }
 }
 

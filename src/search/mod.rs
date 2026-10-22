@@ -1,3 +1,4 @@
+pub mod cuckoo;
 pub mod history;
 pub mod info;
 pub mod move_picker;
@@ -17,6 +18,7 @@ pub use pv::*;
 pub use search::*;
 pub use searcher::*;
 pub use time::*;
+pub use tt::*;
 
 pub const MAX_PLY: usize = 256;
 pub const MAX_DEPTH: u8 = 255;

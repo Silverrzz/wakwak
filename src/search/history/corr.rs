@@ -8,6 +8,7 @@ pub struct CorrEntry(i16);
 
 #[derive(Debug, Copy, Clone)]
 pub struct CorrHistory<const SIZE: usize> {
+    // Indexing: [stm][hash % SIZE]
     entries: [[CorrEntry; SIZE]; Color::COUNT],
 }
 

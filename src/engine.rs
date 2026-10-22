@@ -79,6 +79,7 @@ impl Engine {
             UciCommand::NewGame => self.newgame(),
             UciCommand::IsReady => Self::isready(),
             UciCommand::Display => self.display(),
+            UciCommand::Eval => self.eval(),
             UciCommand::Bench { depth } => self.bench(depth),
             UciCommand::GenFens {
                 count,
@@ -102,6 +103,7 @@ impl Engine {
             UciCommand::Position { board, moves } => self.set_position(board, moves),
             UciCommand::SetOption { name, value } => self.set_option(name, value),
             UciCommand::Stop => self.stop(),
+            UciCommand::Wait => self.searcher.wait(),
             UciCommand::Quit => return self.quit(),
         }
 
@@ -112,7 +114,7 @@ impl Engine {
     fn uci() {
         println!("id name wakwak v{ENGINE_VERSION}");
         println!(
-            "id author 87flowers, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph and Tecci"
+            "id author 87flowers, amberg12, Ciekce, ethan-dally, Kelseyde, ptsouchlos, Shawn_Xu, Silverrzz, Sp00ph, Tecci and Yoshie2000"
         );
         println!("option name Threads type spin default 1 min 1 max 1024");
         println!(
@@ -124,6 +126,8 @@ impl Engine {
         println!("option name Minimal type check default false");
         println!("option name SoftTarget type check default false");
         println!("option name UseDumbInterface type check default true");
+        println!("option name MultiPV type spin default 1 min 1 max 16384");
+        println!("option name Contempt type spin default 0 min 0 max 200");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
         println!("uciok");
@@ -142,6 +146,11 @@ impl Engine {
     #[inline]
     fn display(&self) {
         self.position.board().display(self.options.frc);
+    }
+
+    #[inline]
+    fn eval(&mut self) {
+        println!("Raw Eval: {:#}", self.position.eval());
     }
 
     #[inline]
@@ -230,13 +239,31 @@ impl Engine {
         self.position.reset(board);
         for mv in moves {
             self.position.make_move(mv);
+            self.position.reset_nnue();
         }
     }
 
     #[inline]
     fn set_option(&mut self, name: String, value: String) {
-        match name.as_str() {
-            "Threads" => {
+        match name.to_ascii_lowercase().as_str() {
+            "contempt" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Contempt while searching");
+                    return;
+                }
+
+                let value = match value.parse::<i32>() {
+                    Ok(value) => value.clamp(0, 200),
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.options.contempt = value;
+                println!("info string Set Contempt to {value}");
+            }
+            "threads" => {
                 if self.searcher.is_searching() {
                     println!("info string Unable to update Hash while searching");
                     return;
@@ -253,7 +280,7 @@ impl Engine {
                 self.searcher.set_threads(value);
                 println!("info string Set Threads to {value}");
             }
-            "Hash" => {
+            "hash" => {
                 if self.searcher.is_searching() {
                     println!("info string Unable to update Hash while searching");
                     return;
@@ -270,7 +297,7 @@ impl Engine {
                 self.searcher.resize_tt(value as usize);
                 println!("info string Set Hash to {value}");
             }
-            "MoveOverhead" => {
+            "moveoverhead" => {
                 let value = match value.parse::<u64>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -282,7 +309,7 @@ impl Engine {
                 self.options.overhead = value;
                 println!("info string Set MoveOverhead to {value}");
             }
-            "Minimal" => {
+            "minimal" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -294,7 +321,7 @@ impl Engine {
                 self.options.minimal = value;
                 println!("info string Set Minimal to {value}");
             }
-            "SoftTarget" => {
+            "softtarget" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -306,7 +333,7 @@ impl Engine {
                 self.options.soft_target = value;
                 println!("info string Set SoftTarget to {value}");
             }
-            "UseDumbInterface" => {
+            "usedumbinterface" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -318,7 +345,19 @@ impl Engine {
                 self.options.dumb_interface = value;
                 println!("info string Set UseDumbInterface to {value}");
             }
-            "UCI_Chess960" => {
+            "multipv" => {
+                let value = match value.parse::<usize>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.options.multipv = value;
+                println!("info string Set MultiPV to {value}");
+            }
+            "uci_chess960" => {
                 let value = match value.parse::<bool>() {
                     Ok(value) => value,
                     Err(e) => {
@@ -330,7 +369,7 @@ impl Engine {
                 self.options.frc = value;
                 println!("info string Set UCI_Chess960 to {value}");
             }
-            "UCI_Variant" => {
+            "uci_variant" => {
                 let variant = match value.as_str() {
                     "duck" => Variant::Duck,
                     _ => {
@@ -373,10 +412,12 @@ impl Default for Engine {
 
 #[derive(Debug, Copy, Clone)]
 pub struct EngineOptions {
+    pub contempt: i32,
     pub overhead: u64,
     pub minimal: bool,
     pub soft_target: bool,
     pub dumb_interface: bool,
+    pub multipv: usize,
     pub frc: bool,
     pub variant: Variant,
 }
@@ -390,10 +431,12 @@ impl Default for EngineOptions {
     #[inline]
     fn default() -> Self {
         Self {
+            contempt: 0,
             overhead: DEFAULT_OVERHEAD,
             minimal: false,
             soft_target: false,
             dumb_interface: true,
+            multipv: 1,
             frc: false,
             variant: Variant::Duck,
         }

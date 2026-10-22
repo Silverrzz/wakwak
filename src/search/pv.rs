@@ -20,6 +20,12 @@ impl PrincipalVariation {
 
         f
     }
+
+    pub fn update(&mut self, mv: Move, child: &Self) {
+        self.clear();
+        self.push(mv);
+        self.extend(child.iter().copied());
+    }
 }
 
 impl Default for PrincipalVariation {

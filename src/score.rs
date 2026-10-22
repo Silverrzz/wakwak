@@ -8,12 +8,15 @@ pub struct Score(pub i32);
 
 impl Score {
     #[inline]
-    pub fn draw() -> Self {
-        /*
-        TODO: Randomised draw scores e.g. Score((nodes % 5) - 2)
-        it's lowkey yoloable imo but idk if we want to test it
-        */
-        Self(0)
+    pub fn draw(ply: usize, nodes: u64, contempt: i32) -> Self {
+        let base = if ply.is_multiple_of(2) {
+            -contempt
+        } else {
+            contempt
+        };
+        let random = ((nodes % 5) - 2) as i32;
+
+        Self(base + random)
     }
 
     #[inline]
@@ -109,7 +112,7 @@ impl PartialEq<Score> for Option<Score> {
 impl PartialOrd<Score> for Option<Score> {
     #[inline]
     fn partial_cmp(&self, other: &Score) -> Option<Ordering> {
-        other.partial_cmp(&self.unwrap_or(-Score::INFINITE))
+        self.unwrap_or(-Score::INFINITE).partial_cmp(other)
     }
 }
 

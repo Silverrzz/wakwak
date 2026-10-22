@@ -41,6 +41,17 @@ macro_rules! def_enum {
                 None
             }
 
+            #[inline]
+            $vis fn all() -> impl ::core::iter::DoubleEndedIterator<Item = Self>
+                                + ::core::iter::FusedIterator
+                                + ::core::iter::ExactSizeIterator
+                                + ::core::clone::Clone
+            {
+                const { assert!(Self::COUNT < 256, concat!("Too many enum variants in `", stringify!($name), "`!")) };
+
+                (0..Self::COUNT as u8).map(|i| unsafe { Self::index_unchecked(i) })
+            }
+
             $vis const COUNT: usize = <[Self]>::len(&[$(Self::$var),+]);
             $vis const ALL: &[Self; Self::COUNT] = &[$(Self::$var),+];
         }

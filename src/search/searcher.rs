@@ -1,19 +1,23 @@
+use crate::common::Move;
 use crate::engine::EngineOptions;
 use crate::position::Position;
+use crate::score::Score;
 use crate::search::tt::TranspositionTable;
 use crate::search::{
-    History, MAX_PLY, MoveStack, SearchInfo, SearchStack, TimeManager, iterative_deepening,
+    Bound, History, MAX_PLY, MoveStack, PrincipalVariation, SearchInfo, SearchStack, TimeManager,
+    iterative_deepening,
 };
 use crate::uci::SearchLimit;
-use crate::util::{BatchedAtomicCounter, Receiver, Sender, channel};
-use std::sync::Arc;
+use crate::util::{Abort, BatchedAtomicCounter, Receiver, Sender, channel};
 use std::sync::atomic::{AtomicI32, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 
 pub struct Searcher {
     pub shared: Arc<SharedData>,
     threads: Vec<JoinHandle<()>>,
     sender: Sender<ThreadCommand>,
+    contempt: i32,
 }
 
 impl Searcher {
@@ -30,10 +34,14 @@ impl Searcher {
             "Called `Searcher::search()``while searching"
         );
 
+        let contempt = options.contempt * position.board().stm().signum() as i32;
+        if self.contempt != contempt {
+            self.newgame();
+            self.contempt = contempt;
+        }
+
         self.shared.num_searching.store(1, Ordering::Relaxed);
-        self.shared
-            .time_man
-            .init(position.board().stm(), &limits, options);
+        self.shared.init(&position, &limits, options);
         self.sender.send(ThreadCommand::Search {
             position,
             options,
@@ -67,13 +75,7 @@ impl Searcher {
         self.sender.send(ThreadCommand::Quit);
         self.threads.drain(..).for_each(|t| t.join().unwrap());
 
-        self.shared = Arc::new(SharedData {
-            nodes: Arc::new(AtomicU64::new(0)),
-            time_man: TimeManager::default(),
-            tt: TranspositionTable::new(size_mb),
-            num_searching: AtomicU32::new(0),
-            best_score: AtomicI32::new(0),
-        });
+        self.shared = Arc::new(SharedData::new(size_mb));
 
         self.respawn_threads(threads);
     }
@@ -163,6 +165,7 @@ impl Default for Searcher {
             shared,
             threads: vec![thread],
             sender: tx,
+            contempt: 0,
         }
     }
 }
@@ -181,6 +184,18 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
                 shared.num_searching.fetch_add(1, Ordering::Relaxed);
 
                 thread.reset();
+                thread.contempt = options.contempt;
+
+                {
+                    let root_moves = shared.root_moves.read().unwrap();
+
+                    thread.root_moves.clear();
+                    thread.root_moves.reserve(root_moves.len());
+                    thread.root_moves.extend_from_slice(&root_moves);
+
+                    thread.multipv = options.multipv.min(root_moves.len());
+                }
+
                 iterative_deepening(position, &mut thread, &shared, options, info);
             }
             ThreadCommand::NewGame => {
@@ -192,12 +207,68 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct RootMove {
+    pub score: Score,
+    pub window_score: Score,
+    pub display_score: Score,
+    pub previous_score: Score,
+    pub bound: Bound,
+    pub searched_depth: usize,
+    pub sel_depth: usize,
+    pub pv: PrincipalVariation,
+}
+
+impl RootMove {
+    pub fn new(mv: Move) -> Self {
+        let mut result = Self {
+            score: -Score::INFINITE,
+            window_score: -Score::INFINITE,
+            display_score: -Score::INFINITE,
+            previous_score: -Score::INFINITE,
+            bound: Bound::None,
+            searched_depth: 1,
+            sel_depth: 0,
+            pv: Default::default(),
+        };
+        result.pv.push(mv);
+        result
+    }
+}
+
 pub struct SharedData {
     pub nodes: Arc<AtomicU64>,
     pub time_man: TimeManager,
     pub tt: TranspositionTable,
     pub num_searching: AtomicU32,
+    pub root_moves: RwLock<Vec<RootMove>>,
     pub best_score: AtomicI32,
+}
+
+impl SharedData {
+    fn new(tt_size_mb: usize) -> Self {
+        Self {
+            nodes: Arc::new(AtomicU64::new(0)),
+            time_man: TimeManager::default(),
+            tt: TranspositionTable::new(tt_size_mb),
+            num_searching: AtomicU32::new(0),
+            root_moves: RwLock::new(Vec::new()),
+            best_score: AtomicI32::new(0),
+        }
+    }
+
+    fn init(&self, position: &Position, limits: &[SearchLimit], options: EngineOptions) {
+        self.time_man.init(position.board().stm(), limits, options);
+        let mut root_moves = self.root_moves.write().unwrap();
+        root_moves.clear();
+        position.board().gen_all_moves(|moves| {
+            moves
+                .iter()
+                .map(RootMove::new)
+                .for_each(|root_move| root_moves.push(root_move));
+            Abort::No
+        });
+    }
 }
 
 impl Default for SharedData {
@@ -208,19 +279,25 @@ impl Default for SharedData {
             tt: TranspositionTable::default(),
             time_man: TimeManager::default(),
             num_searching: AtomicU32::new(0),
+            root_moves: RwLock::new(Vec::new()),
             best_score: AtomicI32::new(0),
         }
     }
 }
 
 pub struct ThreadData {
+    pub contempt: i32,
+    pub root_moves: Vec<RootMove>,
     pub nodes: BatchedAtomicCounter,
     pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
     pub history: Box<History>,
     pub nmr_ply: Option<usize>,
     pub iid_iteration: usize,
+    pub root_depth: usize,
     pub sel_depth: usize,
+    pub multipv: usize,
+    pub pv_idx: usize,
     pub stop: bool,
     pub id: usize,
 }
@@ -229,16 +306,46 @@ impl ThreadData {
     #[inline]
     pub fn new(nodes: Arc<AtomicU64>, id: usize) -> Self {
         Self {
+            contempt: 0,
+            root_moves: Vec::new(),
             nodes: BatchedAtomicCounter::new(nodes),
             move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
             history: unsafe { Box::new_zeroed().assume_init() },
             nmr_ply: None,
             iid_iteration: 0,
+            root_depth: 0,
             sel_depth: 0,
+            multipv: 1,
+            pv_idx: 0,
             stop: false,
             id,
         }
+    }
+
+    pub fn get_root_move_idx(&self, mv: Move) -> usize {
+        self.root_moves
+            .iter()
+            .position(|root_move| root_move.pv[0] == mv)
+            .unwrap()
+    }
+
+    pub fn is_legal_root_move(&self, mv: Move) -> bool {
+        self.root_moves[..self.pv_idx]
+            .iter()
+            .all(|root_move| root_move.pv[0] != mv)
+    }
+
+    pub fn pv_move(&self) -> &RootMove {
+        &self.root_moves[0]
+    }
+
+    pub fn sort_searched_root_moves(&mut self) {
+        self.root_moves[..=self.pv_idx].sort_by_key(|root_move| std::cmp::Reverse(root_move.score));
+    }
+
+    pub fn sort_remaining_root_moves(&mut self) {
+        self.root_moves[self.pv_idx..].sort_by_key(|root_move| std::cmp::Reverse(root_move.score));
     }
 
     #[inline]

@@ -53,8 +53,8 @@ fn random_opening(rng: &mut SplitMix64, dfrc: bool, plies: u16) -> Option<Positi
     let mut position = Position::new(board);
     let mut moves = Vec::new();
     let plies = usize::from(plies) + (rng.next() % 2) as usize;
-    for _ in 0..plies {
-        if position.board().terminal_state().is_some() || position.repetition() {
+    for ply in 0..plies {
+        if position.board().terminal_state().is_some() || position.repetition(ply) {
             return None;
         }
         moves.clear();
@@ -64,7 +64,7 @@ fn random_opening(rng: &mut SplitMix64, dfrc: bool, plies: u16) -> Option<Positi
         });
         position.make_move(moves[(rng.next() % moves.len() as u64) as usize]);
     }
-    if position.board().terminal_state().is_some() || position.repetition() {
+    if position.board().terminal_state().is_some() || position.repetition(plies) {
         return None;
     }
     Some(position)
