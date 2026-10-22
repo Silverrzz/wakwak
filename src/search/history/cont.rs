@@ -60,6 +60,7 @@ impl ContHistory {
         depth: i32,
         mv: Move,
         prev_mv: Option<(Piece, Move)>,
+        total_score: i32,
     ) {
         let amount = if BONUS {
             Params::cont_bonus::<PLY>(depth)
@@ -68,7 +69,7 @@ impl ContHistory {
         };
 
         if let Some(entry) = self.entry_mut(board, mv, prev_mv) {
-            gravity::<MAX_HISTORY, MAX_HISTORY>(entry, amount);
+            gravity::<MAX_HISTORY, MAX_HISTORY>(entry, total_score, amount);
         }
     }
 }

@@ -37,7 +37,7 @@ impl NoisyHistory {
         } else {
             Params::noisy_malus(depth)
         };
-
-        gravity::<MAX_HISTORY, MAX_HISTORY>(self.entry_mut(board, mv), amount);
+        let entry = self.entry_mut(board, mv);
+        gravity::<MAX_HISTORY, MAX_HISTORY>(entry, *entry as i32, amount);
     }
 }

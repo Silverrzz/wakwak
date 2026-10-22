@@ -134,12 +134,16 @@ impl History {
         self.quiet.update::<BONUS>(board, depth, mv);
         self.pawn.update::<BONUS>(board, depth, mv);
         self.quiet_duck.update::<BONUS>(board, depth, mv);
+
+        let total_cont_score = self.cont1(board, indices, mv)
+            + self.cont2(board, indices, mv)
+            + self.cont4(board, indices, mv);
         self.cont_odd
-            .update::<1, BONUS>(board, depth, mv, indices.cont1);
+            .update::<1, BONUS>(board, depth, mv, indices.cont1, total_cont_score);
         self.cont_even
-            .update::<2, BONUS>(board, depth, mv, indices.cont2);
+            .update::<2, BONUS>(board, depth, mv, indices.cont2, total_cont_score);
         self.cont_even
-            .update::<4, BONUS>(board, depth, mv, indices.cont4);
+            .update::<4, BONUS>(board, depth, mv, indices.cont4, total_cont_score);
     }
 
     #[inline]
@@ -228,7 +232,16 @@ impl History {
 }
 
 #[inline]
-pub fn gravity_with_decay<const MAX_BONUS: i32, const MAX_VALUE: i32>(
+pub fn gravity<const MAX_BONUS: i32, const MAX_VALUE: i32>(
+    entry: &mut i16,
+    base: i32,
+    amount: i32,
+) {
+    gravity_with_decay::<MAX_BONUS, MAX_VALUE>(entry, base, amount);
+}
+
+#[inline]
+fn gravity_with_decay<const MAX_BONUS: i32, const MAX_VALUE: i32>(
     entry: &mut i16,
     decay: i32,
     amount: i32,
@@ -236,9 +249,4 @@ pub fn gravity_with_decay<const MAX_BONUS: i32, const MAX_VALUE: i32>(
     let amount = amount.clamp(-MAX_BONUS, MAX_BONUS);
     let decay = (decay * amount.abs() / MAX_VALUE) as i16;
     *entry += amount as i16 - decay;
-}
-
-#[inline]
-pub fn gravity<const MAX_BONUS: i32, const MAX_VALUE: i32>(entry: &mut i16, amount: i32) {
-    gravity_with_decay::<MAX_BONUS, MAX_VALUE>(entry, *entry as i32, amount);
 }
