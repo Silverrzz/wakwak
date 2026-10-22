@@ -184,6 +184,12 @@ fn verify(
         if best.searched_depth < verify.min_depth || (best.score.is_mate() && !verify.allow_mate) {
             return None;
         }
+        if verify
+            .early_cp_margin
+            .is_some_and(|margin| !config.filter.matches_early(&analysis, margin))
+        {
+            return None;
+        }
         if let (Some(limit), Some(previous)) = (verify.max_cp_shift, &final_stage)
             && !analysis
                 .cp(0)

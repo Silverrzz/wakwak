@@ -27,7 +27,6 @@ impl Searcher {
         options: EngineOptions,
         nodes: u64,
     ) -> Vec<RootMove> {
-        self.newgame();
         self.search(
             position,
             options,

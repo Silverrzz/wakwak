@@ -29,6 +29,7 @@ fn candidate(
         .map(|source| (source, source.config.weight as f64))
         .collect();
     let input = choose(&mut rng, &choices)?;
+    searcher.newgame();
     let candidate = walk(
         &config.walk,
         input.sample(&mut rng),
