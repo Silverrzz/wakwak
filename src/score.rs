@@ -8,12 +8,12 @@ pub struct Score(pub i32);
 
 impl Score {
     #[inline]
-    pub fn draw() -> Self {
+    pub fn draw(contempt: i32, ply: usize) -> Self {
         /*
         TODO: Randomised draw scores e.g. Score((nodes % 5) - 2)
         it's lowkey yoloable imo but idk if we want to test it
         */
-        Self(0)
+        Self(if ply & 1 == 0 { -contempt } else { contempt })
     }
 
     #[inline]

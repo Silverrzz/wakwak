@@ -127,6 +127,7 @@ impl Engine {
         println!("option name SoftTarget type check default false");
         println!("option name UseDumbInterface type check default true");
         println!("option name MultiPV type spin default 1 min 1 max 16384");
+        println!("option name Contempt type spin default 0 min 0 max 200");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_Variant type combo default duck var duck");
         println!("uciok");
@@ -245,6 +246,23 @@ impl Engine {
     #[inline]
     fn set_option(&mut self, name: String, value: String) {
         match name.to_ascii_lowercase().as_str() {
+            "contempt" => {
+                if self.searcher.is_searching() {
+                    println!("info string Unable to update Contempt while searching");
+                    return;
+                }
+
+                let value = match value.parse::<i32>() {
+                    Ok(value) => value.clamp(0, 200),
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
+                        return;
+                    }
+                };
+
+                self.options.contempt = value;
+                println!("info string Set Contempt to {value}");
+            }
             "threads" => {
                 if self.searcher.is_searching() {
                     println!("info string Unable to update Hash while searching");
@@ -394,6 +412,7 @@ impl Default for Engine {
 
 #[derive(Debug, Copy, Clone)]
 pub struct EngineOptions {
+    pub contempt: i32,
     pub overhead: u64,
     pub minimal: bool,
     pub soft_target: bool,
@@ -412,6 +431,7 @@ impl Default for EngineOptions {
     #[inline]
     fn default() -> Self {
         Self {
+            contempt: 0,
             overhead: DEFAULT_OVERHEAD,
             minimal: false,
             soft_target: false,

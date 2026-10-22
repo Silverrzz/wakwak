@@ -17,6 +17,7 @@ pub struct Searcher {
     pub shared: Arc<SharedData>,
     threads: Vec<JoinHandle<()>>,
     sender: Sender<ThreadCommand>,
+    contempt: i32,
 }
 
 impl Searcher {
@@ -32,6 +33,12 @@ impl Searcher {
             !self.is_searching(),
             "Called `Searcher::search()``while searching"
         );
+
+        let contempt = options.contempt * position.board().stm().signum() as i32;
+        if self.contempt != contempt {
+            self.newgame();
+            self.contempt = contempt;
+        }
 
         self.shared.num_searching.store(1, Ordering::Relaxed);
         self.shared.init(&position, &limits, options);
@@ -158,6 +165,7 @@ impl Default for Searcher {
             shared,
             threads: vec![thread],
             sender: tx,
+            contempt: 0,
         }
     }
 }
@@ -176,6 +184,7 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
                 shared.num_searching.fetch_add(1, Ordering::Relaxed);
 
                 thread.reset();
+                thread.contempt = options.contempt;
 
                 {
                     let root_moves = shared.root_moves.read().unwrap();
@@ -277,6 +286,7 @@ impl Default for SharedData {
 }
 
 pub struct ThreadData {
+    pub contempt: i32,
     pub root_moves: Vec<RootMove>,
     pub nodes: BatchedAtomicCounter,
     pub move_stack: MoveStack,
@@ -296,6 +306,7 @@ impl ThreadData {
     #[inline]
     pub fn new(nodes: Arc<AtomicU64>, id: usize) -> Self {
         Self {
+            contempt: 0,
             root_moves: Vec::new(),
             nodes: BatchedAtomicCounter::new(nodes),
             move_stack: MoveStack::default(),
