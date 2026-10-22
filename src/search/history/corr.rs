@@ -27,10 +27,8 @@ impl<const SIZE: usize> CorrHistory<SIZE> {
 
     #[inline]
     pub fn update(&mut self, stm: Color, hash: u64, depth: i32, diff: i64) {
-        let entry = self.entry_mut(stm, hash);
         gravity::<{ MAX_CORR / 4 }, MAX_CORR>(
-            entry,
-            *entry as i32,
+            self.entry_mut(stm, hash),
             Params::corr_bonus(depth, diff),
         );
     }

@@ -67,11 +67,7 @@ impl ContCorrHistory {
         diff: i64,
     ) {
         if let Some(entry) = self.entry_mut(stm, mv, prev_mv) {
-            gravity::<{ MAX_CORR / 4 }, MAX_CORR>(
-                entry,
-                *entry as i32,
-                Params::corr_bonus(depth, diff),
-            );
+            gravity::<{ MAX_CORR / 4 }, MAX_CORR>(entry, Params::corr_bonus(depth, diff));
         }
     }
 }

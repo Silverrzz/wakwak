@@ -232,16 +232,7 @@ impl History {
 }
 
 #[inline]
-pub fn gravity<const MAX_BONUS: i32, const MAX_VALUE: i32>(
-    entry: &mut i16,
-    base: i32,
-    amount: i32,
-) {
-    gravity_with_decay::<MAX_BONUS, MAX_VALUE>(entry, base, amount);
-}
-
-#[inline]
-fn gravity_with_decay<const MAX_BONUS: i32, const MAX_VALUE: i32>(
+pub fn gravity_with_decay<const MAX_BONUS: i32, const MAX_VALUE: i32>(
     entry: &mut i16,
     decay: i32,
     amount: i32,
@@ -249,4 +240,9 @@ fn gravity_with_decay<const MAX_BONUS: i32, const MAX_VALUE: i32>(
     let amount = amount.clamp(-MAX_BONUS, MAX_BONUS);
     let decay = (decay * amount.abs() / MAX_VALUE) as i16;
     *entry += amount as i16 - decay;
+}
+
+#[inline]
+pub fn gravity<const MAX_BONUS: i32, const MAX_VALUE: i32>(entry: &mut i16, amount: i32) {
+    gravity_with_decay::<MAX_BONUS, MAX_VALUE>(entry, *entry as i32, amount);
 }
