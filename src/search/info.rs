@@ -8,6 +8,7 @@ pub enum SearchInfo {
     Full,
     Minimal,
     None,
+    Collect,
 }
 
 impl SearchInfo {
