@@ -1,7 +1,6 @@
 use crate::board::Board;
 use crate::common::Move;
 use crate::score::Score;
-use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
 use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -170,9 +169,25 @@ impl TranspositionTable {
     pub fn prefetch(&self, board: &Board) {
         let (hash, duckless_hash) = (board.hash(), board.duckless_hash());
 
+        #[cfg(target_feature = "sse")]
         unsafe {
+            use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
             _mm_prefetch::<_MM_HINT_T0>(ptr::from_ref(&self.table[self.idx(hash)]).cast());
             _mm_prefetch::<_MM_HINT_T0>(ptr::from_ref(&self.table[self.idx(duckless_hash)]).cast());
+        }
+
+        #[cfg(target_feature = "neon")]
+        unsafe {
+            std::arch::asm!(
+                "prfm pldl1keep, [{}]",
+                in(reg) self.table.as_ptr().add(self.idx(hash)),
+                options(nostack, nomem, preserves_flags),
+            );
+            std::arch::asm!(
+                "prfm pldl1keep, [{}]",
+                in(reg) self.table.as_ptr().add(self.idx(duckless_hash)),
+                options(nostack, nomem, preserves_flags),
+            );
         }
     }
 
