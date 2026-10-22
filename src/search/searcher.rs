@@ -20,6 +20,23 @@ pub struct Searcher {
 }
 
 impl Searcher {
+    pub fn analyze(
+        &mut self,
+        position: Position,
+        options: EngineOptions,
+        nodes: u64,
+    ) -> Vec<RootMove> {
+        self.newgame();
+        self.search(
+            position,
+            options,
+            vec![SearchLimit::Nodes(nodes)],
+            SearchInfo::Collect,
+        );
+        self.wait();
+        self.shared.result.read().unwrap().clone()
+    }
+
     #[inline]
     pub fn search(
         &mut self,
@@ -233,6 +250,7 @@ pub struct SharedData {
     pub tt: TranspositionTable,
     pub num_searching: AtomicU32,
     pub root_moves: RwLock<Vec<RootMove>>,
+    pub result: RwLock<Vec<RootMove>>,
     pub best_score: AtomicI32,
 }
 
@@ -244,11 +262,13 @@ impl SharedData {
             tt: TranspositionTable::new(tt_size_mb),
             num_searching: AtomicU32::new(0),
             root_moves: RwLock::new(Vec::new()),
+            result: RwLock::new(Vec::new()),
             best_score: AtomicI32::new(0),
         }
     }
 
     fn init(&self, position: &Position, limits: &[SearchLimit], options: EngineOptions) {
+        self.result.write().unwrap().clear();
         self.time_man.init(position.board().stm(), limits, options);
         let mut root_moves = self.root_moves.write().unwrap();
         root_moves.clear();
@@ -271,6 +291,7 @@ impl Default for SharedData {
             time_man: TimeManager::default(),
             num_searching: AtomicU32::new(0),
             root_moves: RwLock::new(Vec::new()),
+            result: RwLock::new(Vec::new()),
             best_score: AtomicI32::new(0),
         }
     }
