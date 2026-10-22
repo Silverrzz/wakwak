@@ -411,6 +411,7 @@ fn search<Node: NodeType>(
         {
             let r = Params::nmr_reduction(depth);
             pos.make_null_move();
+            shared.tt.prefetch(pos.board());
             let score = -search::<NonPV>(pos, thread, shared, -beta, -beta + 1, depth - r, ply + 1);
             pos.unmake_null_move();
 
@@ -658,6 +659,7 @@ fn search<Node: NodeType>(
         } else {
             let new_depth = depth + ext - 1;
             move_depth = new_depth + 1;
+            shared.tt.prefetch(pos.board());
 
             let mut score = -Score::INFINITE;
             if !Node::PV || legal_moves > 1 {
@@ -985,6 +987,7 @@ fn qsearch<Node: NodeType>(
             thread.stack[ply + 1].mv = None;
             Score::mated(ply + 2)
         } else {
+            shared.tt.prefetch(pos.board());
             -qsearch::<Node>(pos, thread, shared, -beta, -alpha, ply + 1)
         };
 

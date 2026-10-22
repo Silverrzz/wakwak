@@ -1,5 +1,8 @@
+use crate::board::Board;
 use crate::common::Move;
 use crate::score::Score;
+use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
+use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[inline]
@@ -163,6 +166,17 @@ impl TranspositionTable {
         entry.packed.store(new_entry.pack(), Ordering::Relaxed);
     }
 
+    #[inline]
+    pub fn prefetch(&self, board: &Board) {
+        let (hash, duckless_hash) = (board.hash(), board.duckless_hash());
+
+        unsafe {
+            _mm_prefetch::<_MM_HINT_T0>(ptr::from_ref(&self.table[self.idx(hash)]).cast());
+            _mm_prefetch::<_MM_HINT_T0>(ptr::from_ref(&self.table[self.idx(duckless_hash)]).cast());
+        }
+    }
+
+    #[inline]
     pub fn hashfull(&self) -> usize {
         self.table[..1000]
             .iter()
