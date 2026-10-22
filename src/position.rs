@@ -122,6 +122,7 @@ impl Position {
 
         for i in (3..=end).step_by(2) {
             let curr_key = old_key(i);
+            let curr_duck = old_duck(i);
 
             other ^= curr_key ^ old_key(i - 1) ^ ZOBRIST.stm;
             if other != 0 {
@@ -139,9 +140,15 @@ impl Position {
                 continue;
             }
 
-            let (src, dst) = cuckoo.moves[slot];
+            let (sq1, sq2) = cuckoo.moves[slot];
 
-            if !occ.is_disjoint(between(src, dst)) || old_duck(i) == self.current.duck() {
+            if !occ.is_disjoint(between(sq1, sq2))
+                || self
+                    .current
+                    .duck()
+                    .is_some_and(|duck| duck == sq1 || duck == sq2)
+                || curr_duck == self.current.duck()
+            {
                 continue;
             }
 
@@ -149,7 +156,10 @@ impl Position {
                 return true;
             }
 
-            if (i + 2..=end).step_by(2).any(|j| old_key(j) == curr_key) {
+            if (i + 2..=end)
+                .step_by(2)
+                .any(|j| old_key(j) == curr_key && old_duck(j) == curr_duck)
+            {
                 return true;
             }
         }
