@@ -56,7 +56,7 @@ impl SearchInfo {
                 String::new()
             };
 
-            let output_score = if options.use_normalised_scores {
+            let output_score = if options.normalise_score {
                 score.normalized(board)
             } else {
                 score
