@@ -54,12 +54,28 @@ WakWak's NNUE is trained on nearly two billion self-generated Duck Chess positio
 and our self-gen data at [wakwak-data](https://huggingface.co/datasets/EllieSilverrzz/wakwak-data).
 
 - 768 piece-square inputs,
+- 11 bucketed half-move-clock inputs
+- 64 duck-square inputs,
+- Horizontal mirroring
 - 1024 neuron layer 1, followed by a 16 and 32 neuron multilayer setup
+- L2 skip-connection
 - Pairwise multiplication
 - Dual activation
-- Horizontal mirroring
 - Lazy incremental accumulators
 - SIMD inference supporting avx512, avx2, NEON and web assembly
+- Permuted for sparsity and dpbusd
 
-We have tried on multiple occasions to add an additional 64 input features for the Duck,
-but doing this has always produced a weaker net so far.
+## Duck inputs
+
+Duck inputs add 64 features, one for each possible duck square, with the same perspective
+and horizontal mirroring as the piece-square inputs.
+
+We previously tried duck inputs with hidden layers of 16, 64, 256 and 768 neurons.
+Every attempt lost roughly 30 Elo. Though since [anadama](https://github.com/Silverrzz/wakwak-nets/releases/tag/anadama) our
+net's have included them. With enough high-quality training data and a large enough network,
+we now see results that show the NNUE can finally make useful evaluations of the duck's placement.
+
+Our (somewhat internally debated :p) hypothesis is that the duck has little value as a
+standalone evaluation heuristic. Its placement matters through its interactions with the
+pieces and the moves it allows or prevents. A sufficiently capable NNUE can learn those
+interactions and interpret what effect the duck will have on search.
