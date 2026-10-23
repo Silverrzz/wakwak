@@ -77,6 +77,13 @@ params! {
     quiet_malus_scale: i32 => 130;
     quiet_malus_max:   i32 => 2076;
 
+    quiet_factoriser_bonus_base:  i32 => 128;
+    quiet_factoriser_bonus_scale: i32 => 126;
+    quiet_factoriser_bonus_max:   i32 => 2152;
+    quiet_factoriser_malus_base:  i32 => 132;
+    quiet_factoriser_malus_scale: i32 => 130;
+    quiet_factoriser_malus_max:   i32 => 2076;
+
     noisy_bonus_base:  i32 => 127;
     noisy_bonus_scale: i32 => 131;
     noisy_bonus_max:   i32 => 2136;
@@ -290,6 +297,18 @@ impl Params {
     #[inline]
     pub fn quiet_malus(depth: i32) -> i32 {
         -(Self::quiet_malus_base() + Self::quiet_malus_scale() * depth).min(Self::quiet_malus_max())
+    }
+
+    #[inline]
+    pub fn quiet_factoriser_bonus(depth: i32) -> i32 {
+        (Self::quiet_factoriser_bonus_base() + Self::quiet_factoriser_bonus_scale() * depth)
+            .min(Self::quiet_factoriser_bonus_max())
+    }
+
+    #[inline]
+    pub fn quiet_factoriser_malus(depth: i32) -> i32 {
+        -(Self::quiet_factoriser_malus_base() + Self::quiet_factoriser_malus_scale() * depth)
+            .min(Self::quiet_factoriser_malus_max())
     }
 
     #[inline]
