@@ -56,11 +56,17 @@ impl SearchInfo {
                 String::new()
             };
 
+            let output_score = if options.use_normalised_scores {
+                score.normalized(board)
+            } else {
+                score
+            };
+
             println!(
                 "info{multipv} depth {} seldepth {} score {}{bound}{wdl} time {} nodes {nodes} nps {nps} hashfull {hashfull} pv {}",
                 root_move.searched_depth,
                 root_move.sel_depth,
-                score.normalized(board),
+                output_score,
                 time.as_millis(),
                 root_move.pv.display(options)
             );

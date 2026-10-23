@@ -130,6 +130,7 @@ impl Engine {
         println!("option name Contempt type spin default 0 min 0 max 200");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_ShowWDL type check default false");
+        println!("option name UseNormalisedScores type check default true");
         println!("option name UCI_Variant type combo default duck var duck");
         println!("uciok");
     }
@@ -381,6 +382,17 @@ impl Engine {
                 self.options.show_wdl = value;
                 println!("info string Set UCI_ShowWDL to {value}");
             }
+            "usenormalisedscores" => {
+                let value = match value.parse::<bool>() {
+                    Ok(value) => value,
+                    Err(e) => {
+                        eprintln!("info string {:?}", UciParseError::InvalidBoolean(e));
+                        return;
+                    }
+                };
+                self.options.use_normalised_scores = value;
+                println!("info string Set UseNormalisedScores to {value}");
+            }
             "uci_variant" => {
                 let variant = match value.as_str() {
                     "duck" => Variant::Duck,
@@ -432,6 +444,7 @@ pub struct EngineOptions {
     pub multipv: usize,
     pub frc: bool,
     pub show_wdl: bool,
+    pub use_normalised_scores: bool,
     pub variant: Variant,
 }
 
@@ -452,6 +465,7 @@ impl Default for EngineOptions {
             multipv: 1,
             frc: false,
             show_wdl: false,
+            use_normalised_scores: true,
             variant: Variant::Duck,
         }
     }
