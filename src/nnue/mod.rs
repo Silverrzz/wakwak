@@ -12,7 +12,7 @@ pub use nnue::*;
 use crate::common::{File, Square};
 
 cfg_select! {
-    target_feature = "avx512bw" => {
+    all(target_feature = "avx512bw", target_feature = "avx512vl", target_feature = "avx512vbmi2") => {
         #[path = "simd/avx512.rs"]
         pub mod simd;
     }
@@ -43,7 +43,7 @@ pub const _Q1: i16 = 128;
 pub const Q: i32 = 64;
 pub const EVAL_SCALE: i64 = 400;
 
-pub const INPUT: usize = 768;
+pub const INPUT: usize = 843;
 pub const L1: usize = 1024;
 pub const L2: usize = 16;
 pub const L3: usize = 32;
@@ -60,7 +60,7 @@ pub struct Network {
     pub l0b: [i16; L1],
     pub l1w: [[i8; L2 * 4]; L1 / 4],
     pub l1b: [i32; L2],
-    pub l2w: [[i32; L3]; L2 * 2],
+    pub l2w: [[i32; L3]; (L2 - 1) * 2],
     pub l2b: [i32; L3],
     pub l3w: [i32; L3],
     pub l3b: i32,

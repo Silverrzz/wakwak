@@ -80,7 +80,7 @@ impl Position {
     #[inline]
     pub fn eval(&mut self) -> Score {
         self.nnue.update(&self.current);
-        self.nnue.eval(self.current.stm())
+        self.nnue.eval(&self.current)
     }
 
     #[inline]

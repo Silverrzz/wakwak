@@ -30,7 +30,6 @@ impl PieceFeature {
     }
 }
 
-/*
 #[derive(Debug, Copy, Clone)]
 pub struct DuckFeature(pub Square);
 
@@ -45,7 +44,7 @@ impl DuckFeature {
 
         768 + sq as usize
     }
-}*/
+}
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct FeatureUpdates {

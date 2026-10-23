@@ -58,20 +58,38 @@ fn activate_ft(us: &[i16; L1], them: &[i16; L1]) -> [i8; L1] {
 }
 
 #[inline(always)]
-fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2 * 2] {
+fn propagate_l1(act_ft: &[i8; L1]) -> ([i32; L2 * 2], i32) {
     const UNROLL: usize = 4;
     const { assert!(L2.is_multiple_of(simd::i32s::LANES)) };
     const { assert!((L1 / 4).is_multiple_of(UNROLL)) };
 
     unsafe {
+        let mut nnz_idxs = [const { MaybeUninit::<i16>::uninit() }; L1 / 4 + simd::i16s::LANES];
+        let mut nnz_count = 0;
+        {
+            let mut base = simd::i16s::splat(0);
+            for i in (0..L1).step_by(simd::i8s::LANES) {
+                let chunk = simd::i8s::reinterpret_i32(simd::i8s::load(act_ft.as_ptr().add(i)));
+                let (idxs, cnt) = simd::i32s::nnz_indices(chunk);
+                simd::i16s::store(
+                    nnz_idxs.as_mut_ptr().add(nnz_count).cast(),
+                    simd::i16s::add(base, idxs),
+                );
+                nnz_count += cnt as usize;
+                base = simd::i16s::add(base, simd::i16s::splat(simd::i32s::LANES as i16));
+            }
+        }
+
         // in [0, Q0^2 * Q1 / 2^9]
         let mut intermediate = [[simd::i32s::splat(0); UNROLL]; { L2 / simd::i32s::LANES }];
         let ft_32 = act_ft.as_chunks::<4>().0;
 
-        for i_outer in (0..L1 / 4).step_by(UNROLL) {
+        let mut i_outer = 0;
+
+        while i_outer + UNROLL <= nnz_count {
             for j in 0..(L2 / simd::i32s::LANES) {
                 for i_inner in 0..UNROLL {
-                    let i = i_outer + i_inner;
+                    let i = nnz_idxs[i_outer + i_inner].assume_init() as usize;
                     let ft_vec = simd::i32s::splat(zerocopy::transmute!(ft_32[i]));
                     intermediate[j][i_inner] = simd::i8s::dpbusd(
                         intermediate[j][i_inner],
@@ -80,9 +98,25 @@ fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2 * 2] {
                     );
                 }
             }
+
+            i_outer += UNROLL;
+        }
+
+        while i_outer < nnz_count {
+            let i = nnz_idxs[i_outer].assume_init() as usize;
+            let ft_vec = simd::i32s::splat(zerocopy::transmute!(ft_32[i]));
+            for j in 0..(L2 / simd::i32s::LANES) {
+                intermediate[j][0] = simd::i8s::dpbusd(
+                    intermediate[j][0],
+                    simd::i32s::reinterpret_i8(ft_vec),
+                    simd::i8s::load(NET.l1w[i].as_ptr().add(j * simd::i8s::LANES)),
+                )
+            }
+            i_outer += 1;
         }
 
         let mut out = [0; L2 * 2];
+        let mut skip = 0;
         for i in 0..L2 / simd::i32s::LANES {
             use simd::i32s::*;
 
@@ -93,13 +127,17 @@ fn propagate_l1(act_ft: &[i8; L1]) -> [i32; L2 * 2] {
                 sum = add(sum, partial_sum);
             }
 
-            let shifted = shr_const::<2>(add(bias, sum));
+            let raw = add(bias, sum);
+            if i + 1 == L2 / LANES {
+                skip = extract_last(raw);
+            }
+            let shifted = shr_const::<2>(raw);
             let clipped = min(max(shifted, splat(0)), splat(Q * Q));
             let squared = shr_const::<12>(min(mul(shifted, shifted), splat(Q.pow(4))));
             store(out.as_mut_ptr().add(i * LANES), clipped);
             store(out.as_mut_ptr().add(i * LANES + L2), squared);
         }
-        out
+        (out, skip)
     }
 }
 
@@ -109,8 +147,14 @@ fn propagate_l2(act_l1: &[i32; L2 * 2]) -> [i32; L3] {
         let mut sums: [I32Vec; L3 / LANES] =
             std::array::from_fn(|i| load(NET.l2b.as_ptr().add(i * LANES)));
 
-        for i in 0..(L2 * 2) {
-            let r = splat(act_l1[i]);
+        for (i, &activation) in act_l1
+            .as_chunks::<L2>()
+            .0
+            .iter()
+            .flat_map(|chunk| &chunk[..L2 - 1])
+            .enumerate()
+        {
+            let r = splat(activation);
             for j in 0..L3 / LANES {
                 let l = load(NET.l2w[i].as_ptr().add(j * LANES));
                 sums[j] = add(sums[j], mul(l, r));
@@ -145,11 +189,12 @@ pub fn feed_forward(us: &[i16; L1], them: &[i16; L1]) -> i32 {
     // in [0, Q1]
     let act_ft = activate_ft(us, them);
     // in [0, Q^2]
-    let act_l1 = propagate_l1(&act_ft);
+    let (act_l1, skip) = propagate_l1(&act_ft);
     // in [0, Q^3]
     let act_l2 = propagate_l2(&act_l1);
     // in [0, SCALE * Q^4]
-    let scaled = propagate_l3(&act_l2) as i64 * EVAL_SCALE;
+    let skip = skip as i64 * (Q.pow(3) / 256) as i64;
+    let scaled = (propagate_l3(&act_l2) as i64 + skip) * EVAL_SCALE;
 
     (scaled / (Q.pow(4) as i64)) as i32
 }

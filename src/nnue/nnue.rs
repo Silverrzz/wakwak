@@ -1,6 +1,8 @@
 use crate::board::Board;
 use crate::common::{Color, Move, MoveFlag, Piece, Rank, Square};
-use crate::nnue::{Accumulator, FeatureUpdates, HM, PieceFeature, feed_forward, should_mirror};
+use crate::nnue::{
+    Accumulator, DuckFeature, FeatureUpdates, HM, NET, PieceFeature, feed_forward, should_mirror,
+};
 use crate::score::Score;
 use crate::search::MAX_PLY;
 use enum_map::enum_map;
@@ -36,13 +38,18 @@ impl Nnue {
     }
 
     #[inline]
-    pub fn eval(&self, stm: Color) -> Score {
-        let (stm, ntm) = (
-            &self.stack[self.cursor].values[stm],
-            &self.stack[self.cursor].values[!stm],
-        );
-
-        Score(feed_forward(stm, ntm)).clamp_mate()
+    pub fn eval(&self, board: &Board) -> Score {
+        let hmc = usize::from(board.hmc()).min(100);
+        let bucket = if hmc <= 5 { 0 } else { hmc.div_ceil(10) };
+        let weights = &NET.l0w[832 + bucket];
+        let values = |perspective| {
+            let pieces = &self.stack[self.cursor].values[perspective];
+            let duck = board
+                .duck()
+                .map(|sq| &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)]);
+            std::array::from_fn(|i| pieces[i] + weights[i] + duck.map_or(0, |w| w[i]))
+        };
+        Score(feed_forward(&values(board.stm()), &values(!board.stm()))).clamp_mate()
     }
 
     #[inline]
