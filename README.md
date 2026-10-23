@@ -75,13 +75,16 @@ and is exclusively trained on self-generated training data.
 | Minimal          | Boolean | `false` | `true` or `false` | When enabled, wakwak outputs only the final info line and best move                                |
 | SoftTarget       | Boolean | `false` | `true` or `false` | When enabled, `go nodes <n>` and `go movetime <ms>` can only stop after a completed depth          |
 | UseDumbInterface | Boolean | `true`  | `true` or `false` | When enabled, wakwak outputs moves in the format used by Fairy Stockfish                           |
+| MultiPV          | Integer | 1       | `1..=16384`      | Number of principal variations to search and report                                               |
+| Contempt         | Integer | 0       | `0..=200`        | Bias against draws; higher values make wakwak prefer continuing the game                           |
 | UCI_Chess960     | Boolean | `false` | `true` or `false` | Whether to output moves using standard notation (e1g1/e1c1) or Chess960 notation (e.g. e1h1, e1a1) |
+| UCI_ShowWDL      | Boolean | `false` | `true` or `false` | Include estimated win, draw and loss probabilities in the search output                            |
 
 ## Building
 If your device can't run the latest release of WakWak, you want to use the latest development version,
 or you otherwise want to compile WakWak yourself, you can build it from source.
 
-WakWak requires Make and any version of rustup.
+WakWak requires Make, Python 3 and any version of rustup.
 The required toolchain and version will be automatically installed.
 
 ```bash
@@ -104,6 +107,7 @@ You can...
 5. Run your own Duck Chess engine games, and SPRT tests in a familiar CLI using our fork of fastchess at https://github.com/Silverrzz/fastchess
 6. Process your own Duck Chess datasets using our adaptation of viriformat and pawnocchio tools at https://github.com/Silverrzz/wakformat
 7. Train your own Duck Chess NNUE using our fork of bullet at https://github.com/Silverrzz/bullet
+8. Use our generated Duck Chess opening books at https://github.com/Silverrzz/wakwak-books, or generate your own.
 
 ## Features
 WakWak combines novel Duck Chess search features with a multilayer NNUE.
