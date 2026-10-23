@@ -87,8 +87,17 @@ impl Board {
             _ if flag.is_promotion() => {
                 let src_rank = Rank::Seventh.relative_to(self.stm);
                 let dest_rank = Rank::Eighth.relative_to(self.stm);
+                let legal_dest = if flag.is_capture() {
+                    pawn_attacks(src, self.stm) & self.colors(!self.stm)
+                } else {
+                    Square::new(src.file(), dest_rank).bitboard() & !self.occupied()
+                };
 
-                if src_piece != Piece::Pawn || src.rank() != src_rank || dest.rank() != dest_rank {
+                if src_piece != Piece::Pawn
+                    || src.rank() != src_rank
+                    || dest.rank() != dest_rank
+                    || !legal_dest.has(dest)
+                {
                     return false;
                 }
             }
