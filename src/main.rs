@@ -12,8 +12,8 @@ pub mod board;
 #[cfg(not(target_os = "emscripten"))]
 mod bookgen;
 pub mod common;
+pub mod datagen;
 pub mod engine;
-pub mod genfens;
 pub mod nnue;
 pub mod position;
 pub mod score;
