@@ -5,24 +5,34 @@ use std::mem::MaybeUninit;
 use crate::nnue::{EVAL_SCALE, L1, L2, L3, NET, Q, Q0, simd};
 
 #[inline(always)]
-fn activate_ft(us: &[i16; L1], them: &[i16; L1]) -> [i8; L1] {
+fn activate_ft(
+    us: &[i16; L1],
+    them: &[i16; L1],
+    hmc: &[i16; L1],
+    us_duck: Option<&[i16; L1]>,
+    them_duck: Option<&[i16; L1]>,
+) -> [i8; L1] {
     let mut out = [const { MaybeUninit::<i8>::uninit() }; L1];
 
     const { assert!((L1 / 2).is_multiple_of(2 * simd::i16s::LANES)) };
 
     unsafe {
+        use simd::i16s::{LANES, add, load, max, min, mulhi_shl7, packus, splat};
+
+        let load_values = |values: &[i16; L1], duck: Option<&[i16; L1]>, i| {
+            let values = add(load(values.as_ptr().add(i)), load(hmc.as_ptr().add(i)));
+            duck.map_or(values, |duck| add(values, load(duck.as_ptr().add(i))))
+        };
         for i in (0..L1 / 2).step_by(2 * simd::i16s::LANES) {
-            use simd::i16s::{LANES, load, max, min, mulhi_shl7, packus, splat};
+            let mut us1 = load_values(us, us_duck, i);
+            let mut us2 = load_values(us, us_duck, i + L1 / 2);
+            let mut us3 = load_values(us, us_duck, i + LANES);
+            let mut us4 = load_values(us, us_duck, i + L1 / 2 + LANES);
 
-            let mut us1 = load(us.as_ptr().add(i));
-            let mut us2 = load(us.as_ptr().add(i + L1 / 2));
-            let mut us3 = load(us.as_ptr().add(i + LANES));
-            let mut us4 = load(us.as_ptr().add(i + L1 / 2 + LANES));
-
-            let mut them1 = load(them.as_ptr().add(i));
-            let mut them2 = load(them.as_ptr().add(i + L1 / 2));
-            let mut them3 = load(them.as_ptr().add(i + LANES));
-            let mut them4 = load(them.as_ptr().add(i + L1 / 2 + LANES));
+            let mut them1 = load_values(them, them_duck, i);
+            let mut them2 = load_values(them, them_duck, i + L1 / 2);
+            let mut them3 = load_values(them, them_duck, i + LANES);
+            let mut them4 = load_values(them, them_duck, i + L1 / 2 + LANES);
 
             us2 = max(us2, splat(0));
             us4 = max(us4, splat(0));
@@ -185,9 +195,15 @@ fn propagate_l3(act_l2: &[i32; L3]) -> i32 {
     }
 }
 
-pub fn feed_forward(us: &[i16; L1], them: &[i16; L1]) -> i32 {
+pub fn feed_forward(
+    us: &[i16; L1],
+    them: &[i16; L1],
+    hmc: &[i16; L1],
+    us_duck: Option<&[i16; L1]>,
+    them_duck: Option<&[i16; L1]>,
+) -> i32 {
     // in [0, Q1]
-    let act_ft = activate_ft(us, them);
+    let act_ft = activate_ft(us, them, hmc, us_duck, them_duck);
     // in [0, Q^2]
     let (act_l1, skip) = propagate_l1(&act_ft);
     // in [0, Q^3]

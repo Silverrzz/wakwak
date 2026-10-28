@@ -42,14 +42,20 @@ impl Nnue {
         let hmc = usize::from(board.hmc()).min(100);
         let bucket = if hmc <= 5 { 0 } else { hmc.div_ceil(10) };
         let weights = &NET.l0w[832 + bucket];
-        let values = |perspective| {
-            let pieces = &self.stack[self.cursor].values[perspective];
-            let duck = board
+        let duck = |perspective| {
+            board
                 .duck()
-                .map(|sq| &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)]);
-            std::array::from_fn(|i| pieces[i] + weights[i] + duck.map_or(0, |w| w[i]))
+                .map(|sq| &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)])
         };
-        Score(feed_forward(&values(board.stm()), &values(!board.stm()))).clamp_mate()
+        let values = &self.stack[self.cursor].values;
+        Score(feed_forward(
+            &values[board.stm()],
+            &values[!board.stm()],
+            weights,
+            duck(board.stm()),
+            duck(!board.stm()),
+        ))
+        .clamp_mate()
     }
 
     #[inline]
