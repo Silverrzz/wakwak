@@ -17,15 +17,34 @@ impl Accumulator {
     pub fn update(&mut self, prev: &Accumulator, king: Square, perspective: Color) {
         let values = &mut self.values[perspective];
         let weights = &NET.l0w;
-        let (adds, subs) = prev.updates.to_indices(king, perspective);
+        let previous = &prev.values[perspective];
+        let updates = prev.updates;
+        let index = |feature: PieceFeature| feature.to_index(king, perspective);
 
-        *values = prev.values[perspective];
-        for i in adds {
-            acc_add(values, weights, i);
-        }
-
-        for i in subs {
-            acc_sub(values, weights, i);
+        match (updates.add, updates.add2, updates.sub, updates.sub2) {
+            (Some(add), None, Some(sub), None) => {
+                acc_add_sub(previous, values, weights, index(add), index(sub));
+            }
+            (Some(add), None, Some(sub), Some(sub2)) => {
+                acc_add_sub2(
+                    previous,
+                    values,
+                    weights,
+                    index(add),
+                    index(sub),
+                    index(sub2),
+                );
+            }
+            (Some(add), Some(add2), Some(sub), Some(sub2)) => acc_add2_sub2(
+                previous,
+                values,
+                weights,
+                index(add),
+                index(add2),
+                index(sub),
+                index(sub2),
+            ),
+            _ => unreachable!("Invalid accumulator updates"),
         }
 
         self.dirty[perspective] = false;
@@ -84,11 +103,54 @@ fn acc_add(values: &mut [i16; L1], weights: &[[i16; L1]; INPUT], add: usize) {
     }
 }
 
-#[inline]
-fn acc_sub(values: &mut [i16; L1], weights: &[[i16; L1]; INPUT], sub: usize) {
-    let sub = &weights[sub];
+pub fn acc_add_sub(
+    src: &[i16; L1],
+    dst: &mut [i16; L1],
+    weights: &[[i16; L1]; INPUT],
+    add: usize,
+    sub: usize,
+) {
+    let add: &[i16; L1] = &weights[add];
+    let sub: &[i16; L1] = &weights[sub];
+
     for i in 0..L1 {
-        values[i] -= sub[i];
+        dst[i] = src[i] + add[i] - sub[i];
+    }
+}
+
+pub fn acc_add_sub2(
+    src: &[i16; L1],
+    dst: &mut [i16; L1],
+    weights: &[[i16; L1]; INPUT],
+    add: usize,
+    sub1: usize,
+    sub2: usize,
+) {
+    let add: &[i16; L1] = &weights[add];
+    let sub1: &[i16; L1] = &weights[sub1];
+    let sub2: &[i16; L1] = &weights[sub2];
+
+    for i in 0..L1 {
+        dst[i] = src[i] + add[i] - sub1[i] - sub2[i];
+    }
+}
+
+pub fn acc_add2_sub2(
+    src: &[i16; L1],
+    dst: &mut [i16; L1],
+    weights: &[[i16; L1]; INPUT],
+    add1: usize,
+    add2: usize,
+    sub1: usize,
+    sub2: usize,
+) {
+    let add1: &[i16; L1] = &weights[add1];
+    let add2: &[i16; L1] = &weights[add2];
+    let sub1: &[i16; L1] = &weights[sub1];
+    let sub2: &[i16; L1] = &weights[sub2];
+
+    for i in 0..L1 {
+        dst[i] = src[i] + add1[i] + add2[i] - sub1[i] - sub2[i];
     }
 }
 
