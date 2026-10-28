@@ -55,9 +55,9 @@
 WakWak's NNUE is trained on nearly two billion self-generated Duck Chess positions. Our released networks are available in [wakwak-nets](https://github.com/Silverrzz/wakwak-nets)
 and our self-gen data at [wakwak-data](https://huggingface.co/datasets/EllieSilverrzz/wakwak-data).
 
-- 768 piece-square inputs,
+- 768 piece-square inputs
+- 64 duck-square inputs
 - 11 bucketed half-move-clock inputs
-- 64 duck-square inputs,
 - Horizontal mirroring
 - 1024 neuron layer 1, followed by a 16 and 32 neuron multilayer setup
 - L2 skip-connection
