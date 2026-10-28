@@ -1,7 +1,8 @@
 use crate::board::Board;
 use crate::common::{Color, Move, MoveFlag, Piece, Rank, Square};
 use crate::nnue::{
-    Accumulator, DuckFeature, FeatureUpdates, HM, NET, PieceFeature, feed_forward, should_mirror,
+    Accumulator, DuckFeature, FeatureUpdates, HM, L1, NET, PieceFeature, feed_forward,
+    should_mirror,
 };
 use crate::score::Score;
 use crate::search::MAX_PLY;
@@ -46,6 +47,7 @@ impl Nnue {
             board
                 .duck()
                 .map(|sq| &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)])
+                .unwrap_or(&[0; L1])
         };
         let values = &self.stack[self.cursor].values;
         Score(feed_forward(

@@ -9,8 +9,8 @@ fn activate_ft(
     us: &[i16; L1],
     them: &[i16; L1],
     hmc: &[i16; L1],
-    us_duck: Option<&[i16; L1]>,
-    them_duck: Option<&[i16; L1]>,
+    us_duck: &[i16; L1],
+    them_duck: &[i16; L1],
 ) -> [i8; L1] {
     let mut out = [const { MaybeUninit::<i8>::uninit() }; L1];
 
@@ -19,9 +19,9 @@ fn activate_ft(
     unsafe {
         use simd::i16s::{LANES, add, load, max, min, mulhi_shl7, packus, splat};
 
-        let load_values = |values: &[i16; L1], duck: Option<&[i16; L1]>, i| {
+        let load_values = |values: &[i16; L1], duck: &[i16; L1], i| {
             let values = add(load(values.as_ptr().add(i)), load(hmc.as_ptr().add(i)));
-            duck.map_or(values, |duck| add(values, load(duck.as_ptr().add(i))))
+            add(values, load(duck.as_ptr().add(i)))
         };
         for i in (0..L1 / 2).step_by(2 * simd::i16s::LANES) {
             let mut us1 = load_values(us, us_duck, i);
@@ -199,8 +199,8 @@ pub fn feed_forward(
     us: &[i16; L1],
     them: &[i16; L1],
     hmc: &[i16; L1],
-    us_duck: Option<&[i16; L1]>,
-    them_duck: Option<&[i16; L1]>,
+    us_duck: &[i16; L1],
+    them_duck: &[i16; L1],
 ) -> i32 {
     // in [0, Q1]
     let act_ft = activate_ft(us, them, hmc, us_duck, them_duck);
