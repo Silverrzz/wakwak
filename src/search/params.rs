@@ -573,7 +573,7 @@ impl Params {
     }
 
     #[inline]
-    pub fn quiet_mp_history(
+    pub fn quiet_mp_piece_history(
         history: &History,
         board: &Board,
         threats: Bitboard,
@@ -583,22 +583,10 @@ impl Params {
         let mut history_score = 0;
 
         history_score += history.quiet(board, threats, mv) * Self::quiet_mp_quiet_scale();
-        history_score += history.duck(board, mv) * Self::quiet_mp_duck_scale();
         history_score += history.pawn(board, mv) * Self::quiet_mp_pawn_scale();
-        history_score += history.quiet_duck(board, mv) * Self::quiet_mp_quiet_duck_scale();
         history_score += history.cont1(board, indices, mv) * Self::quiet_mp_cont1_scale();
         history_score += history.cont2(board, indices, mv) * Self::quiet_mp_cont2_scale();
         history_score += history.cont4(board, indices, mv) * Self::quiet_mp_cont4_scale();
-
-        history_score / 1024
-    }
-
-    #[inline]
-    pub fn noisy_mp_history(history: &History, board: &Board, mv: Move) -> i32 {
-        let mut history_score = 0;
-
-        history_score += history.noisy(board, mv) * Self::noisy_mp_noisy_scale() / 1024;
-        history_score += history.duck(board, mv) * Self::noisy_mp_duck_scale() / 1024;
 
         history_score
     }

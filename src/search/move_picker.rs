@@ -330,7 +330,10 @@ impl MovePicker {
 
     #[inline]
     fn score_noisies(&self, board: &Board, thread: &mut ThreadData, start: usize) {
+        let history = thread.history.as_ref();
         let moves = thread.move_stack.get_mut();
+        let mut piece_move = None;
+        let mut piece_score = 0;
 
         for scored in moves[start..].iter_mut() {
             let mv = scored.0;
@@ -338,8 +341,13 @@ impl MovePicker {
                 continue;
             }
 
-            scored.1 =
-                mvv(board, mv) * 8 + Params::noisy_mp_history(thread.history.as_ref(), board, mv);
+            let key = (mv.src(), mv.dest(), mv.flag());
+            if piece_move != Some(key) {
+                piece_move = Some(key);
+                piece_score = mvv(board, mv) * 8
+                    + history.noisy(board, mv) * Params::noisy_mp_noisy_scale() / 1024;
+            }
+            scored.1 = piece_score + history.duck(board, mv) * Params::noisy_mp_duck_scale() / 1024;
         }
     }
 
@@ -351,18 +359,29 @@ impl MovePicker {
         indices: ContIndices,
         start: usize,
     ) {
+        let history = thread.history.as_ref();
         let moves = thread.move_stack.get_mut();
+        let mut piece_move = None;
+        let mut piece_score = 0;
 
         for scored in moves[start..].iter_mut() {
             let mv = scored.0;
             if self.tt_move == Some(mv) {
                 continue;
             }
+            let key = (mv.src(), mv.dest(), mv.flag());
+            if piece_move != Some(key) {
+                piece_move = Some(key);
+                piece_score =
+                    Params::quiet_mp_piece_history(history, board, self.threats, indices, mv);
+            }
             let is_neutral = self.neutral_ducks.has(mv.duck());
 
-            scored.1 =
-                Params::quiet_mp_history(thread.history.as_ref(), board, self.threats, indices, mv)
-                    - Params::mp_quiet_neutral_malus() * is_neutral as i32;
+            scored.1 = (piece_score
+                + history.duck(board, mv) * Params::quiet_mp_duck_scale()
+                + history.quiet_duck(board, mv) * Params::quiet_mp_quiet_duck_scale())
+                / 1024
+                - Params::mp_quiet_neutral_malus() * is_neutral as i32;
         }
     }
 }
