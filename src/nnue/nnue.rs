@@ -44,10 +44,9 @@ impl Nnue {
         let bucket = if hmc <= 5 { 0 } else { hmc.div_ceil(10) };
         let weights = &NET.l0w[832 + bucket];
         let duck = |perspective| {
-            board
-                .duck()
-                .map(|sq| &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)])
-                .unwrap_or(&[0; L1])
+            board.duck().map_or(&[0; L1], |sq| {
+                &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)]
+            })
         };
         let values = &self.stack[self.cursor].values;
         Score(feed_forward(
