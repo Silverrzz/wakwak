@@ -24,6 +24,7 @@
 - Incremental move sorting
 - MVV capture ordering
 - Quiet history
+- Threat history
 - Capture history
 - Pawn history
 - 1, 2 and 4-ply continuation history
@@ -47,6 +48,7 @@
 - Move stability time management
 - Magic bitboards
 - Zobrist hashing
+- Cuckoo-based upcoming repetition detection
 
 # NNUE features
 
