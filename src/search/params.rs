@@ -129,9 +129,11 @@ params! {
     hindsight_ext_red:  i32 => 3066;
 
     rfp_base:       i32 => -5;
-    rfp_scale:      i32 => 47;
+    rfp_scale:      i32 => 35;
+    rfp_quad:       i32 => 6;
     rfp_imp_base:   i32 => -42;
-    rfp_imp_scale:  i32 => 50;
+    rfp_imp_scale:  i32 => 35;
+    rfp_imp_quad:   i32 => 6;
     rfp_corr_scale: i32 => 243;
     rfp_lerp:       i32 => 500;
 
@@ -384,13 +386,17 @@ impl Params {
 
     #[inline]
     pub const fn rfp_margin(depth: i32, corr: i32, improving: bool) -> i32 {
-        let (base, scale) = if improving {
-            (Self::rfp_imp_base(), Self::rfp_imp_scale())
+        let (base, scale, quad) = if improving {
+            (
+                Self::rfp_imp_base(),
+                Self::rfp_imp_scale(),
+                Self::rfp_imp_quad(),
+            )
         } else {
-            (Self::rfp_base(), Self::rfp_scale())
+            (Self::rfp_base(), Self::rfp_scale(), Self::rfp_quad())
         };
 
-        base + scale * depth + Self::rfp_corr_scale() * corr / 1024
+        base + depth * (scale + depth * quad) + Self::rfp_corr_scale() * corr / 1024
     }
 
     #[inline]
