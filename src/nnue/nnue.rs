@@ -1,7 +1,8 @@
 use crate::board::Board;
 use crate::common::{Color, Move, MoveFlag, Piece, Rank, Square};
 use crate::nnue::{
-    Accumulator, DuckFeature, FeatureUpdates, HM, NET, PieceFeature, feed_forward, should_mirror,
+    Accumulator, DuckFeature, FeatureUpdates, HM, L1, NET, PieceFeature, feed_forward,
+    should_mirror,
 };
 use crate::score::Score;
 use crate::search::MAX_PLY;
@@ -42,14 +43,20 @@ impl Nnue {
         let hmc = usize::from(board.hmc()).min(100);
         let bucket = if hmc <= 5 { 0 } else { hmc.div_ceil(10) };
         let weights = &NET.l0w[832 + bucket];
-        let values = |perspective| {
-            let pieces = &self.stack[self.cursor].values[perspective];
-            let duck = board
-                .duck()
-                .map(|sq| &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)]);
-            std::array::from_fn(|i| pieces[i] + weights[i] + duck.map_or(0, |w| w[i]))
+        let duck = |perspective| {
+            board.duck().map_or(&[0; L1], |sq| {
+                &NET.l0w[DuckFeature(sq).to_index(board.king(perspective), perspective)]
+            })
         };
-        Score(feed_forward(&values(board.stm()), &values(!board.stm()))).clamp_mate()
+        let values = &self.stack[self.cursor].values;
+        Score(feed_forward(
+            &values[board.stm()],
+            &values[!board.stm()],
+            weights,
+            duck(board.stm()),
+            duck(!board.stm()),
+        ))
+        .clamp_mate()
     }
 
     #[inline]
