@@ -27,6 +27,12 @@ impl Strength {
 
     pub fn update(&mut self, root_moves: &[RootMove], searched: usize, pos: &mut Position) {
         self.candidates.clear();
+        // Secret WorstWak Setting, introduced so Dan has a chance of winning
+        if self.level == -21 {
+            self.candidates
+                .extend(root_moves.last().map(|root| (root.pv[0], 1.0)));
+            return;
+        }
         for (index, root) in root_moves.iter().enumerate() {
             let mv = root.pv[0];
             let score = if index < searched {
@@ -72,7 +78,11 @@ impl Strength {
     }
 
     pub fn multipv(&self, requested: usize, available: usize) -> usize {
-        self.multipv.max(requested.max(2)).min(available)
+        if self.level == -21 {
+            available
+        } else {
+            self.multipv.max(requested.max(2)).min(available)
+        }
     }
 
     pub fn pick(&self) -> Option<Move> {

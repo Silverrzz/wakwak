@@ -369,6 +369,7 @@ impl Engine {
             }
             "strength" => {
                 let value = match value.parse::<i32>() {
+                    Ok(-21) => -21,
                     Ok(value) => value.clamp(-20, 20) as i8,
                     Err(e) => {
                         eprintln!("info string {:?}", UciParseError::InvalidInteger(e));

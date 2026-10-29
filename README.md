@@ -76,6 +76,7 @@ and is exclusively trained on self-generated training data.
 | SoftTarget       | Boolean | `false` | `true` or `false` | When enabled, `go nodes <n>` and `go movetime <ms>` can only stop after a completed depth          |
 | UseDumbInterface | Boolean | `true`  | `true` or `false` | When enabled, WakWak outputs moves in the format used by Fairy Stockfish                           |
 | MultiPV          | Integer | 1       | `1..=16384`      | Number of principal variations to search and report                                               |
+| Strength         | Integer | 20      | `-20..=20`      | Playing strength                       |
 | Contempt         | Integer | 0       | `0..=200`        | Bias against draws; higher values make WakWak prefer continuing the game                           |
 | UCI_Chess960     | Boolean | `false` | `true` or `false` | Whether to output moves using standard notation (e1g1/e1c1) or Chess960 notation (e.g. e1h1, e1a1) |
 | UCI_ShowWDL      | Boolean | `false` | `true` or `false` | Include estimated win, draw and loss probabilities in the search output                            |
