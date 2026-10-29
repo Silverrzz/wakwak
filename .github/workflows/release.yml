@@ -1,0 +1,110 @@
+name: WakWak Releases
+
+on: [workflow_dispatch]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build for ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: wakwak-linux-avx2
+            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
+
+          - os: ubuntu-latest
+            name: wakwak-linux-avx512
+            rustflags: "-C target-cpu=x86-64-v4 -C target-feature=+avx512vbmi2 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
+
+          - os: windows-latest
+            name: wakwak-windows-avx2
+            rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
+
+          - os: windows-latest
+            name: wakwak-windows-avx512
+            rustflags: "-C target-cpu=x86-64-v4 -C target-feature=+avx512vbmi2 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
+
+          - os: macos-latest
+            name: wakwak-macos
+            rustflags: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Rust toolchain
+        shell: bash
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Download network (Unix)
+        if: runner.os != 'Windows'
+        run: python3 download_net.py
+
+      - name: Download network (Windows)
+        if: runner.os == 'Windows'
+        run: py -3 download_net.py
+
+      - name: Build
+        shell: bash
+        run: cargo build --release
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+
+      - name: Run bench
+        shell: bash
+        run: ./target/release/wakwak bench
+
+      - name: Rename binary with platform suffix (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cp target/release/wakwak ${{ matrix.name }}
+
+      - name: Rename binary with platform suffix (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp target/release/wakwak.exe ${{ matrix.name }}.exe
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            ${{ matrix.name }}
+            ${{ matrix.name }}.exe
+          retention-days: 1
+
+  release:
+    name: Development release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Get short SHA hash
+        id: hash
+        run: echo "COMMIT_SHA=$(git rev-parse HEAD | cut -c 1-8)" >> $GITHUB_ENV
+
+      - name: Get version
+        run: echo "VERSION=$(grep -m1 '^version' Cargo.toml | cut -d '"' -f2)" >> $GITHUB_ENV
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6.0.0
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.4.1
+        with:
+          name: WakWak ${{ env.VERSION }}-dev-${{ env.COMMIT_SHA }}
+          draft: true
+          prerelease: true
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
