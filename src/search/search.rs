@@ -575,12 +575,12 @@ fn search<Node: NodeType>(
             }
 
             /*
-            Late Duck Pruning (LDP): After a certain number of duck moves for
-            a certain move, we can be reasonably confident they're not gonna get
-            much better, so we can skip the rest of them.
+            Move Count Pruning (MCP): After a certain number of moves containing
+            a given chess move, we can be reasonably confident they're not gonna
+            get much better, so we can skip the rest of them.
             */
             if move_counts[src][dest]
-                >= Params::ldp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
+                >= Params::mcp_threshold(lmr_depth, is_quiet, improving, duck_history) as u8
             {
                 continue;
             }
