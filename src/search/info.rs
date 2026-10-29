@@ -25,7 +25,8 @@ impl SearchInfo {
         let nps = ((nodes as f64) / (time.as_micros().max(1) as f64) * 1e6) as u64;
         let hashfull = shared.tt.hashfull();
 
-        for (pv_idx, root_move) in thread.root_moves[..thread.multipv].iter().enumerate() {
+        let multipv = options.multipv.min(thread.multipv);
+        for (pv_idx, root_move) in thread.root_moves[..multipv].iter().enumerate() {
             let mut score = root_move.display_score;
             let mut bound = root_move.bound;
 
