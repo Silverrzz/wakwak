@@ -1,5 +1,5 @@
 **Duckless hashing** by Silverrzz\
-https://github.com/Silverrzz/wakwak/pull/66\
+https://github.com/Silverrzz/wakwak/pull/66
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/search.rs#L277-L299
 
 Duckless hashing allows us to store a chess position in the Transposition Table without including the duck's square in the hash. If we have already found a good move in a position, and we reach the same position with the duck somewhere else, that move may still be just as good.

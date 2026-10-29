@@ -3,7 +3,7 @@ A lot of duck placements don't actually get in the opponent's way. We call these
 The following heuristics use this distinction to avoid spending too much time on neutral ducks.
 
 **Neutral duck pruning** by Silverrzz\
-https://github.com/Silverrzz/wakwak/pull/94\
+https://github.com/Silverrzz/wakwak/pull/94
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/move_picker.rs#L31-L54
 
 If a chess move has several neutral duck placements, we can assume that searching all of them is mostly wasted effort.
@@ -16,5 +16,5 @@ In the main search, we only apply this pruning at non-PV nodes with a depth of 8
 
 Give a move ordering penalty to 'neutral' ducks, prioritising duck placements that restrict the opponent's possible moves.
 
-https://github.com/Silverrzz/wakwak/pull/100\
+https://github.com/Silverrzz/wakwak/pull/100
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/move_picker.rs#L353-L362

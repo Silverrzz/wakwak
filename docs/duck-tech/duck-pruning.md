@@ -3,7 +3,7 @@ The following heuristics overlap in concept to 'Late Move Pruning', a pruning he
 In Duck Chess, each possible chess move comes with a set of possible duck placements. This introduces additional dimensions in which we can employ LMP-like pruning, as the heuristics below demonstrate.
 
 **Duck Count Pruning (DCP)** by Dan\
-https://github.com/Silverrzz/wakwak/pull/73\
+https://github.com/Silverrzz/wakwak/pull/73
 
 _"Only search X moves per duck"_.
 
@@ -12,7 +12,7 @@ We assume that after a certain number of moves containing a given duck placement
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/search.rs#L518-L528
 
 **Late Duck Pruning (LDP)** by Dan\
-https://github.com/Silverrzz/wakwak/pull/45\
+https://github.com/Silverrzz/wakwak/pull/45
 
 _"Only search X ducks per move"_.
 
@@ -21,7 +21,7 @@ We assume that our ordering of the possible duck placements for a given move is 
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/search.rs#L530-L539
 
 **Unique Duck Pruning (UDP)** by Dan\
-https://github.com/Silverrzz/wakwak/pull/147\
+https://github.com/Silverrzz/wakwak/pull/147
 
 _"Only search X unique ducks per node"_.
 
