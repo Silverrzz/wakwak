@@ -114,7 +114,7 @@ pub fn iterative_deepening(
 
             if last_pv && !thread.stop {
                 if let Some(strength) = &mut strength {
-                    strength.update(&thread.root_moves[..thread.multipv], pos.board());
+                    strength.update(&thread.root_moves, thread.multipv, &mut pos);
                 }
                 let pv_move = thread.pv_move();
 

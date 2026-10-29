@@ -146,7 +146,7 @@ impl Engine {
         println!("option name SoftTarget type check default false");
         println!("option name UseDumbInterface type check default true");
         println!("option name MultiPV type spin default 1 min 1 max 16384");
-        println!("option name Strength type spin default 20 min 0 max 20");
+        println!("option name Strength type spin default 20 min -20 max 20");
         println!("option name Contempt type spin default 0 min 0 max 200");
         println!("option name UCI_Chess960 type check default false");
         println!("option name UCI_ShowWDL type check default false");
@@ -369,7 +369,7 @@ impl Engine {
             }
             "strength" => {
                 let value = match value.parse::<i32>() {
-                    Ok(value) => value.clamp(0, 20) as u8,
+                    Ok(value) => value.clamp(-20, 20) as i8,
                     Err(e) => {
                         eprintln!("info string {:?}", UciParseError::InvalidInteger(e));
                         return;
@@ -474,7 +474,7 @@ pub struct EngineOptions {
     pub soft_target: bool,
     pub dumb_interface: bool,
     pub multipv: usize,
-    pub strength: u8,
+    pub strength: i8,
     pub frc: bool,
     pub show_wdl: bool,
     pub normalise_score: bool,

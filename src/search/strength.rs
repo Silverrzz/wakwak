@@ -1,98 +1,115 @@
-use crate::board::{Board, SplitMix64};
+use crate::board::SplitMix64;
 use crate::common::Move;
+use crate::position::Position;
 use crate::score::Score;
 use crate::search::RootMove;
+use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const BASE_TEMPERATURE: f64 = 100.0;
 const TAIL_MASS: f64 = 0.01;
 
 pub struct Strength {
-    level: u8,
-    candidates: Vec<(Move, Score)>,
+    level: i8,
+    candidates: Vec<(Move, f64)>,
+    multipv: usize,
+    estimates: HashMap<u32, Score>,
 }
 
 impl Strength {
-    pub fn new(level: u8) -> Self {
+    pub fn new(level: i8) -> Self {
         Self {
             level,
             candidates: Vec::new(),
+            multipv: 0,
+            estimates: HashMap::new(),
         }
     }
 
-    pub fn update(&mut self, root_moves: &[RootMove], board: &Board) {
+    pub fn update(&mut self, root_moves: &[RootMove], searched: usize, pos: &mut Position) {
         self.candidates.clear();
-        self.candidates.extend(
-            root_moves
-                .iter()
-                .map(|root| (root.pv[0], root.score.normalized(board))),
-        );
+        for (index, root) in root_moves.iter().enumerate() {
+            let mv = root.pv[0];
+            let score = if index < searched {
+                root.score
+            } else {
+                *self.estimates.entry(mv.raw().get()).or_insert_with(|| {
+                    pos.make_move(mv);
+                    let score = if pos.board().try_king(pos.board().stm()).is_none() {
+                        Score::mate(1)
+                    } else {
+                        -pos.eval()
+                    };
+                    pos.unmake_move();
+                    score
+                })
+            };
+            self.candidates
+                .push((mv, f64::from(score.normalized(pos.board()).0)));
+        }
+        let boundary = self.candidates[searched - 1].1;
+        let remaining = &mut self.candidates[searched..];
+        remaining.sort_unstable_by(|a, b| b.1.total_cmp(&a.1));
+        if let Some(&(_, best)) = remaining.first() {
+            for (_, score) in remaining {
+                *score += boundary - best;
+            }
+        }
+        let temperature = self.temperature();
+        let top = self.candidates[0].1;
+        let mut total = 0.0;
+        for (_, score) in &mut self.candidates {
+            total += ((*score - top) / temperature).exp();
+            *score = total;
+        }
+        for (_, cumulative) in &mut self.candidates {
+            *cumulative /= total;
+        }
+        self.multipv = (self
+            .candidates
+            .partition_point(|&(_, p)| p < 1.0 - TAIL_MASS)
+            + 1)
+        .min(searched + 1);
     }
 
     pub fn multipv(&self, requested: usize, available: usize) -> usize {
-        let mut count = self.candidates.len();
-        if count > 0 {
-            let mut weights = self.weights();
-            let total = weights.clone().sum::<f64>();
-            let tail = weights.clone().next_back().unwrap_or(0.0) * (available - count) as f64;
-            let mut cumulative = 0.0;
-            count = if tail > total * TAIL_MASS {
-                count + 1
-            } else {
-                weights
-                    .position(|weight| {
-                        cumulative += weight;
-                        cumulative >= total * (1.0 - TAIL_MASS)
-                    })
-                    .map_or(count, |index| index + 1)
-            };
-        }
-        count.max(requested.max(2)).min(available)
+        self.multipv.max(requested.max(2)).min(available)
     }
 
     pub fn pick(&self) -> Option<Move> {
-        let &(best_move, _) = self.candidates.first()?;
         let mut rng = SplitMix64::new(
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_nanos() as u64,
         );
-        let weights = self.weights();
-        let mut target =
-            (rng.next() >> 11) as f64 / (1u64 << 53) as f64 * weights.clone().sum::<f64>();
-        for (weight, &(mv, _)) in weights.zip(&self.candidates) {
-            target -= weight;
-            if target < 0.0 {
-                return Some(mv);
-            }
-        }
-        Some(best_move)
+        let target = (rng.next() >> 11) as f64 / (1u64 << 53) as f64;
+        let index = self.candidates.partition_point(|&(_, p)| p <= target);
+        self.candidates.get(index).map(|&(mv, _)| mv)
     }
 
-    fn weights(&self) -> impl DoubleEndedIterator<Item = f64> + Clone + '_ {
+    fn temperature(&self) -> f64 {
+        if self.level == -20 {
+            return f64::INFINITY;
+        }
+        let target = (20.0 - f64::from(self.level)) / 40.0 * (self.candidates.len() as f64).ln();
         let top = self.candidates[0].1;
-        let lowest = self
-            .candidates
-            .iter()
-            .filter_map(|(_, score)| (!score.is_mate()).then_some(score.0))
-            .min()
-            .unwrap_or(top.0);
-        let spread = f64::from(top.0 - lowest);
-        let temperature = BASE_TEMPERATURE
-            * ((20.0 - f64::from(self.level)) / 20.0).powi(2)
-            * (1.0 + spread / (BASE_TEMPERATURE + spread));
-        self.candidates
-            .iter()
-            .enumerate()
-            .map(move |(index, &(_, score))| {
-                if top.is_mate() {
-                    f64::from(index == 0)
-                } else if score.is_mate() {
-                    0.0
-                } else {
-                    (f64::from(score.0 - top.0) / temperature).exp()
-                }
-            })
+        let lowest = self.candidates.last().unwrap().1;
+        let (mut low, mut high) = (0.0, (top - lowest).max(1.0) * 40.0);
+        for _ in 0..32 {
+            let temperature = (low + high) / 2.0;
+            let (mut total, mut loss) = (0.0, 0.0);
+            for &(_, score) in &self.candidates {
+                let gap = (top - score) / temperature;
+                let weight = (-gap).exp();
+                total += weight;
+                loss += weight * gap;
+            }
+            if total.ln() + loss / total < target {
+                low = temperature;
+            } else {
+                high = temperature;
+            }
+        }
+        (low + high) / 2.0
     }
 }
