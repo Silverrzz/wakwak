@@ -2,6 +2,7 @@ use crate::common::{Bitboard, Move, Piece, Square, between};
 use crate::engine::EngineOptions;
 use crate::position::Position;
 use crate::score::Score;
+use crate::search::strength::Strength;
 use crate::search::{
     Bound, ContCorrIndices, ContIndices, MAX_DEPTH, MAX_PLY, MovePicker, Params,
     PrincipalVariation, SearchInfo, SharedData, Stage, ThreadData,
@@ -29,6 +30,8 @@ pub fn iterative_deepening(
     let collect = info == SearchInfo::Collect;
     let info = if collect { SearchInfo::None } else { info };
     let mut depth = 1;
+    let mut strength =
+        (options.strength < 20 && thread.id == 0).then(|| Strength::new(options.strength));
 
     // Time management stuff
     let mut duck_stability = 0;
@@ -37,6 +40,9 @@ pub fn iterative_deepening(
     let mut prev_move = None;
 
     'id: loop {
+        if let Some(strength) = &strength {
+            thread.multipv = strength.multipv(options.multipv, thread.root_moves.len());
+        }
         for root_move in thread.root_moves.iter_mut() {
             root_move.previous_score = root_move.score;
         }
@@ -107,6 +113,9 @@ pub fn iterative_deepening(
             }
 
             if last_pv && !thread.stop {
+                if let Some(strength) = &mut strength {
+                    strength.update(&thread.root_moves[..thread.multipv], pos.board());
+                }
                 let pv_move = thread.pv_move();
 
                 prev_move = best_move;
@@ -186,9 +195,13 @@ pub fn iterative_deepening(
     }
 
     if thread.id == 0 && info != SearchInfo::None {
+        let mv = strength
+            .as_ref()
+            .and_then(Strength::pick)
+            .unwrap_or(thread.pv_move().pv[0]);
         println!(
             "bestmove {}",
-            thread.pv_move().pv[0].display(options.dumb_interface, options.frc)
+            mv.display(options.dumb_interface, options.frc)
         );
     }
 

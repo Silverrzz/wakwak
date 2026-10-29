@@ -41,7 +41,7 @@ impl Searcher {
     pub fn search(
         &mut self,
         position: Position,
-        options: EngineOptions,
+        mut options: EngineOptions,
         limits: Vec<SearchLimit>,
         info: SearchInfo,
     ) {
@@ -49,6 +49,10 @@ impl Searcher {
             !self.is_searching(),
             "Called `Searcher::search()``while searching"
         );
+
+        if matches!(info, SearchInfo::None | SearchInfo::Collect) {
+            options.strength = 20;
+        }
 
         let contempt = options.contempt * position.board().stm().signum() as i32;
         if self.contempt != contempt {
