@@ -32,6 +32,7 @@ impl Searcher {
             options,
             vec![SearchLimit::Nodes(nodes)],
             SearchInfo::Collect,
+            None,
         );
         self.wait();
         self.shared.result.read().unwrap().clone()
@@ -44,6 +45,7 @@ impl Searcher {
         mut options: EngineOptions,
         limits: Vec<SearchLimit>,
         info: SearchInfo,
+        root_moves: Option<Vec<Move>>,
     ) {
         assert!(
             !self.is_searching(),
@@ -60,8 +62,17 @@ impl Searcher {
             self.contempt = contempt;
         }
 
+        self.shared
+            .init(&position, &limits, options, root_moves.as_deref());
+        if self.shared.root_moves.read().unwrap().is_empty() {
+            self.shared.nodes.store(0, Ordering::Relaxed);
+            self.shared.best_score.store(0, Ordering::Relaxed);
+            if matches!(info, SearchInfo::Full | SearchInfo::Minimal) {
+                println!("bestmove 0000");
+            }
+            return;
+        }
         self.shared.num_searching.store(1, Ordering::Relaxed);
-        self.shared.init(&position, &limits, options);
         self.sender.send(ThreadCommand::Search {
             position,
             options,
@@ -279,11 +290,21 @@ impl SharedData {
         }
     }
 
-    fn init(&self, position: &Position, limits: &[SearchLimit], options: EngineOptions) {
+    fn init(
+        &self,
+        position: &Position,
+        limits: &[SearchLimit],
+        options: EngineOptions,
+        moves: Option<&[Move]>,
+    ) {
         self.result.write().unwrap().clear();
         self.time_man.init(position.board().stm(), limits, options);
         let mut root_moves = self.root_moves.write().unwrap();
         root_moves.clear();
+        if let Some(moves) = moves {
+            root_moves.extend(moves.iter().copied().map(RootMove::new));
+            return;
+        }
         position.board().gen_all_moves(|moves| {
             moves
                 .iter()
@@ -355,9 +376,9 @@ impl ThreadData {
     }
 
     pub fn is_legal_root_move(&self, mv: Move) -> bool {
-        self.root_moves[..self.pv_idx]
+        self.root_moves[self.pv_idx..]
             .iter()
-            .all(|root_move| root_move.pv[0] != mv)
+            .any(|root_move| root_move.pv[0] == mv)
     }
 
     pub fn pv_move(&self) -> &RootMove {

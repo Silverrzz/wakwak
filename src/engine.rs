@@ -61,7 +61,12 @@ impl Engine {
 
     #[inline]
     pub fn handle_input(&mut self, input: &str) -> Abort {
-        let cmd = match UciCommand::parse(input, self.options.dumb_interface, self.options.frc) {
+        let cmd = match UciCommand::parse(
+            input,
+            self.position.board(),
+            self.options.dumb_interface,
+            self.options.frc,
+        ) {
             Ok(cmd) => cmd,
             Err(e) => {
                 eprintln!("info string {e}");
@@ -116,7 +121,7 @@ impl Engine {
                     eprintln!("info string {e}");
                 }
             }
-            UciCommand::Search(limits) => self.search(limits),
+            UciCommand::Search { limits, root_moves } => self.search(limits, root_moves),
             UciCommand::Perft { depth, bulk } => self.perft(depth, bulk),
             UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),
             UciCommand::Position { board, moves } => self.set_position(board, moves),
@@ -176,7 +181,7 @@ impl Engine {
     }
 
     #[inline]
-    fn search(&mut self, limits: Vec<SearchLimit>) {
+    fn search(&mut self, limits: Vec<SearchLimit>, root_moves: Option<Vec<Move>>) {
         if self.searcher.is_searching() {
             println!("info string Already Searching");
             return;
@@ -191,6 +196,7 @@ impl Engine {
             } else {
                 SearchInfo::Full
             },
+            root_moves,
         );
     }
 
