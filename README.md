@@ -63,9 +63,10 @@ and is exclusively trained on self-generated training data.
 <tr><td>Duck Chess RL</td><td>1,008</td></tr>
 </tbody>
 </table>
-* Elo estimate, to be tested
 
 <br clear="both">
+
+* Elo estimate, to be tested
 
 ## UCI Options
 
