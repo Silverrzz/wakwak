@@ -166,19 +166,19 @@ params! {
     quiet_hp_cont1_scale: i32 => 980;
     quiet_hp_cont2_scale: i32 => 1080;
 
-    quiet_ldp_imp_threshold_base:  i32 => 2110;
-    quiet_ldp_imp_threshold_scale: i32 => 2050;
-    quiet_ldp_threshold_base:      i32 => 1040;
-    quiet_ldp_threshold_scale:     i32 => 1125;
-    quiet_ldp_history_offset:      i32 => -4003;
-    quiet_ldp_history_div:         i32 => 4114;
-    quiet_ldp_history_min:         i32 => -2058;
-    quiet_ldp_history_max:         i32 => 2043;
+    quiet_mcp_imp_threshold_base:  i32 => 2110;
+    quiet_mcp_imp_threshold_scale: i32 => 2050;
+    quiet_mcp_threshold_base:      i32 => 1040;
+    quiet_mcp_threshold_scale:     i32 => 1125;
+    quiet_mcp_history_offset:      i32 => -4003;
+    quiet_mcp_history_div:         i32 => 4114;
+    quiet_mcp_history_min:         i32 => -2058;
+    quiet_mcp_history_max:         i32 => 2043;
 
-    noisy_ldp_imp_threshold_base:  i32 => 4111;
-    noisy_ldp_imp_threshold_scale: i32 => 4054;
-    noisy_ldp_threshold_base:      i32 => 4199;
-    noisy_ldp_threshold_scale:     i32 => 3938;
+    noisy_mcp_imp_threshold_base:  i32 => 4111;
+    noisy_mcp_imp_threshold_scale: i32 => 4054;
+    noisy_mcp_threshold_base:      i32 => 4199;
+    noisy_mcp_threshold_scale:     i32 => 3938;
 
     dcp_threshold_imp_base:  i32 => 2031;
     dcp_threshold_imp_scale: i32 => 1040;
@@ -410,23 +410,23 @@ impl Params {
     }
 
     #[inline]
-    pub fn ldp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
+    pub fn mcp_threshold(depth: i32, is_quiet: bool, improving: bool, duck_history: i32) -> i32 {
         let (base, scale) = match (is_quiet, improving) {
             (true, true) => (
-                Self::quiet_ldp_imp_threshold_base(),
-                Self::quiet_ldp_imp_threshold_scale(),
+                Self::quiet_mcp_imp_threshold_base(),
+                Self::quiet_mcp_imp_threshold_scale(),
             ),
             (true, false) => (
-                Self::quiet_ldp_threshold_base(),
-                Self::quiet_ldp_threshold_scale(),
+                Self::quiet_mcp_threshold_base(),
+                Self::quiet_mcp_threshold_scale(),
             ),
             (false, true) => (
-                Self::noisy_ldp_imp_threshold_base(),
-                Self::noisy_ldp_imp_threshold_scale(),
+                Self::noisy_mcp_imp_threshold_base(),
+                Self::noisy_mcp_imp_threshold_scale(),
             ),
             (false, false) => (
-                Self::noisy_ldp_threshold_base(),
-                Self::noisy_ldp_threshold_scale(),
+                Self::noisy_mcp_threshold_base(),
+                Self::noisy_mcp_threshold_scale(),
             ),
         };
 
@@ -434,10 +434,10 @@ impl Params {
         if is_quiet {
             threshold += Self::frac_hist_adjustment(
                 duck_history,
-                Params::quiet_ldp_history_offset(),
-                Params::quiet_ldp_history_div(),
-                Params::quiet_ldp_history_min(),
-                Params::quiet_ldp_history_max(),
+                Params::quiet_mcp_history_offset(),
+                Params::quiet_mcp_history_div(),
+                Params::quiet_mcp_history_min(),
+                Params::quiet_mcp_history_max(),
             );
         }
         threshold / 1024

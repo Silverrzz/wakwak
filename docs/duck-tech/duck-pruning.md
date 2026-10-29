@@ -11,7 +11,7 @@ We assume that after a certain number of moves containing a given duck placement
 
 https://github.com/Silverrzz/wakwak/blob/40a3bca77f39a1b539d6dcb6f205fc202a356a10/src/search/search.rs#L518-L528
 
-**Late Duck Pruning (LDP)** by Dan\
+**Move Count Pruning (MCP)** by Dan\
 https://github.com/Silverrzz/wakwak/pull/45
 
 _"Only search X ducks per move"_.
