@@ -34,11 +34,6 @@ impl Engine {
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
         if !args.is_empty() {
-            if args[0] == "perft" {
-                self.handle_input(&args.join(" "));
-                return;
-            }
-
             for cmd in args {
                 if self.handle_input(cmd.trim()) == Abort::Yes {
                     return;
@@ -105,6 +100,20 @@ impl Engine {
                 }
                 if let Err(error) = crate::bookgen::run(args) {
                     eprintln!("info string {error}");
+                }
+            }
+            UciCommand::Relabel {
+                input,
+                output,
+                nodes,
+                threads,
+            } => {
+                if self.searcher.is_searching() {
+                    self.searcher.stop();
+                    self.searcher.wait();
+                }
+                if let Err(e) = self.relabel(&input, &output, nodes, threads) {
+                    eprintln!("info string {e}");
                 }
             }
             UciCommand::Search(limits) => self.search(limits),

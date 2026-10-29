@@ -25,6 +25,12 @@ pub enum UciCommand {
     GenFensHelp,
     #[cfg(not(target_os = "emscripten"))]
     BookGen(Vec<String>),
+    Relabel {
+        input: String,
+        output: String,
+        nodes: u64,
+        threads: usize,
+    },
     Search(Vec<SearchLimit>),
     Perft {
         depth: u8,
@@ -69,6 +75,7 @@ impl UciCommand {
             "genfens" => parse_genfens_cmd(reader),
             #[cfg(not(target_os = "emscripten"))]
             "bookgen" => Ok(BookGen(reader.map(str::to_owned).collect())),
+            "relabel" => parse_relabel_cmd(reader),
             "bench" => {
                 let depth = reader.next().map_or(Ok(DEFAULT_BENCH_DEPTH), str::parse)?;
 
@@ -122,6 +129,33 @@ impl UciCommand {
             _ => Err(UnknownCommand(cmd.to_string())),
         }
     }
+}
+
+fn parse_relabel_cmd(reader: SplitWhitespace) -> Result<UciCommand, UciParseError> {
+    use UciParseError::InvalidRelabelArguments;
+
+    let tokens = reader.collect::<Vec<_>>();
+    let [input, output, extra @ ..] = tokens.as_slice() else {
+        return Err(InvalidRelabelArguments);
+    };
+    let mut nodes = 0;
+    let mut threads = std::thread::available_parallelism().map_or(1, usize::from);
+    for pair in extra.chunks(2) {
+        match pair {
+            ["nodes", value] => nodes = value.parse::<u64>()?,
+            ["threads", value] => threads = value.parse::<usize>()?,
+            _ => return Err(InvalidRelabelArguments),
+        }
+    }
+    if threads == 0 || nodes > u64::MAX / 2000 {
+        return Err(InvalidRelabelArguments);
+    }
+    Ok(UciCommand::Relabel {
+        input: input.to_string(),
+        output: output.to_string(),
+        nodes,
+        threads,
+    })
 }
 
 fn parse_genfens_cmd(reader: SplitWhitespace) -> Result<UciCommand, UciParseError> {
@@ -293,6 +327,11 @@ pub enum UciParseError {
     InvalidGenFensArguments,
     #[error("Opening books are not supported; use book None")]
     UnsupportedGenFensBook,
+
+    #[error(
+        "Invalid relabel arguments (usage: relabel <input.wf> <output.wf> [nodes <n>] [threads <n>])"
+    )]
+    InvalidRelabelArguments,
 
     #[error("Missing perft depth (usage: perft <depth> <bulk: true|false>)")]
     MissingPerftDepth,

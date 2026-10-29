@@ -357,6 +357,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 
 [[package]]
+name = "wakformat"
+version = "0.1.0"
+source = "git+https://github.com/Silverrzz/wakformat#28fb8ecc189a3a72b0de605b79d5a2acad69209b"
+dependencies = [
+ "colored",
+ "enum-map",
+ "zerocopy 0.9.0-alpha.0",
+]
+
+[[package]]
 name = "wakwak"
 version = "0.16.0"
 dependencies = [
@@ -370,7 +380,8 @@ dependencies = [
  "serde",
  "thiserror",
  "toml",
- "zerocopy",
+ "wakformat",
+ "zerocopy 0.8.56",
 ]
 
 [[package]]
@@ -533,7 +544,16 @@ version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "556764e583adb45a9f8d413c2a147fa7e8d821e48e12b14fd560b607998b75eb"
 dependencies = [
- "zerocopy-derive",
+ "zerocopy-derive 0.8.56",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.9.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9c378180b968f2e98efa0c4bba8c49fd4cd247dc82a7f01e72dc137d447d8c"
+dependencies = [
+ "zerocopy-derive 0.9.0-alpha.0",
 ]
 
 [[package]]
@@ -541,6 +561,17 @@ name = "zerocopy-derive"
 version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2ab42fc20575779bd240faa45f94a74256f755c0fa9e89f0ede20d91d0cdfc1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.9.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36811c5ea90dd441f941919fc99163e702f150a8e1495d72a268106a0100df09"
 dependencies = [
  "proc-macro2",
  "quote",
