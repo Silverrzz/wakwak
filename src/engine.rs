@@ -34,11 +34,6 @@ impl Engine {
         let args = std::env::args().skip(1).collect::<Vec<String>>();
 
         if !args.is_empty() {
-            if matches!(args[0].as_str(), "perft" | "relabel") {
-                self.handle_input(&args.join(" "));
-                return;
-            }
-
             for cmd in args {
                 if self.handle_input(cmd.trim()) == Abort::Yes {
                     return;
