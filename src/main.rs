@@ -9,6 +9,8 @@ mod browser;
 
 pub mod bench;
 pub mod board;
+#[cfg(not(target_os = "emscripten"))]
+mod bookgen;
 pub mod common;
 pub mod engine;
 pub mod genfens;

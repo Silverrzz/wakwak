@@ -26,6 +26,8 @@ pub fn iterative_deepening(
     options: EngineOptions,
     info: SearchInfo,
 ) {
+    let collect = info == SearchInfo::Collect;
+    let info = if collect { SearchInfo::None } else { info };
     let mut depth = 1;
 
     // Time management stuff
@@ -99,6 +101,10 @@ pub fn iterative_deepening(
             }
 
             let last_pv = thread.pv_idx + 1 == thread.multipv;
+
+            if collect && thread.id == 0 && last_pv && !thread.stop {
+                *shared.result.write().unwrap() = thread.root_moves[..thread.multipv].to_vec();
+            }
 
             if last_pv && !thread.stop {
                 let pv_move = thread.pv_move();

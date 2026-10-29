@@ -97,6 +97,16 @@ impl Engine {
                 println!("info string Usage: {GENFENS_USAGE}");
                 println!("info string Defaults: dfrc true, moves 8 (plus 0 or 1 random ply)");
             }
+            #[cfg(not(target_os = "emscripten"))]
+            UciCommand::BookGen(args) => {
+                if self.searcher.is_searching() {
+                    self.searcher.stop();
+                    self.searcher.wait();
+                }
+                if let Err(error) = crate::bookgen::run(args) {
+                    eprintln!("info string {error}");
+                }
+            }
             UciCommand::Search(limits) => self.search(limits),
             UciCommand::Perft { depth, bulk } => self.perft(depth, bulk),
             UciCommand::SplitPerft { depth, bulk } => self.split_perft(depth, bulk),

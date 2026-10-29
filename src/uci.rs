@@ -23,6 +23,8 @@ pub enum UciCommand {
         plies: u16,
     },
     GenFensHelp,
+    #[cfg(not(target_os = "emscripten"))]
+    BookGen(Vec<String>),
     Search(Vec<SearchLimit>),
     Perft {
         depth: u8,
@@ -65,6 +67,8 @@ impl UciCommand {
             "display" | "d" => Ok(Display),
             "eval" => Ok(Eval),
             "genfens" => parse_genfens_cmd(reader),
+            #[cfg(not(target_os = "emscripten"))]
+            "bookgen" => Ok(BookGen(reader.map(str::to_owned).collect())),
             "bench" => {
                 let depth = reader.next().map_or(Ok(DEFAULT_BENCH_DEPTH), str::parse)?;
 
