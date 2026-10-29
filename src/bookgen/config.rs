@@ -34,7 +34,17 @@ impl<T: PartialOrd + Copy> Range<T> {
 
 impl Range<usize> {
     pub fn sample(&self, rng: &mut SplitMix64) -> usize {
-        self.min + (rng.next() % (self.max - self.min + 1) as u64) as usize
+        let bound = (self.max - self.min).wrapping_add(1) as u64;
+        if bound == 0 {
+            return rng.next() as usize;
+        }
+        let threshold = bound.wrapping_neg() % bound;
+        loop {
+            let value = rng.next();
+            if value >= threshold {
+                return self.min + (value % bound) as usize;
+            }
+        }
     }
 }
 

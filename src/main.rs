@@ -24,9 +24,6 @@ pub mod util;
 
 #[cfg(not(target_os = "emscripten"))]
 fn main() -> std::io::Result<()> {
-    if std::env::args().nth(1).as_deref() == Some("bookgen") {
-        return bookgen::run();
-    }
     Engine::new().run();
     Ok(())
 }

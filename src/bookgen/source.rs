@@ -49,7 +49,7 @@ pub fn board(fen: &str) -> Result<Board> {
     Board::from_fen(fen).ok_or_else(|| format!("invalid FEN: {fen}").into())
 }
 
-fn parse_move(board: &Board, token: &str) -> Result<Move> {
+fn parse_san_move(board: &Board, token: &str) -> Result<Move> {
     for dumb in [false, true] {
         if let Some(mv) = Move::parse(board, dumb, token)
             && board.any_moves(|moves| moves.has(mv))
@@ -271,7 +271,7 @@ fn pgn(text: &str, label: &str) -> Result<Vec<Seed>> {
                     current = seed.board;
                     started = true;
                 }
-                let mv = parse_move(&current, token).map_err(|error| {
+                let mv = parse_san_move(&current, token).map_err(|error| {
                     format!(
                         "{label}: game {}, move {}: {error}",
                         seeds.len() + 1,
@@ -370,7 +370,12 @@ impl Input {
                 format!("start:{white}:{black}"),
             )
         } else {
-            let seed = &self.seeds[(rng.next() % self.seeds.len() as u64) as usize];
+            let index = Range {
+                min: 0,
+                max: self.seeds.len() - 1,
+            }
+            .sample(rng);
+            let seed = &self.seeds[index];
             let count = if self.config.kind == SourceKind::Pgn {
                 Range {
                     min: self.config.plies.min,

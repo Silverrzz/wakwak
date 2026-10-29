@@ -8,7 +8,7 @@ use crate::board::{Board, SplitMix64};
 use crate::common::{Move, Piece};
 use crate::engine::EngineOptions;
 use crate::search::{Bound, RootMove, Searcher};
-use config::{Config, Grouping, Policy};
+use config::{Config, Grouping, Policy, Range};
 use source::{Candidate, Input};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -114,7 +114,13 @@ fn choose_random(board: &Board, grouping: Grouping, rng: &mut SplitMix64) -> Opt
         })
         .collect();
     let moves = &groups[choose(rng, &weights)?];
-    moves.iter().nth((rng.next() % moves.len() as u64) as usize)
+    moves.iter().nth(
+        Range {
+            min: 0,
+            max: moves.len() - 1,
+        }
+        .sample(rng),
+    )
 }
 
 fn walk(
@@ -240,11 +246,10 @@ fn identity(fen: &str) -> String {
     fen.split_whitespace().take(4).collect::<Vec<_>>().join(" ")
 }
 
-pub fn run() -> std::io::Result<()> {
-    let args: Vec<_> = std::env::args().skip(2).collect();
+pub fn run(args: Vec<String>) -> std::io::Result<()> {
     if args.is_empty() || args.iter().any(|arg| arg == "--help" || arg == "-h") {
         println!(
-            "Usage: wakwak bookgen <recipe.toml> [--validate]\n\nRelative paths resolve beside the recipe. workers = 0 uses available CPUs.\nthreads and hash_mb are per worker. CP and WDL filters use White's perspective."
+            "Usage: bookgen <recipe.toml> [--validate]\n\nRelative paths resolve beside the recipe. workers = 0 uses available CPUs.\nthreads and hash_mb are per worker. CP and WDL filters use White's perspective."
         );
         return Ok(());
     }
