@@ -66,7 +66,7 @@ and is exclusively trained on self-generated training data.
 
 <br clear="both">
 
-* Elo estimate, to be tested
+*Elo estimate, to be tested
 
 ## UCI Options
 
