@@ -1,6 +1,6 @@
 <div align="center">
 
-# wakwak
+# WakWak
 <img width="592" height="565" src="https://github.com/user-attachments/assets/d57ef9dc-d4e6-4514-b326-472b50a9de9d">
 
 [![License][license-badge]][license-link]
@@ -72,13 +72,14 @@ and is exclusively trained on self-generated training data.
 | Threads          | Integer | 1       | `1..=1024`        | Number of search threads                                                                           |
 | Hash             | Integer | 64      | `1..=16777216`    | Size of the Transposition Table (in MiB)                                                           |
 | MoveOverhead     | Integer | 50      | `0..=5000`        | Time (in ms) used to compensate for the delay between engine and interface communication           |
-| Minimal          | Boolean | `false` | `true` or `false` | When enabled, wakwak outputs only the final info line and best move                                |
+| Minimal          | Boolean | `false` | `true` or `false` | When enabled, WakWak outputs only the final info line and best move                                |
 | SoftTarget       | Boolean | `false` | `true` or `false` | When enabled, `go nodes <n>` and `go movetime <ms>` can only stop after a completed depth          |
-| UseDumbInterface | Boolean | `true`  | `true` or `false` | When enabled, wakwak outputs moves in the format used by Fairy Stockfish                           |
+| UseDumbInterface | Boolean | `true`  | `true` or `false` | When enabled, WakWak outputs moves in the format used by Fairy Stockfish                           |
 | MultiPV          | Integer | 1       | `1..=16384`      | Number of principal variations to search and report                                               |
-| Contempt         | Integer | 0       | `0..=200`        | Bias against draws; higher values make wakwak prefer continuing the game                           |
+| Contempt         | Integer | 0       | `0..=200`        | Bias against draws; higher values make WakWak prefer continuing the game                           |
 | UCI_Chess960     | Boolean | `false` | `true` or `false` | Whether to output moves using standard notation (e1g1/e1c1) or Chess960 notation (e.g. e1h1, e1a1) |
 | UCI_ShowWDL      | Boolean | `false` | `true` or `false` | Include estimated win, draw and loss probabilities in the search output                            |
+| ScoreNormalisation | Boolean | `true` | `true` or `false` | Normalise reported centipawn scores using the WDL model.     |
 
 ## Building
 If your device can't run the latest release of WakWak, you want to use the latest development version,
@@ -101,13 +102,14 @@ you need to run `make` **at least once** before you can use `cargo` to build and
 
 You can...
 1. Play against WakWak online at https://play.wakwak.live/.
-2. Download our Duck Chess GUI for analysis and engine games at https://github.com/Silverrzz/pond
-3. See a rating list of a handful Duck Chess engines at https://cope-chess.live/ratings?rating_list_id=68
-4. View all of our released WakWak neural networks at https://github.com/Silverrzz/wakwak-nets/releases
-5. Run your own Duck Chess engine games, and SPRT tests in a familiar CLI using our fork of fastchess at https://github.com/Silverrzz/fastchess
-6. Process your own Duck Chess datasets using our adaptation of viriformat and pawnocchio tools at https://github.com/Silverrzz/wakformat
-7. Train your own Duck Chess NNUE using our fork of bullet at https://github.com/Silverrzz/bullet
-8. Use our generated Duck Chess opening books at https://github.com/Silverrzz/wakwak-books, or generate your own.
+2. Play against WakWak online at https://www.pychess.org/@/wakwak
+3. Download our Duck Chess GUI for analysis and engine games at https://github.com/Silverrzz/pond
+4. See a rating list of a handful Duck Chess engines at https://cope-chess.live/ratings?rating_list_id=68
+5. View all of our released WakWak neural networks at https://github.com/Silverrzz/wakwak-nets/releases
+6. Run your own Duck Chess engine games, and SPRT tests in a familiar CLI using our fork of fastchess at https://github.com/Silverrzz/fastchess
+7. Process your own Duck Chess datasets using our adaptation of viriformat and pawnocchio tools at https://github.com/Silverrzz/wakformat
+8. Train your own Duck Chess NNUE using our fork of bullet at https://github.com/Silverrzz/bullet
+9. Use our generated Duck Chess opening books at https://github.com/Silverrzz/wakwak-books, or generate your own.
 
 ## Features
 WakWak combines novel Duck Chess search features with a multilayer NNUE.

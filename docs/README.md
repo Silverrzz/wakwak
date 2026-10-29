@@ -5,7 +5,7 @@
 - [Duck count, late duck and unique duck pruning](duck-tech/duck-pruning.md)
 - [Unique move pruning and reductions](duck-tech/unique-moves.md)
 - [Neutral duck pruning and ordering](duck-tech/neutral-ducks.md)
-- [King safety: Duck or Die, capture blocks and historical duck shield eval](duck-tech/king-safety.md)
+- [King safety](duck-tech/king-safety.md)
 - [Duck-aware static exchange evaluation](duck-tech/duck-aware-see.md)
 - [Duckless hashing](duck-tech/duckless-hashing.md)
 - [Null move reductions](duck-tech/null-move-reductions.md)
