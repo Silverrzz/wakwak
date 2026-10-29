@@ -116,6 +116,7 @@ fn relabel(games: &mut [Vec<u8>], nodes: u64, options: EngineOptions) -> io::Res
                         options,
                         vec![SearchLimit::Nodes(nodes)],
                         SearchInfo::None,
+                        None,
                     );
                     engine.searcher.wait();
                     engine.searcher.shared.best_score.load(Ordering::Relaxed)

@@ -82,6 +82,19 @@ and is exclusively trained on self-generated training data.
 | UCI_ShowWDL      | Boolean | `false` | `true` or `false` | Include estimated win, draw and loss probabilities in the search output                            |
 | ScoreNormalisation | Boolean | `true` | `true` or `false` | Normalise reported centipawn scores using the WDL model.     |
 
+## Go Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `wtime <ms>`, `btime <ms>` | Remaining time for White and Black |
+| `winc <ms>`, `binc <ms>` | Increment per move for White and Black |
+| `movetime <ms>` | Time limit for this move |
+| `nodes <n>` | Node limit for the search |
+| `depth <n>` | Maximum search depth |
+| `infinite` | Search until `stop` is received |
+| `searchmoves <moves...>` | Only search the listed root moves or wildcard matches |
+| `excludemoves <moves...>` | Exclude the listed root moves or wildcard matches |
+
 ## Building
 If your device can't run the latest release of WakWak, you want to use the latest development version,
 or you otherwise want to compile WakWak yourself, you can build it from source.

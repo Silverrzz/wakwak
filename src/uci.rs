@@ -4,6 +4,9 @@ use crate::common::Move;
 use std::num::ParseIntError;
 use std::str::{FromStr, ParseBoolError, SplitWhitespace};
 
+mod move_pattern;
+use move_pattern::MovePattern;
+
 pub const GENFENS_USAGE: &str = "genfens <count> seed <u64> book None [dfrc <bool>] [moves <n>]";
 
 #[derive(Clone)]
@@ -31,7 +34,10 @@ pub enum UciCommand {
         nodes: u64,
         threads: usize,
     },
-    Search(Vec<SearchLimit>),
+    Search {
+        limits: Vec<SearchLimit>,
+        root_moves: Option<Vec<Move>>,
+    },
     Perft {
         depth: u8,
         bulk: bool,
@@ -57,6 +63,7 @@ impl UciCommand {
     #[inline]
     pub fn parse(
         input: &str,
+        board: &Board,
         dumb_interface: bool,
         frc: bool,
     ) -> Result<UciCommand, UciParseError> {
@@ -104,7 +111,7 @@ impl UciCommand {
             "stop" => Ok(Stop),
             "quit" | "q" => Ok(Quit),
             "wait" => Ok(Wait),
-            "go" => parse_search_cmd(reader),
+            "go" => parse_search_cmd(reader, board, dumb_interface, frc),
             "position" | "pos" => parse_position_cmd(reader, dumb_interface, frc),
             "setoption" => {
                 if reader.next() != Some("name") {
@@ -189,14 +196,19 @@ fn parse_genfens_cmd(reader: SplitWhitespace) -> Result<UciCommand, UciParseErro
     })
 }
 
-fn parse_search_cmd(mut reader: SplitWhitespace) -> Result<UciCommand, UciParseError> {
+fn parse_search_cmd(
+    reader: SplitWhitespace,
+    board: &Board,
+    dumb_interface: bool,
+    frc: bool,
+) -> Result<UciCommand, UciParseError> {
     use SearchLimit::*;
     use UciCommand::*;
     use UciParseError::*;
 
     #[inline]
-    fn parse_int<T: FromStr<Err = ParseIntError>>(
-        reader: &mut SplitWhitespace,
+    fn parse_int<'a, T: FromStr<Err = ParseIntError>>(
+        reader: &mut impl Iterator<Item = &'a str>,
         token: &str,
     ) -> Result<T, UciParseError> {
         Ok(reader
@@ -206,8 +218,47 @@ fn parse_search_cmd(mut reader: SplitWhitespace) -> Result<UciCommand, UciParseE
     }
 
     let mut limits = Vec::new();
+    let mut searchmoves = None;
+    let mut excludemoves = Vec::new();
+    let mut reader = reader.peekable();
     while let Some(token) = reader.next() {
         match token {
+            "searchmoves" | "excludemoves" => {
+                let moves = if token == "searchmoves" {
+                    searchmoves.get_or_insert_with(Vec::new)
+                } else {
+                    &mut excludemoves
+                };
+                while let Some(token) = reader.next_if(|&token| {
+                    !matches!(
+                        token,
+                        "infinite"
+                            | "wtime"
+                            | "btime"
+                            | "winc"
+                            | "binc"
+                            | "movetime"
+                            | "nodes"
+                            | "depth"
+                            | "searchmoves"
+                            | "excludemoves"
+                    )
+                }) {
+                    if token.contains('*') {
+                        let pattern = MovePattern::parse(token, dumb_interface)
+                            .ok_or_else(|| InvalidMove(token.to_string()))?;
+                        board.gen_all_moves(|group| {
+                            moves.extend(group.iter().filter(|&mv| pattern.matches(mv, frc)));
+                            crate::util::Abort::No
+                        });
+                        continue;
+                    }
+                    let mv = Move::parse(board, dumb_interface, token)
+                        .filter(|&mv| board.any_moves(|moves| moves.has(mv)))
+                        .ok_or_else(|| InvalidMove(token.to_string()))?;
+                    moves.push(mv);
+                }
+            }
             "infinite" => {}
             "wtime" => limits.push(WhiteTime(
                 parse_int::<i64>(&mut reader, token)?.max(0) as u64
@@ -224,7 +275,20 @@ fn parse_search_cmd(mut reader: SplitWhitespace) -> Result<UciCommand, UciParseE
         }
     }
 
-    Ok(Search(limits))
+    let root_moves = if searchmoves.is_some() || !excludemoves.is_empty() {
+        let mut root_moves = Vec::new();
+        board.gen_all_moves(|moves| {
+            root_moves.extend(moves.iter().filter(|mv| {
+                searchmoves.as_ref().is_none_or(|moves| moves.contains(mv))
+                    && !excludemoves.contains(mv)
+            }));
+            crate::util::Abort::No
+        });
+        Some(root_moves)
+    } else {
+        None
+    };
+    Ok(Search { limits, root_moves })
 }
 
 fn parse_position_cmd(
@@ -366,7 +430,7 @@ pub enum UciParseError {
 
     #[error("Missing `moves` token in `position` command")]
     MissingPositionMovesToken,
-    #[error("Invalid move in `position``command: `{0}`")]
+    #[error("Invalid move: `{0}`")]
     InvalidMove(String),
 
     #[error("Missing `name` token in `setoption` command")]

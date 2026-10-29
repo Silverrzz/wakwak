@@ -32,6 +32,7 @@ impl Searcher {
             options,
             vec![SearchLimit::Nodes(nodes)],
             SearchInfo::Collect,
+            None,
         );
         self.wait();
         self.shared.result.read().unwrap().clone()
@@ -44,6 +45,7 @@ impl Searcher {
         mut options: EngineOptions,
         limits: Vec<SearchLimit>,
         info: SearchInfo,
+        root_moves: Option<Vec<Move>>,
     ) {
         assert!(
             !self.is_searching(),
@@ -60,13 +62,30 @@ impl Searcher {
             self.contempt = contempt;
         }
 
-        self.shared.num_searching.store(1, Ordering::Relaxed);
         self.shared.init(&position, &limits, options);
+        let excluded_root_moves = root_moves.map_or_else(Vec::new, |allowed| {
+            self.shared
+                .root_moves
+                .write()
+                .unwrap()
+                .extract_if(.., |root| !allowed.contains(&root.pv[0]))
+                .map(|root| root.pv[0])
+                .collect()
+        });
+        if self.shared.root_moves.read().unwrap().is_empty() {
+            self.shared.nodes.store(0, Ordering::Relaxed);
+            self.shared.best_score.store(0, Ordering::Relaxed);
+            if matches!(info, SearchInfo::Full | SearchInfo::Minimal) {
+                println!("bestmove 0000");
+            }
+            return;
+        }
+        self.shared.num_searching.store(1, Ordering::Relaxed);
         self.sender.send(ThreadCommand::Search {
             position,
             options,
-            limits,
             info,
+            excluded_root_moves,
         });
     }
 
@@ -198,13 +217,14 @@ fn thread_loop(mut rx: Receiver<ThreadCommand>, shared: Arc<SharedData>, id: usi
             ThreadCommand::Search {
                 position,
                 options,
-                limits: _,
                 info,
+                excluded_root_moves,
             } => {
                 shared.num_searching.fetch_add(1, Ordering::Relaxed);
 
                 thread.reset();
                 thread.contempt = options.contempt;
+                thread.excluded_root_moves = excluded_root_moves;
 
                 {
                     let root_moves = shared.root_moves.read().unwrap();
@@ -312,6 +332,7 @@ impl Default for SharedData {
 pub struct ThreadData {
     pub contempt: i32,
     pub root_moves: Vec<RootMove>,
+    excluded_root_moves: Vec<Move>,
     pub nodes: BatchedAtomicCounter,
     pub move_stack: MoveStack,
     pub stack: Vec<SearchStack>,
@@ -332,6 +353,7 @@ impl ThreadData {
         Self {
             contempt: 0,
             root_moves: Vec::new(),
+            excluded_root_moves: Vec::new(),
             nodes: BatchedAtomicCounter::new(nodes),
             move_stack: MoveStack::default(),
             stack: vec![SearchStack::default(); MAX_PLY + 1],
@@ -355,9 +377,10 @@ impl ThreadData {
     }
 
     pub fn is_legal_root_move(&self, mv: Move) -> bool {
-        self.root_moves[..self.pv_idx]
-            .iter()
-            .all(|root_move| root_move.pv[0] != mv)
+        !self.excluded_root_moves.contains(&mv)
+            && self.root_moves[..self.pv_idx]
+                .iter()
+                .all(|root_move| root_move.pv[0] != mv)
     }
 
     pub fn pv_move(&self) -> &RootMove {
@@ -388,8 +411,8 @@ pub enum ThreadCommand {
     Search {
         position: Position,
         options: EngineOptions,
-        limits: Vec<SearchLimit>,
         info: SearchInfo,
+        excluded_root_moves: Vec<Move>,
     },
     NewGame,
     Sync,

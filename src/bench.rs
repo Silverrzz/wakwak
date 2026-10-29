@@ -77,6 +77,7 @@ impl Engine {
                 self.options,
                 limits.clone(),
                 SearchInfo::None,
+                None,
             );
             self.searcher.wait();
 

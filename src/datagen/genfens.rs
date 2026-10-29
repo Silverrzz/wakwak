@@ -25,6 +25,7 @@ impl Engine {
                     options,
                     vec![SearchLimit::Nodes(1000)],
                     SearchInfo::None,
+                    None,
                 );
                 self.searcher.wait();
                 if self
