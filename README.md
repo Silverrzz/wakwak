@@ -24,6 +24,7 @@ and is exclusively trained on self-generated training data.
 <tr><th width="260">Version</th><th width="140"><a href="https://cope-chess.live/ratings?rating_list_id=68">COPE Elo</a></th></tr>
 </thead>
 <tbody>
+<tr><td>1.0.0</td><td>5250*</td></tr>
 <tr><td>0.16.0</td><td>5,081</td></tr>
 <tr><td>0.15.0</td><td>4,860</td></tr>
 <tr><td>0.14.0</td><td>4,711</td></tr>
@@ -49,7 +50,7 @@ and is exclusively trained on self-generated training data.
 <tr><th width="260">Engine</th><th width="140"><a href="https://cope-chess.live/ratings?rating_list_id=68">COPE Elo</a></th></tr>
 </thead>
 <tbody>
-<tr><td><strong>wakwak 0.16.0</strong></td><td><strong>5,081</strong></td></tr>
+<tr><td><strong>wakwak 1.0.0</strong></td><td><strong>5,250*</strong></td></tr>
 <tr><td>Fairy-Stockfish</td><td>3,429</td></tr>
 <tr><td>Duckfish 1.0-SNAPSHOT</td><td>2,741</td></tr>
 <tr><td>MayhemDuck 2.4</td><td>2,480</td></tr>
@@ -62,6 +63,7 @@ and is exclusively trained on self-generated training data.
 <tr><td>Duck Chess RL</td><td>1,008</td></tr>
 </tbody>
 </table>
+* Elo estimate, to be tested
 
 <br clear="both">
 
