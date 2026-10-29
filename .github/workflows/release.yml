@@ -14,22 +14,27 @@ jobs:
         include:
           - os: ubuntu-latest
             name: wakwak-linux-avx2
+            target: x86_64-unknown-linux-gnu
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
 
           - os: ubuntu-latest
             name: wakwak-linux-avx512
+            target: x86_64-unknown-linux-gnu
             rustflags: "-C target-cpu=x86-64-v4 -C target-feature=+avx512vbmi2 -C link-arg=-Wl,--as-needed -C link-arg=-Wl,--gc-sections"
 
           - os: windows-latest
             name: wakwak-windows-avx2
+            target: x86_64-pc-windows-msvc
             rustflags: "-C target-cpu=x86-64-v3 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
 
           - os: windows-latest
             name: wakwak-windows-avx512
+            target: x86_64-pc-windows-msvc
             rustflags: "-C target-cpu=x86-64-v4 -C target-feature=+avx512vbmi2 -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/STACK:8388608"
 
           - os: macos-latest
             name: wakwak-macos
+            target: aarch64-apple-darwin
             rustflags: "-C target-cpu=apple-m1 -C link-arg=-Wl,-dead_strip"
 
     steps:
@@ -50,23 +55,24 @@ jobs:
 
       - name: Build
         shell: bash
-        run: cargo build --release
+        run: cargo build --release --target ${{ matrix.target }}
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
 
       - name: Run bench
+        if: ${{ !contains(matrix.name, 'avx512') }}
         shell: bash
-        run: ./target/release/wakwak bench
+        run: ./target/${{ matrix.target }}/release/wakwak bench
 
       - name: Rename binary with platform suffix (Unix)
         if: runner.os != 'Windows'
         run: |
-          cp target/release/wakwak ${{ matrix.name }}
+          cp target/${{ matrix.target }}/release/wakwak ${{ matrix.name }}
 
       - name: Rename binary with platform suffix (Windows)
         if: runner.os == 'Windows'
         run: |
-          cp target/release/wakwak.exe ${{ matrix.name }}.exe
+          cp target/${{ matrix.target }}/release/wakwak.exe ${{ matrix.name }}.exe
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v5.0.0
